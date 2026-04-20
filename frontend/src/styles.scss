@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --gold:#f0a500; --gg:rgba(240,165,0,.12); --gold-border:rgba(240,165,0,.3);
+  --cyan:#00e5ff; --gc:rgba(0,229,255,.1);
+  --bg:#0b1022; --bg2:#111827; --bg3:#1a2235; --bg4:#1e2a40;
+  --br:rgba(255,255,255,0.1); --br2:rgba(255,255,255,0.16);
+  --text:#dde1ee; --mu:#8892a4; --dim:#4a5568;
+  --green:#22c55e; --red:#ef4444; --purple:#a78bfa;
+  --fh:'Bebas Neue',sans-serif;
+  --fb:'Rajdhani',sans-serif;
+  --fa:'Noto Sans Arabic',sans-serif;
+  --fm:'Space Mono',monospace;
+  --r:8px; --e:.15s;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--fb); background: #0b1022; color: var(--text); font-size: 16px; line-height: 1.7; font-weight: 500; }
+
+/* Form globals */
+.form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
+.form-label { font-size: .72rem; color: var(--mu); letter-spacing: 1px; text-transform: uppercase; }
+.input {
+  background: var(--bg3); border: 1px solid var(--br2); border-radius: var(--r);
+  padding: 10px 14px; color: var(--text); font-family: var(--fb); font-size: .95rem; outline: none;
+  transition: border-color var(--e);
+  &::placeholder { color: var(--dim); }
+  &:focus { border-color: rgba(0,229,255,.4); }
+}
+select.input option { background: var(--bg3); }
+.error-msg { color: #f87171; font-size: .82rem; }
+.input-error { border-color: rgba(239,68,68,.4) !important; }
+
+/* Spinner */
+.spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(0,0,0,.3); border-top-color: #000; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #0b1022; }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }

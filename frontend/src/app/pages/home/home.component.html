@@ -1,0 +1,187 @@
+<div class="home">
+
+  <!-- ── HERO ──────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-orb hero-orb--1"></div>
+    <div class="hero-orb hero-orb--2"></div>
+    <div class="hero-orb hero-orb--3"></div>
+
+    <!-- Hero background image with overlay -->
+    <div class="hero-bg">
+      <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1920&q=85&fit=crop&crop=center" alt="" aria-hidden="true" class="hero-bg__img" loading="eager"/>
+      <div class="hero-bg__overlay"></div>
+    </div>
+
+    <div class="hero-content">
+      <div class="hero-eyebrow">Saudi Arabia &amp; GCC Esports Platform</div>
+
+      <h1 class="hero-title">
+        Compete. Win.<br><em>Get Rewarded.</em>
+      </h1>
+
+      <p class="hero-sub">
+        The first Arabic-native tournament platform for EA FC 25, PUBG Mobile,
+        and Call of Duty Mobile. Join free. Win prizes from corporate prize pools.
+      </p>
+
+      <div class="hero-actions">
+        <a routerLink="/auth" class="btn btn-gold btn-lg">Join Free →</a>
+        <a routerLink="/tournaments" class="btn btn-ghost btn-lg">Browse Tournaments</a>
+      </div>
+
+      <!-- Social proof avatars -->
+      <div class="hero-social-proof">
+        <div class="proof-avatars">
+          @for (p of players; track p.name) {
+            <img [src]="p.img" [alt]="p.name" class="proof-avatar"/>
+          }
+        </div>
+        <div class="proof-text">
+          <strong>500+</strong> players competing this week
+        </div>
+      </div>
+
+      <div class="hero-stats">
+        <div class="hstat">
+          <span class="hstat-n">23M+</span>
+          <span class="hstat-l">Gamers in KSA</span>
+        </div>
+        <div class="hstat-sep"></div>
+        <div class="hstat">
+          <span class="hstat-n">4</span>
+          <span class="hstat-l">Bracket Formats</span>
+        </div>
+        <div class="hstat-sep"></div>
+        <div class="hstat">
+          <span class="hstat-n">3K+</span>
+          <span class="hstat-l">Prize Card Brands</span>
+        </div>
+        <div class="hstat-sep"></div>
+        <div class="hstat">
+          <span class="hstat-n">512</span>
+          <span class="hstat-l">Max Participants</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── GAMES ─────────────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-wrap">
+      <div class="section-label">Supported games</div>
+      <h2 class="section-title">Play what <span>you love</span></h2>
+      <div class="games-grid">
+        @for (g of games; track g.name) {
+          <div class="game-card reveal" [style.--accent]="g.color">
+            <div class="game-card__img-wrap">
+              <img [src]="g.img" [alt]="g.name" class="game-card__img"/>
+              <div class="game-card__img-overlay"></div>
+            </div>
+            <div class="game-card__body">
+              <div class="game-icon">{{ g.icon }}</div>
+              <div class="game-name">{{ g.name }}</div>
+              <div class="game-desc">{{ g.desc }}</div>
+              <div class="game-badge">{{ g.badge }}</div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ── HOW IT WORKS ───────────────────────────────────────────────── -->
+  <section class="section section--alt">
+    <div class="section-wrap">
+      <div class="section-label">How it works</div>
+      <h2 class="section-title">Three steps to <span>winning</span></h2>
+      <div class="steps-grid">
+        @for (s of steps; track s.n) {
+          <div class="step-card reveal" [attr.data-num]="s.n">
+            <div class="step-card__img-wrap">
+              <img [src]="s.img" [alt]="s.title" class="step-card__img"/>
+              <div class="step-num">{{ s.n }}</div>
+            </div>
+            <div class="step-card__body">
+              <div class="step-title">{{ s.title }}</div>
+              <div class="step-desc">{{ s.desc }}</div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FORMATS ────────────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-wrap">
+      <div class="section-label">Tournament formats</div>
+      <h2 class="section-title">Four ways to <span>compete</span></h2>
+      <div class="formats-grid">
+        @for (f of formats; track f.name) {
+          <div class="format-card reveal">
+            <div class="format-icon">{{ f.icon }}</div>
+            <div class="format-badge">{{ f.badge }}</div>
+            <div class="format-name">{{ f.name }}</div>
+            <div class="format-desc">{{ f.desc }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ── B2B CTA ────────────────────────────────────────────────────── -->
+  <section class="section section--alt">
+    <div class="section-wrap">
+      <div class="b2b-cta">
+        <div class="b2b-cta__content">
+          <div class="section-label">For companies</div>
+          <h2 class="section-title" style="margin-bottom:16px">
+            Run employee tournaments with <span>zero admin overhead</span>
+          </h2>
+          <p class="b2b-desc">
+            HR Directors across Saudi Arabia use Dawri to run engagement programs
+            for employees. Set up a company tournament in under 10 minutes, fund
+            the prize pool, and let the platform handle everything else.
+          </p>
+          <a routerLink="/pricing" class="btn btn-gold" style="margin-top:28px;display:inline-flex">
+            View Enterprise Plans →
+          </a>
+          <div class="b2b-cta__features" style="margin-top:32px">
+            @for (f of b2bFeatures; track f) {
+              <div class="b2b-feat reveal">{{ f }}</div>
+            }
+          </div>
+        </div>
+        <div class="b2b-cta__img-wrap reveal">
+          <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=700&q=80&fit=crop" alt="Team gaming" class="b2b-img"/>
+          <div class="b2b-img__badge">
+            <span class="b2b-img__badge-n">10 min</span>
+            <span class="b2b-img__badge-l">to set up a tournament</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FINAL CTA ──────────────────────────────────────────────────── -->
+  <section class="section cta-section">
+    <div class="cta-bg">
+      <img src="https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1800&q=80&fit=crop" alt="" aria-hidden="true" class="cta-bg__img"/>
+      <div class="cta-bg__overlay"></div>
+    </div>
+    <div class="section-wrap cta-content">
+      <div class="section-label" style="justify-content:center;display:flex">Ready to play?</div>
+      <h2 class="section-title" style="margin-bottom:16px;text-align:center">
+        Join the <span>GCC's #1</span> esports platform
+      </h2>
+      <p class="hero-sub" style="margin-bottom:36px;text-align:center">
+        Thousands of players across Saudi Arabia and the GCC are already competing.
+        It's completely free.
+      </p>
+      <div style="display:flex;justify-content:center">
+        <a routerLink="/auth" class="btn btn-gold btn-lg">Create Your Free Account →</a>
+      </div>
+    </div>
+  </section>
+
+</div>

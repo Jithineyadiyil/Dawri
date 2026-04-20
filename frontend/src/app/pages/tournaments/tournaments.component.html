@@ -1,0 +1,122 @@
+<div class="t-page">
+
+  <div class="t-header">
+    <div>
+      <h1 class="t-title">Tournaments</h1>
+      <p class="t-sub">Join competitive events across EA FC 25, PUBG Mobile, and Call of Duty Mobile.</p>
+    </div>
+    <div class="t-header__actions">
+      @if (canCreate()) {
+        <button class="btn btn--gold" (click)="showCreate.set(true)">
+          + New Tournament
+        </button>
+      }
+      @if (!auth.isLoggedIn()) {
+        <a routerLink="/auth" class="btn btn--gold">Join Free</a>
+      }
+    </div>
+  </div>
+
+  <form [formGroup]="filterForm" class="filters">
+    <input class="filter-search" formControlName="search" type="text" placeholder="Search tournaments..."/>
+    <select class="filter-select" formControlName="game">
+      @for (g of games; track g.value) {
+        <option [value]="g.value">{{ g.label }}</option>
+      }
+    </select>
+    <select class="filter-select" formControlName="format">
+      @for (f of formats; track f.value) {
+        <option [value]="f.value">{{ f.label }}</option>
+      }
+    </select>
+    <label class="filter-toggle">
+      <input type="checkbox" formControlName="openOnly"/> Open only
+    </label>
+  </form>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="t-skeleton">
+      @for (i of [1,2,3,4,5,6]; track i) { <div class="skel-card"></div> }
+    </div>
+  }
+
+  @if (!loading()) {
+    @if (filtered().length > 0) {
+      <p class="t-count">{{ filtered().length }} tournament{{ filtered().length === 1 ? '' : 's' }}</p>
+    }
+
+    @if (filtered().length === 0) {
+      <div class="empty-state">
+        <div class="empty-state__icon">🏆</div>
+        <p>No tournaments match your filters.</p>
+        <button class="btn btn--ghost" (click)="filterForm.reset()">Clear filters</button>
+      </div>
+    }
+
+    <div class="t-grid">
+      @for (t of filtered(); track t.id) {
+        <article class="t-card" [routerLink]="['/tournaments', t.id]">
+
+          <div class="t-card__top">
+            <span class="t-card__game-badge" [class]="'game--' + t.game">
+              {{ t.game === 'ea_fc25' ? 'EA FC 25' : t.game === 'pubg_mobile' ? 'PUBG' : 'CoD' }}
+            </span>
+            <span class="t-card__format">{{ t.format_label }}</span>
+          </div>
+
+          <h2 class="t-card__name">{{ t.name }}</h2>
+          @if (t.name_ar) {
+            <p class="t-card__name-ar" dir="rtl" lang="ar">{{ t.name_ar }}</p>
+          }
+
+          <div class="t-card__stats">
+            <span class="t-card__stat"><b>{{ t.participant_count }}</b>/{{ t.max_participants }} players</span>
+            <span class="t-card__sep"></span>
+            <span class="t-card__stat">{{ t.entry_fee_sar === 0 ? 'Free' : (t.entry_fee_sar + ' SAR') }}</span>
+            <span class="t-card__sep"></span>
+            <span class="t-card__stat" [class.stat--open]="t.is_registration_open">
+              {{ t.is_registration_open ? 'Open' : 'Closed' }}
+            </span>
+          </div>
+
+          <div class="t-card__date">Starts {{ t.starts_at | date:'d MMM yyyy, HH:mm' }}</div>
+
+          @if (t.prize_pool && t.prize_pool.length) {
+            <div class="t-card__prize">🏆 {{ t.prize_pool[0].reward }}</div>
+          }
+
+          <div class="t-card__actions" (click)="$event.stopPropagation()">
+            @if (t.is_registration_open) {
+              <button class="btn btn--gold btn--sm" (click)="register(t, $event)">Register</button>
+            }
+            @if (!t.is_registration_open && !t.bracket) {
+              <button class="btn btn--cyan btn--sm"
+                [disabled]="generating() === t.id"
+                (click)="generateBracket(t, $event)">
+                {{ generating() === t.id ? 'Generating...' : 'Generate Bracket' }}
+              </button>
+            }
+            @if (t.bracket) {
+              <a [routerLink]="['/tournaments', t.id]" class="btn btn--ghost btn--sm"
+                (click)="$event.stopPropagation()">View Bracket</a>
+              <span class="t-card__bracket-status" [class]="'bs--' + t.bracket.status">{{ t.bracket.status }}</span>
+            }
+          </div>
+
+        </article>
+      }
+    </div>
+  }
+</div>
+
+<!-- Create Tournament Modal -->
+@if (showCreate()) {
+  <app-create-tournament
+    (created)="onTournamentCreated($event)"
+    (cancelled)="showCreate.set(false)">
+  </app-create-tournament>
+}

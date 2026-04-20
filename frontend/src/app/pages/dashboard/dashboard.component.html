@@ -1,0 +1,89 @@
+<div class="dash">
+  <div class="dash-header">
+    <div>
+      <h1 class="dash-greeting">
+        Welcome back,
+        <span>{{ auth.currentUser()?.name?.split(' ')?.[0] ?? 'Player' }}</span> 👋
+      </h1>
+      <p class="dash-sub">Here's your Dawri activity overview.</p>
+    </div>
+    <a routerLink="/tournaments" class="btn btn-gold">Browse Tournaments →</a>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stat-grid">
+    <div class="stat-card stat-card--gold">
+      <div class="sc-label">Wallet Balance</div>
+      <div class="sc-val">{{ auth.walletBalance() | number:'1.0-0' }} <span class="sc-unit">SAR</span></div>
+    </div>
+    <div class="stat-card stat-card--cyan">
+      <div class="sc-label">Ranking Points</div>
+      <div class="sc-val">{{ auth.currentUser()?.ranking_points ?? 0 | number }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Account Status</div>
+      <div class="sc-val sc-status">{{ auth.currentUser()?.phone_verified_at ? '✓ Verified' : '⚠ Unverified' }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Role</div>
+      <div class="sc-val" style="text-transform:capitalize">{{ auth.currentUser()?.role ?? 'Player' }}</div>
+    </div>
+  </div>
+
+  <!-- Recent tournaments -->
+  <div class="dash-section">
+    <div class="ds-header">
+      <h2 class="ds-title">Recent Tournaments</h2>
+      <a routerLink="/tournaments" class="ds-link">View all →</a>
+    </div>
+
+    @if (loading()) {
+      <div class="skeleton-list">
+        @for (i of [1,2,3]; track i) {
+          <div class="skeleton-row"></div>
+        }
+      </div>
+    } @else if (tournaments().length === 0) {
+      <div class="empty-state">
+        <p>No tournaments yet. <a routerLink="/tournaments">Join one →</a></p>
+      </div>
+    } @else {
+      <div class="t-list">
+        @for (t of tournaments(); track t.id) {
+          <a [routerLink]="['/tournaments', t.id]" class="t-row">
+            <div class="t-row__game">{{ t.game }}</div>
+            <div class="t-row__name">{{ t.name }}</div>
+            <div class="t-row__meta">{{ t.participant_count }} / {{ t.max_participants }} players</div>
+            <span class="t-row__badge" [class.open]="t.is_registration_open">
+              {{ t.is_registration_open ? 'Open' : 'Closed' }}
+            </span>
+          </a>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Recent orders -->
+  <div class="dash-section">
+    <div class="ds-header">
+      <h2 class="ds-title">Recent Orders</h2>
+      <a routerLink="/marketplace" class="ds-link">Marketplace →</a>
+    </div>
+
+    @if (orders().length === 0) {
+      <div class="empty-state">
+        <p>No orders yet. <a routerLink="/marketplace">Browse marketplace →</a></p>
+      </div>
+    } @else {
+      <div class="o-list">
+        @for (o of orders(); track o.id) {
+          <div class="o-row">
+            <div class="o-row__product">{{ o.product?.name ?? 'Digital product' }}</div>
+            <div class="o-row__price">{{ o.total_price }} SAR</div>
+            <span class="o-row__status" [class]="'status-' + o.status">{{ o.status }}</span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

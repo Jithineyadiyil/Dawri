@@ -1,0 +1,27 @@
+.auth-page{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+.auth-left{background:var(--bg2);border-right:1px solid var(--br);display:flex;align-items:center;justify-content:center;padding:60px 5vw}
+.auth-brand{max-width:420px}
+.auth-logo{display:flex;align-items:center;gap:10px;font-family:var(--fh);font-size:1.8rem;letter-spacing:.1em;color:var(--gold);margin-bottom:24px}
+.logo-ar{font-family:var(--fa);font-size:.85rem;color:var(--mu)}
+.auth-headline{font-family:var(--fh);font-size:2.2rem;letter-spacing:.04em;margin-bottom:32px;line-height:1.1}
+.auth-features{display:flex;flex-direction:column;gap:14px;margin-bottom:36px}
+.auth-feat{display:flex;align-items:flex-start;gap:14px}
+.af-icon{font-size:1.2rem;flex-shrink:0}
+.auth-feat span:last-child{font-size:.88rem;color:var(--mu);line-height:1.5}
+.auth-stats{display:flex;gap:28px}
+.as-item{display:flex;flex-direction:column}
+.as-val{font-family:var(--fh);font-size:1.6rem;color:var(--gold);letter-spacing:.04em}
+.as-label{font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.1em}
+.auth-right{display:flex;align-items:center;justify-content:center;padding:40px 5vw;background:var(--bg3)}
+.auth-box{width:min(440px,100%)}
+.auth-tabs{display:flex;border-bottom:1px solid var(--br2);margin-bottom:28px}
+.auth-tab{flex:1;padding:12px;background:none;border:none;border-bottom:2px solid transparent;font-family:var(--fb);font-weight:700;font-size:.85rem;letter-spacing:.06em;color:var(--mu);cursor:pointer;transition:all .15s}
+.auth-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.terms-check{display:flex;align-items:flex-start;gap:10px;font-size:.82rem;color:var(--mu);cursor:pointer}
+.terms-check input{margin-top:3px;accent-color:var(--gold)}
+.otp-panel{text-align:center}
+.otp-icon{font-size:3rem;margin-bottom:16px}
+.otp-panel h3{font-family:var(--fh);font-size:1.8rem;letter-spacing:.04em;color:var(--gold);margin-bottom:8px}
+.otp-sub{color:var(--mu);font-size:.88rem;margin-bottom:28px}
+.resend-btn{background:none;border:none;color:var(--cyan);font-size:.82rem;cursor:pointer;font-family:var(--fb);font-weight:700}
+@media(max-width:768px){.auth-page{grid-template-columns:1fr}.auth-left{display:none}}

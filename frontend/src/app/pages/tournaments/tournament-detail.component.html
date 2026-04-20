@@ -1,0 +1,457 @@
+<div class="detail-page">
+
+  @if (loading()) {
+    <div class="detail-loading">
+      <div class="skel skel--title"></div>
+      <div class="skel skel--meta"></div>
+      <div class="skel skel--bracket"></div>
+    </div>
+  }
+
+  @if (tournament(); as t) {
+
+    <!-- ── Header ───────────────────────────────────────────────── -->
+    <div class="detail-header">
+      <div class="breadcrumb">
+        <a routerLink="/tournaments">Tournaments</a>
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        <span>{{ t.format_label }}</span>
+      </div>
+
+      <div class="detail-header__top">
+        <div>
+          <h1 class="detail-title">{{ t.name }}</h1>
+          @if (t.name_ar) {
+            <p class="detail-title-ar" dir="rtl" lang="ar">{{ t.name_ar }}</p>
+          }
+        </div>
+        <div class="detail-header__cta">
+          @if (t.is_registration_open && auth.isLoggedIn() && !t.is_registered) {
+            <button class="btn btn--gold" [disabled]="registering()" (click)="register()">
+              {{ registering() ? 'Registering…' : 'Register Now' }}
+            </button>
+          }
+          @if (t.is_registered) {
+            <span class="registered-tag">✓ Registered</span>
+          }
+          @if (!t.is_registration_open && !t.bracket && auth.isLoggedIn() && (auth.currentUser()?.role === 'organizer' || auth.currentUser()?.role === 'admin')) {
+            <button class="btn btn--cyan" [disabled]="generating()" (click)="generateBracket()">
+              {{ generating() ? 'Generating…' : 'Generate Bracket' }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="detail-badges">
+        <span class="badge" [class]="'badge--game-' + t.game">
+          {{ t.game_label }}
+        </span>
+        <span class="badge badge--format">{{ t.format_label }}</span>
+        <span class="badge" [class.badge--open]="t.is_registration_open"
+              [class.badge--closed]="!t.is_registration_open">
+          {{ t.is_registration_open ? 'Registration Open' : 'Registration Closed' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- ── Meta strip ───────────────────────────────────────────── -->
+    <div class="meta-strip">
+      <div class="meta-item">
+        <span class="meta-item__label">Participants</span>
+        <span class="meta-item__val">{{ t.participant_count }}<span class="meta-item__max">/{{ t.max_participants }}</span></span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-item__label">Entry</span>
+        <span class="meta-item__val">{{ t.entry_fee_sar === 0 ? 'Free' : (t.entry_fee_sar + ' SAR') }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-item__label">Starts</span>
+        <span class="meta-item__val">{{ t.starts_at | date:'d MMM, HH:mm' }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-item__label">Reg. Closes</span>
+        <span class="meta-item__val">{{ t.registration_closes_at | date:'d MMM, HH:mm' }}</span>
+      </div>
+      @if (t.organizer_name) {
+        <div class="meta-item">
+          <span class="meta-item__label">Organizer</span>
+          <span class="meta-item__val">{{ t.organizer_name }}</span>
+        </div>
+      }
+      @if (t.format === 'swiss' && t.swiss_rounds) {
+        <div class="meta-item">
+          <span class="meta-item__label">Swiss Rounds</span>
+          <span class="meta-item__val">{{ t.swiss_rounds }}</span>
+        </div>
+      }
+    </div>
+
+    <!-- ── Tabs ─────────────────────────────────────────────────── -->
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" [class.tab--active]="activeTab()==='bracket'"
+        (click)="activeTab.set('bracket')">Bracket</button>
+      <button class="tab" role="tab" [class.tab--active]="activeTab()==='leaderboard'"
+        (click)="activeTab.set('leaderboard')">
+        {{ t.participants?.length ? 'Players (' + t.participants.length + ')' : 'Players' }}
+      </button>
+      @if (t.prize_pool && t.prize_pool.length) {
+        <button class="tab" role="tab" [class.tab--active]="activeTab()==='prize'"
+          (click)="activeTab.set('prize')">Prize Pool</button>
+      }
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- BRACKET TAB                                                -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    @if (activeTab() === 'bracket') {
+
+      @if (!t.bracket) {
+        <div class="empty-state">
+          <div class="empty-state__icon">🏆</div>
+          <p>{{ t.is_registration_open
+            ? 'Bracket will be generated when registration closes.'
+            : t.status === 'ongoing' ? 'Bracket generation in progress…'
+            : 'Bracket has not been generated yet.' }}</p>
+        </div>
+      }
+
+      @if (t.bracket; as b) {
+
+        <!-- Status bar -->
+        <div class="bracket-bar">
+          <div class="bracket-bar__left">
+            <span class="bracket-bar__round">
+              @if (b.status === 'completed') { Tournament Complete }
+              @else { Round {{ b.current_round }} of {{ b.total_rounds }} }
+            </span>
+            <span class="bracket-bar__format">{{ t.format_label }}</span>
+          </div>
+          <div class="bracket-bar__right">
+            <span class="bracket-bar__stat">{{ t.participant_count }} players</span>
+          </div>
+        </div>
+
+        <!-- Champion banner -->
+        @if (b.status === 'completed' && b.winner) {
+          <div class="champion-banner">
+            <div class="champion-banner__trophy">🏆</div>
+            <div class="champion-banner__body">
+              <div class="champion-banner__label">CHAMPION</div>
+              <div class="champion-banner__name">{{ b.winner.name }}</div>
+            </div>
+          </div>
+        }
+
+        <!-- ── Bracket grid ────────────────────────────────────── -->
+        <div class="bracket-scroll">
+          <div class="bracket-tree"
+            [class.bracket-tree--rr]="t.format === 'round_robin'"
+            [class.bracket-tree--swiss]="t.format === 'swiss'">
+
+            @for (round of rounds(); track round.num + round.section; let last = $last) {
+              <div class="b-round" [class]="'b-round--' + round.section" [class.b-round--last]="last">
+
+                <!-- Round column header -->
+                <div class="b-round__header">
+                  <span class="b-round__label" [class.b-round__label--losers]="round.section === 'losers'"
+                    [class.b-round__label--final]="round.section === 'grand_final'">
+                    {{ round.label }}
+                  </span>
+                </div>
+
+                <!-- Match slots -->
+                <div class="b-round__matches">
+                  @for (m of round.matches; track m.id) {
+                    <div class="b-slot" [style.height.px]="round.slotHeight">
+
+                      <!-- Connector lines -->
+                      @if (round.section === 'winners' && round.num > 1) {
+                        <div class="connector connector--in"></div>
+                      }
+
+                      <!-- Match card -->
+                      <div class="b-match"
+                        [class]="'b-match--' + m.status"
+                        [class.b-match--clickable]="matchIsClickable(m)"
+                        [class.b-match--bye]="m.participant_a_is_bye || m.participant_b_is_bye"
+                        (click)="openMatch(m)"
+                        [attr.role]="matchIsClickable(m) ? 'button' : null"
+                        [attr.tabindex]="matchIsClickable(m) ? 0 : null">
+
+                        <!-- Participant A -->
+                        <div class="b-match__p"
+                          [class.b-match__p--winner]="m.winner_id === m.participant_a?.id && m.status === 'completed'"
+                          [class.b-match__p--loser]="m.winner_id && m.winner_id !== m.participant_a?.id && m.status === 'completed'">
+                          <span class="b-match__name">
+                            @if (m.participant_a_is_bye) { <em class="b-match__bye">BYE</em> }
+                            @else { {{ m.participant_a?.name ?? 'TBD' }} }
+                          </span>
+                          @if (m.score_a !== null && m.score_a !== undefined) {
+                            <span class="b-match__score"
+                              [class.b-match__score--win]="m.winner_id === m.participant_a?.id">
+                              {{ m.score_a }}
+                            </span>
+                          }
+                        </div>
+
+                        <!-- Divider -->
+                        <div class="b-match__divider">
+                          <span class="b-match__status" [class]="'b-match__status--' + m.status">
+                            {{ statusLabel(m.status) }}
+                          </span>
+                          @if (m.status === 'disputed') {
+                            <span class="b-match__disputed-flag">⚠</span>
+                          }
+                        </div>
+
+                        <!-- Participant B -->
+                        <div class="b-match__p"
+                          [class.b-match__p--winner]="m.winner_id === m.participant_b?.id && m.status === 'completed'"
+                          [class.b-match__p--loser]="m.winner_id && m.winner_id !== m.participant_b?.id && m.status === 'completed'">
+                          <span class="b-match__name">
+                            @if (m.participant_b_is_bye) { <em class="b-match__bye">BYE</em> }
+                            @else { {{ m.participant_b?.name ?? 'TBD' }} }
+                          </span>
+                          @if (m.score_b !== null && m.score_b !== undefined) {
+                            <span class="b-match__score"
+                              [class.b-match__score--win]="m.winner_id === m.participant_b?.id">
+                              {{ m.score_b }}
+                            </span>
+                          }
+                        </div>
+
+                      </div><!-- /b-match -->
+
+                      <!-- Connector out -->
+                      @if (round.section === 'winners' && !last) {
+                        <div class="connector connector--out"></div>
+                      }
+
+                    </div><!-- /b-slot -->
+                  }
+                </div><!-- /b-round__matches -->
+
+              </div><!-- /b-round -->
+            }
+
+          </div><!-- /bracket-tree -->
+        </div><!-- /bracket-scroll -->
+
+        <!-- Legend -->
+        <div class="bracket-legend">
+          <span class="legend-item"><span class="legend-dot ld--pending"></span>Pending</span>
+          <span class="legend-item"><span class="legend-dot ld--submitted"></span>Awaiting confirm</span>
+          <span class="legend-item"><span class="legend-dot ld--disputed"></span>Disputed</span>
+          <span class="legend-item"><span class="legend-dot ld--completed"></span>Completed</span>
+          <span class="legend-item legend-item--click">Click an active match to submit or confirm results</span>
+        </div>
+
+      }
+    }
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- LEADERBOARD / PLAYERS TAB                                  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    @if (activeTab() === 'leaderboard') {
+      @if (!t.participants || t.participants.length === 0) {
+        <div class="empty-state">
+          <div class="empty-state__icon">📊</div>
+          <p>No players registered yet.</p>
+        </div>
+      } @else {
+        <div class="leaderboard">
+          <div class="leaderboard__head">
+            <span>#</span>
+            <span>Player</span>
+            <span>Seed</span>
+            <span>W</span>
+            <span>L</span>
+            <span>Pts</span>
+            @if (t.format === 'swiss') { <span>Buchholz</span> }
+          </div>
+          @for (p of t.participants; track p.id; let i = $index) {
+            <div class="leaderboard__row"
+              [class.leaderboard__row--gold]="i === 0 && p.wins > 0"
+              [class.leaderboard__row--silver]="i === 1 && p.wins > 0"
+              [class.leaderboard__row--bronze]="i === 2 && p.wins > 0">
+              <span class="leaderboard__rank">{{ i + 1 }}</span>
+              <span class="leaderboard__name">{{ p.name }}</span>
+              <span class="leaderboard__stat">{{ p.seed }}</span>
+              <span class="leaderboard__stat">{{ p.wins }}</span>
+              <span class="leaderboard__stat">{{ p.losses }}</span>
+              <span class="leaderboard__stat leaderboard__stat--pts">{{ p.points }}</span>
+              @if (t.format === 'swiss') { <span class="leaderboard__stat">{{ p.buchholz }}</span> }
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PRIZE TAB                                                  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    @if (activeTab() === 'prize') {
+      @if (!t.prize_pool || !t.prize_pool.length) {
+        <div class="empty-state">
+          <div class="empty-state__icon">🎁</div>
+          <p>No prizes configured.</p>
+        </div>
+      } @else {
+        <div class="prize-list">
+          @for (p of t.prize_pool; track p.position) {
+            <div class="prize-row"
+              [class.prize-row--1]="p.position === 1"
+              [class.prize-row--2]="p.position === 2"
+              [class.prize-row--3]="p.position === 3">
+              <span class="prize-row__medal">
+                {{ p.position === 1 ? '🥇' : p.position === 2 ? '🥈' : p.position === 3 ? '🥉' : '#' + p.position }}
+              </span>
+              <span class="prize-row__reward">{{ p.reward }}</span>
+            </div>
+          }
+        </div>
+      }
+    }
+
+  }
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MATCH MODAL                                                    -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+@if (selectedMatch(); as m) {
+  <div class="modal-overlay" (click)="closeModal()" role="dialog" aria-modal="true">
+    <div class="modal" (click)="$event.stopPropagation()">
+
+      <div class="modal__header">
+        <div>
+          <p class="modal__round-label">Round {{ m.round_number }} · {{ m.bracket_section }}</p>
+          <h3 class="modal__title">Match #{{ m.match_number }}</h3>
+        </div>
+        <button class="modal__close" (click)="closeModal()" aria-label="Close">✕</button>
+      </div>
+
+      <!-- VS banner -->
+      <div class="modal__vs-row">
+        <div class="modal__player" [class.modal__player--winner]="m.winner_id === m.participant_a?.id && m.status === 'completed'">
+          <span class="modal__player__name">{{ m.participant_a?.name ?? 'TBD' }}</span>
+          @if (m.score_a !== null && m.score_a !== undefined) {
+            <span class="modal__player__score">{{ m.score_a }}</span>
+          }
+        </div>
+        <div class="modal__vs">VS</div>
+        <div class="modal__player modal__player--right" [class.modal__player--winner]="m.winner_id === m.participant_b?.id && m.status === 'completed'">
+          @if (m.score_b !== null && m.score_b !== undefined) {
+            <span class="modal__player__score">{{ m.score_b }}</span>
+          }
+          <span class="modal__player__name">{{ m.participant_b?.name ?? 'TBD' }}</span>
+        </div>
+      </div>
+
+      <div class="modal__status-row">
+        <span class="modal__status-badge" [class]="'modal__status-badge--' + m.status">
+          {{ statusLabel(m.status) }}
+        </span>
+      </div>
+
+      @if (!disputeMode()) {
+
+        <!-- Pending / Ongoing → submit result -->
+        @if (m.status === 'pending' || m.status === 'scheduled' || m.status === 'ongoing') {
+          <form [formGroup]="resultForm" (ngSubmit)="submitResult()" class="modal__form">
+            <div class="form-group">
+              <label class="form-label">Select Winner <span class="req">*</span></label>
+              <div class="winner-pick">
+                <button type="button" class="winner-btn"
+                  [class.winner-btn--selected]="resultForm.value.winner_participant_id === m.participant_a?.id"
+                  [disabled]="m.participant_a_is_bye || !m.participant_a"
+                  (click)="resultForm.patchValue({ winner_participant_id: m.participant_a?.id })">
+                  {{ m.participant_a?.name ?? 'TBD' }}
+                </button>
+                <button type="button" class="winner-btn"
+                  [class.winner-btn--selected]="resultForm.value.winner_participant_id === m.participant_b?.id"
+                  [disabled]="m.participant_b_is_bye || !m.participant_b"
+                  (click)="resultForm.patchValue({ winner_participant_id: m.participant_b?.id })">
+                  {{ m.participant_b?.name ?? 'TBD' }}
+                </button>
+              </div>
+            </div>
+            <div class="score-row">
+              <div class="form-group">
+                <label class="form-label">Score A (optional)</label>
+                <input class="input" type="number" min="0" formControlName="score_a" placeholder="0"/>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Score B (optional)</label>
+                <input class="input" type="number" min="0" formControlName="score_b" placeholder="0"/>
+              </div>
+            </div>
+            <div class="modal__actions">
+              <button type="button" class="btn btn--ghost" (click)="closeModal()">Cancel</button>
+              <button type="submit" class="btn btn--gold" [disabled]="resultForm.invalid || submitting()">
+                {{ submitting() ? 'Submitting…' : 'Submit Result' }}
+              </button>
+            </div>
+          </form>
+        }
+
+        <!-- Submitted → confirm or dispute -->
+        @if (m.status === 'submitted') {
+          <div class="modal__submitted">
+            <p class="modal__submitted__note">
+              Result submitted. Winner: <strong>{{ getWinnerName(m) }}</strong>
+              @if (m.score_a !== null && m.score_a !== undefined) {
+                · {{ m.score_a }} – {{ m.score_b }}
+              }
+            </p>
+            <div class="modal__actions">
+              <button class="btn btn--ghost" (click)="disputeMode.set(true)">Dispute</button>
+              <button class="btn btn--gold" [disabled]="submitting()" (click)="confirmResult()">
+                {{ submitting() ? 'Confirming…' : 'Confirm' }}
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- Disputed -->
+        @if (m.status === 'disputed') {
+          <div class="modal__note modal__note--warn">
+            ⚠ Under moderator review.
+            @if (m.dispute_reason) { <br/><small>{{ m.dispute_reason }}</small> }
+          </div>
+          <div class="modal__actions"><button class="btn btn--ghost" (click)="closeModal()">Close</button></div>
+        }
+
+        <!-- Completed -->
+        @if (m.status === 'completed' || m.status === 'walkover') {
+          <div class="modal__note">
+            🏆 Winner: <strong>{{ getWinnerName(m) }}</strong>
+          </div>
+          <div class="modal__actions"><button class="btn btn--ghost" (click)="closeModal()">Close</button></div>
+        }
+
+      } @else {
+
+        <!-- Dispute form -->
+        <form [formGroup]="disputeForm" (ngSubmit)="submitDispute()" class="modal__form">
+          <div class="form-group">
+            <label class="form-label">Reason for dispute</label>
+            <textarea class="input" formControlName="reason" rows="4"
+              placeholder="Describe why the submitted result is incorrect…"></textarea>
+            @if (disputeForm.get('reason')?.errors?.['minlength'] && disputeForm.get('reason')?.touched) {
+              <span class="form-error">Minimum 10 characters.</span>
+            }
+          </div>
+          <div class="modal__actions">
+            <button type="button" class="btn btn--ghost" (click)="disputeMode.set(false)">Back</button>
+            <button type="submit" class="btn btn--danger" [disabled]="disputeForm.invalid || submitting()">
+              {{ submitting() ? 'Submitting…' : 'Submit Dispute' }}
+            </button>
+          </div>
+        </form>
+
+      }
+
+    </div>
+  </div>
+}

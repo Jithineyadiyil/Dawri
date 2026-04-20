@@ -1,0 +1,118 @@
+$gold:#f0a500;$cyan:#00e5ff;$bg:#060810;$card:#0d1117;$card2:#111827;
+$border:rgba(255,255,255,.07);$text:#e8eaf0;$muted:#6b7280;$red:#ef4444;$green:#22c55e;
+
+.ag-page{min-height:100vh;background:$bg;padding:2rem 1.5rem 4rem;position:relative}
+
+// Toast
+.toast{position:fixed;top:1.5rem;right:1.5rem;z-index:9999;display:flex;align-items:center;gap:.5rem;padding:.6rem 1.1rem;background:$card2;border:1px solid $border;border-radius:2px;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:$text;opacity:0;transform:translateY(-8px);pointer-events:none;transition:opacity .25s,transform .25s
+  &.show{opacity:1;transform:translateY(0)}
+  &.ok{border-color:rgba($green,.4);span{color:$green}}
+  &:not(.ok){border-color:rgba($red,.4);span{color:$red}}
+}
+
+// Header
+.page-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:2rem;flex-wrap:wrap}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:.1em;color:#fff;display:flex;align-items:center;gap:.5rem;margin:0 0 .25rem
+  span:first-child{font-size:1.5rem}
+  .ar{font-family:'Noto Sans Arabic',sans-serif;font-size:.9rem;color:$gold;opacity:.7;font-weight:400;letter-spacing:0}
+}
+.page-sub{font-family:'Rajdhani',sans-serif;font-size:.88rem;color:$muted}
+
+.btn-primary{padding:.55rem 1.3rem;background:$gold;color:$bg;border:none;border-radius:2px;font-family:'Rajdhani',sans-serif;font-size:.88rem;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap
+  &:hover{opacity:.88}&:active{transform:scale(.97)}&:disabled{opacity:.5;cursor:not-allowed}
+}
+
+// Toolbar
+.toolbar{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.search-box{position:relative;flex:1;min-width:180px
+  .s-icon{position:absolute;left:.65rem;top:50%;transform:translateY(-50%);color:$muted;font-size:1rem;pointer-events:none}
+  input{width:100%;padding:.45rem .7rem .45rem 2rem;background:$card;border:1px solid $border;border-radius:2px;color:$text;font-family:'Rajdhani',sans-serif;font-size:.88rem;
+    &::placeholder{color:$muted}&:focus{outline:none;border-color:rgba($cyan,.4)}}
+}
+.filter-tabs{display:flex;gap:2px
+  button{padding:.4rem .85rem;background:$card;border:1px solid $border;color:$muted;font-family:'Rajdhani',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.1em;cursor:pointer;transition:all .15s
+    &:first-child{border-radius:2px 0 0 2px}&:last-child{border-radius:0 2px 2px 0}
+    &.on{background:rgba($gold,.1);border-color:$gold;color:$gold}
+    &:hover:not(.on){color:$text;border-color:rgba(255,255,255,.15)}
+  }
+}
+.count{font-family:'Space Mono',monospace;font-size:.72rem;color:$muted;white-space:nowrap}
+
+// Grid & skeleton
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem}
+.skeleton{height:175px;background:linear-gradient(90deg,$card 25%,#141b27 50%,$card 75%);background-size:200% 100%;border-radius:2px;animation:shimmer 1.5s infinite}
+.empty{grid-column:1/-1;text-align:center;padding:4rem;color:$muted;font-family:'Rajdhani',sans-serif;font-size:1rem
+  span{font-size:2.5rem;display:block;margin-bottom:.7rem}
+}
+.link{background:none;border:none;color:$gold;cursor:pointer;font-family:inherit;font-size:inherit;text-decoration:underline}
+
+// Card
+.card{background:$card;border:1px solid $border;border-radius:2px;overflow:hidden;display:flex;flex-direction:column;transition:border-color .2s,transform .15s
+  &:hover{border-color:rgba($cyan,.25);transform:translateY(-2px)}
+  &.off{opacity:.5}
+}
+.card-stripe{height:3px;background:$muted;&.on{background:$green}}
+.card-top{display:flex;align-items:flex-start;gap:.65rem;padding:.85rem 1rem .5rem}
+.game-icon{width:44px;height:44px;border-radius:4px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;overflow:hidden;img{width:100%;height:100%;object-fit:cover}}
+.game-info{flex:1;min-width:0}
+.game-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:1rem;color:$text;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.game-ar{font-family:'Noto Sans Arabic',sans-serif;font-size:.75rem;color:$muted;direction:rtl;margin:0}
+.card-btns{display:flex;gap:.25rem;flex-shrink:0}
+.icon-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid $border;border-radius:2px;color:$muted;font-size:.8rem;cursor:pointer;transition:all .15s
+  &:hover{border-color:rgba($cyan,.4);color:$cyan}&.del:hover{border-color:rgba($red,.4);color:$red}&:disabled{opacity:.35;cursor:not-allowed}
+}
+.chips{display:flex;flex-wrap:wrap;gap:.25rem;padding:0 1rem .45rem}
+.chip{padding:.12rem .45rem;background:rgba(255,255,255,.04);border:1px solid $border;border-radius:2px;font-family:'Space Mono',monospace;font-size:.62rem;color:$muted
+  &.key{color:$gold;border-color:rgba($gold,.25);background:rgba($gold,.06)}
+  &.cyan{color:$cyan;border-color:rgba($cyan,.2);background:rgba($cyan,.05)}
+}
+.formats{display:flex;align-items:center;gap:.25rem;padding:0 1rem .45rem;flex-wrap:wrap}
+.fmt-lbl{font-family:'Rajdhani',sans-serif;font-size:.72rem;color:$muted}
+.fmt{padding:.1rem .4rem;background:rgba($cyan,.07);border:1px solid rgba($cyan,.2);border-radius:2px;font-family:'Space Mono',monospace;font-size:.6rem;color:$cyan
+  &.grey{background:rgba(255,255,255,.03);border-color:$border;color:$muted}
+}
+.card-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;border-top:1px solid $border}
+.order{font-family:'Space Mono',monospace;font-size:.68rem;color:$muted}
+.toggle{display:flex;align-items:center;gap:.35rem;background:transparent;border:1px solid $border;border-radius:12px;padding:.18rem .6rem;font-family:'Rajdhani',sans-serif;font-size:.76rem;color:$muted;cursor:pointer;transition:all .2s
+  .dot{width:7px;height:7px;border-radius:50%;background:$muted;transition:background .2s}
+  &.on{border-color:rgba($green,.35);color:$green;.dot{background:$green;box-shadow:0 0 5px $green}}
+  &:hover{border-color:rgba($gold,.4);color:$gold}
+}
+
+// Modal
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(3px);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn .15s ease}
+.modal{background:$card;border:1px solid rgba($gold,.25);border-radius:2px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.6);animation:slideUp .2s ease}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.3rem;border-bottom:1px solid $border
+  h2{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.1em;color:$gold;margin:0}
+  button{background:transparent;border:none;color:$muted;font-size:1rem;cursor:pointer;padding:.25rem;transition:color .15s;&:hover{color:$text}}
+}
+.modal-body{padding:1.3rem;display:flex;flex-direction:column;gap:.9rem}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;@media(max-width:480px){grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:.3rem;&.full{grid-column:1/-1}
+  label{font-family:'Rajdhani',sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.1em;color:$muted;text-transform:uppercase;em{color:$gold;font-style:normal}}
+}
+input,select{padding:.45rem .7rem;background:rgba(255,255,255,.04);border:1px solid $border;border-radius:2px;color:$text;font-family:'Rajdhani',sans-serif;font-size:.88rem;transition:border-color .15s
+  &:focus{outline:none;border-color:rgba($cyan,.4)}&.err{border-color:rgba($red,.5)}
+  option{background:$card2}
+}
+small{font-family:'Rajdhani',sans-serif;font-size:.72rem;color:$muted}
+.errtxt{font-family:'Rajdhani',sans-serif;font-size:.74rem;color:$red}
+.checks{display:flex;flex-wrap:wrap;gap:.4rem}
+.chk{display:flex;align-items:center;gap:.4rem;padding:.35rem .75rem;background:rgba(255,255,255,.03);border:1px solid $border;border-radius:2px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:.83rem;color:$text;transition:border-color .15s
+  input[type=checkbox]{width:14px;height:14px;padding:0;margin:0;accent-color:$cyan}
+  &:has(input:checked){border-color:rgba($cyan,.4);background:rgba($cyan,.06)}
+}
+.big-toggle{display:flex;align-items:center;gap:.55rem;cursor:pointer;margin-top:.3rem
+  input{display:none}
+  .track{width:38px;height:20px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid $border;position:relative;transition:background .2s}
+  .thumb{position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:$muted;transition:transform .2s,background .2s}
+  input:checked~.track{background:rgba($green,.22);border-color:rgba($green,.4)}
+  input:checked~.track .thumb{transform:translateX(18px);background:$green;box-shadow:0 0 5px $green}
+  span:last-child{font-family:'Rajdhani',sans-serif;font-size:.88rem;color:$text}
+}
+.modal-foot{display:flex;justify-content:flex-end;gap:.65rem;padding-top:.5rem;border-top:1px solid $border}
+.btn-ghost{padding:.5rem 1.1rem;background:transparent;border:1px solid $border;border-radius:2px;color:$muted;font-family:'Rajdhani',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .15s;&:hover{border-color:rgba(255,255,255,.2);color:$text}}
+
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}

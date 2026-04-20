@@ -1,0 +1,153 @@
+<section class="lb-page">
+
+  <!-- ── Scanline overlay ── -->
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <!-- ── Header ── -->
+  <header class="lb-header">
+    <div class="lb-title-wrap">
+      <span class="lb-crown" aria-hidden="true">♛</span>
+      <h1 class="lb-title">LEADERBOARD</h1>
+      <span class="lb-title-ar">المتصدرون</span>
+    </div>
+    <p class="lb-subtitle">Top 50 champions across the GCC</p>
+  </header>
+
+  <!-- ── Game tabs ── -->
+  <nav class="game-tabs" role="tablist" aria-label="Game selector">
+    <button
+      *ngFor="let g of games"
+      class="game-tab"
+      [class.active]="activeGame() === g.key"
+      (click)="selectGame(g.key)"
+      role="tab"
+      [attr.aria-selected]="activeGame() === g.key">
+      <span class="tab-icon">{{ g.icon }}</span>
+      <span class="tab-label">{{ g.label }}</span>
+    </button>
+  </nav>
+
+  <!-- ── Loading ── -->
+  <div *ngIf="loading()" class="lb-loading" aria-live="polite">
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring delay-1"></div>
+    <div class="pulse-ring delay-2"></div>
+    <span class="loading-text">LOADING RANKINGS…</span>
+  </div>
+
+  <!-- ── Error ── -->
+  <div *ngIf="error()" class="lb-error">
+    <span class="error-icon">⚠</span>
+    <p>{{ error() }}</p>
+    <button class="retry-btn" (click)="load()">RETRY</button>
+  </div>
+
+  <!-- ── Content ── -->
+  <div *ngIf="!loading() && !error() && entries().length" class="lb-content">
+
+    <!-- ── Podium (top 3) ── -->
+    <div class="podium" aria-label="Top 3 players">
+      <div
+        *ngFor="let idx of podiumOrder"
+        class="podium-slot"
+        [class.gold]="top3()[idx].rank === 1"
+        [class.silver]="top3()[idx].rank === 2"
+        [class.bronze]="top3()[idx].rank === 3"
+        [style.--delay]="idx * 0.15 + 's'">
+
+        <ng-container *ngIf="top3()[idx] as p">
+          <!-- Halo glow -->
+          <div class="podium-halo" aria-hidden="true"></div>
+
+          <!-- Avatar -->
+          <div class="podium-avatar">
+            <img *ngIf="p.avatar_url" [src]="p.avatar_url" [alt]="p.name" />
+            <span *ngIf="!p.avatar_url" class="avatar-initial">{{ p.name[0] | uppercase }}</span>
+            <span class="podium-rank-badge">{{ p.rank }}</span>
+          </div>
+
+          <!-- Name -->
+          <p class="podium-name">{{ p.name }}</p>
+
+          <!-- Points pill -->
+          <div class="podium-points">
+            <span class="pts-value">{{ p.points | number }}</span>
+            <span class="pts-label">PTS</span>
+          </div>
+
+          <!-- Pillar -->
+          <div class="podium-pillar" [style.--height]="(4 - p.rank) * 28 + 'px'">
+            <span class="pillar-rank">{{ p.rank === 1 ? '♛' : p.rank }}</span>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+
+    <!-- ── Table (4–50) ── -->
+    <div class="lb-table-wrap" role="region" aria-label="Full rankings">
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">PLAYER</th>
+            <th scope="col">POINTS</th>
+            <th scope="col">W</th>
+            <th scope="col">L</th>
+            <th scope="col">WIN %</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let e of rest(); trackBy: trackById; let i = index"
+            class="lb-row"
+            [class.highlighted]="highlightedId() === e.user_id"
+            [style.--row-delay]="i * 0.03 + 's'"
+            (mouseenter)="highlight(e.user_id)"
+            (mouseleave)="unhighlight()">
+
+            <td class="col-rank">
+              <span class="rank-num">{{ e.rank }}</span>
+            </td>
+
+            <td class="col-player">
+              <div class="player-cell">
+                <div class="row-avatar">
+                  <img *ngIf="e.avatar_url" [src]="e.avatar_url" [alt]="e.name" />
+                  <span *ngIf="!e.avatar_url">{{ e.name[0] | uppercase }}</span>
+                </div>
+                <span class="player-name">{{ e.name }}</span>
+              </div>
+            </td>
+
+            <td class="col-points">
+              <span class="points-val">{{ e.points | number }}</span>
+            </td>
+
+            <td class="col-w">{{ e.wins }}</td>
+            <td class="col-l">{{ e.losses }}</td>
+
+            <td class="col-wr">
+              <div class="wr-wrap">
+                <div class="wr-bar">
+                  <div
+                    class="wr-fill"
+                    [style.width]="winRate(e) !== '—' ? winRate(e) : '0%'">
+                  </div>
+                </div>
+                <span class="wr-text">{{ winRate(e) }}</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- ── Empty ── -->
+  <div *ngIf="!loading() && !error() && !entries().length" class="lb-empty">
+    <span class="empty-icon">🏆</span>
+    <p>No rankings yet for this game.</p>
+  </div>
+
+</section>

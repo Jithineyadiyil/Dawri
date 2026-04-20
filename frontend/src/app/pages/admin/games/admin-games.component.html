@@ -1,0 +1,185 @@
+<div class="ag-page">
+
+  <!-- Toast -->
+  <div class="toast" [class.ok]="toast()?.ok" [class.show]="!!toast()">
+    <span>{{ toast()?.ok ? '✓' : '✕' }}</span> {{ toast()?.msg }}
+  </div>
+
+  <!-- Header -->
+  <div class="page-hdr">
+    <div>
+      <h1 class="page-title"><span>🎮</span> Game Types <span class="ar">أنواع الألعاب</span></h1>
+      <p class="page-sub">Manage tournament-eligible games. Active games appear in tournament creation and leaderboard tabs.</p>
+    </div>
+    <button class="btn-primary" (click)="openAdd()">+ Add Game</button>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-box">
+      <span class="s-icon">⌕</span>
+      <input type="text" placeholder="Search name or key…" (input)="setSearch($event)" />
+    </div>
+    <div class="filter-tabs">
+      <button [class.on]="filter()==='all'"      (click)="setFilter('all')">All</button>
+      <button [class.on]="filter()==='active'"   (click)="setFilter('active')">Active</button>
+      <button [class.on]="filter()==='inactive'" (click)="setFilter('inactive')">Inactive</button>
+    </div>
+    <span class="count">{{ filtered().length }} game{{ filtered().length!==1?'s':'' }}</span>
+  </div>
+
+  <!-- Skeleton -->
+  <div *ngIf="loading()" class="grid">
+    <div class="skeleton" *ngFor="let i of [1,2,3,4,5,6]"></div>
+  </div>
+
+  <!-- Grid -->
+  <div *ngIf="!loading()" class="grid">
+    <div *ngIf="!filtered().length" class="empty">
+      <span>🕹️</span>
+      <p>No games found. <button class="link" (click)="openAdd()">Add the first one.</button></p>
+    </div>
+
+    <div *ngFor="let g of filtered()" class="card" [class.off]="!g.is_active">
+      <div class="card-stripe" [class.on]="g.is_active"></div>
+
+      <div class="card-top">
+        <div class="game-icon">
+          <img *ngIf="g.icon_url" [src]="g.icon_url" [alt]="g.name" />
+          <span *ngIf="!g.icon_url">{{ g.icon_emoji || '🎮' }}</span>
+        </div>
+        <div class="game-info">
+          <p class="game-name">{{ g.name }}</p>
+          <p *ngIf="g.name_ar" class="game-ar">{{ g.name_ar }}</p>
+        </div>
+        <div class="card-btns">
+          <button class="icon-btn" (click)="openEdit(g)" title="Edit">✎</button>
+          <button class="icon-btn del" (click)="delete(g)" [disabled]="deleting()===g.id" title="Delete">
+            {{ deleting()===g.id ? '…' : '✕' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="chips">
+        <span class="chip key">{{ g.key }}</span>
+        <span *ngIf="g.platform" class="chip">{{ g.platform }}</span>
+        <span *ngIf="g.genre"    class="chip cyan">{{ g.genre }}</span>
+      </div>
+
+      <div class="formats">
+        <span class="fmt-lbl">Formats:</span>
+        <span *ngFor="let f of g.supported_formats" class="fmt">
+          {{ f==='single_elimination'?'SE':f==='double_elimination'?'DE':f==='round_robin'?'RR':'SW' }}
+        </span>
+        <span *ngIf="!g.supported_formats?.length" class="fmt grey">None</span>
+      </div>
+
+      <div class="card-foot">
+        <span class="order">Order: {{ g.sort_order }}</span>
+        <button class="toggle" [class.on]="g.is_active" (click)="toggle(g)">
+          <span class="dot"></span>{{ g.is_active ? 'Active' : 'Inactive' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL ═══ -->
+  <div class="backdrop" *ngIf="showModal()" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+
+      <div class="modal-hdr">
+        <h2>{{ editGame() ? 'Edit Game' : 'Add Game' }}</h2>
+        <button (click)="closeModal()">✕</button>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="save()" class="modal-body" novalidate>
+
+        <div class="row">
+          <div class="field">
+            <label>Key <em>*</em></label>
+            <input formControlName="key" placeholder="e.g. pubg_mobile" [class.err]="err('key')" />
+            <small>Lowercase + underscores only. Locked after creation.</small>
+            <span *ngIf="err('key')" class="errtxt">Required — a-z, 0-9, underscores only.</span>
+          </div>
+          <div class="field">
+            <label>Name (English) <em>*</em></label>
+            <input formControlName="name" placeholder="e.g. PUBG Mobile" [class.err]="err('name')" />
+            <span *ngIf="err('name')" class="errtxt">Name is required.</span>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Name (Arabic)</label>
+            <input formControlName="name_ar" placeholder="ببجي موبايل" dir="rtl" />
+          </div>
+          <div class="field">
+            <label>Icon Emoji</label>
+            <input formControlName="icon_emoji" placeholder="🎯" maxlength="4" />
+          </div>
+        </div>
+
+        <div class="field full">
+          <label>Cover Image URL</label>
+          <input formControlName="icon_url" placeholder="https://cdn.example.com/game.png" />
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Platform</label>
+            <select formControlName="platform">
+              <option value="">— Select —</option>
+              <option>Mobile</option><option>PC</option>
+              <option>Console</option><option>Cross-platform</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Genre</label>
+            <select formControlName="genre">
+              <option value="">— Select —</option>
+              <option>Battle Royale</option><option>FPS</option>
+              <option>Sports</option><option>Fighting</option>
+              <option>MOBA</option><option>Strategy</option>
+              <option>Racing</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field full">
+          <label>Supported Bracket Formats</label>
+          <div class="checks">
+            <label class="chk"><input type="checkbox" formControlName="fmt_se" /><span>Single Elimination</span></label>
+            <label class="chk"><input type="checkbox" formControlName="fmt_de" /><span>Double Elimination</span></label>
+            <label class="chk"><input type="checkbox" formControlName="fmt_rr" /><span>Round Robin</span></label>
+            <label class="chk"><input type="checkbox" formControlName="fmt_sw" /><span>Swiss System</span></label>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Sort Order</label>
+            <input formControlName="sort_order" type="number" min="0" />
+            <small>Lower = appears first in lists.</small>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <label class="big-toggle">
+              <input type="checkbox" formControlName="is_active" />
+              <span class="track"><span class="thumb"></span></span>
+              <span>{{ form.get('is_active')?.value ? 'Active' : 'Inactive' }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary" [disabled]="saving()">
+            {{ saving() ? '…' : (editGame() ? 'Save Changes' : 'Add Game') }}
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>

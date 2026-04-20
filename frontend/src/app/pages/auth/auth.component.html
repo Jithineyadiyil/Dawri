@@ -1,0 +1,88 @@
+<div class="auth-page">
+  <div class="auth-left">
+    <div class="auth-brand">
+      <div class="auth-logo">⚡ <span>DAWRI</span> <span class="logo-ar">داوري</span></div>
+      <h2 class="auth-headline">Join Saudi Arabia's Premier Esports Platform</h2>
+      <div class="auth-features">
+        @for (f of features; track f.icon) {
+          <div class="auth-feat"><span class="af-icon">{{ f.icon }}</span><span>{{ f.text }}</span></div>
+        }
+      </div>
+      <div class="auth-stats">
+        <div class="as-item"><span class="as-val">23M+</span><span class="as-label">Gamers KSA</span></div>
+        <div class="as-item"><span class="as-val">4</span><span class="as-label">Bracket Formats</span></div>
+        <div class="as-item"><span class="as-val">3K+</span><span class="as-label">Gift Card Brands</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="auth-right">
+    <div class="auth-box">
+      <div class="auth-tabs">
+        <button class="auth-tab" [class.on]="tab()==='login'"    (click)="setTab('login')">Sign In</button>
+        <button class="auth-tab" [class.on]="tab()==='register'" (click)="setTab('register')">Create Account</button>
+      </div>
+
+      @if (tab() === 'login') {
+        <form [formGroup]="loginForm" (ngSubmit)="login()">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="input" formControlName="email" type="email" placeholder="your@email.com"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input class="input" formControlName="password" type="password" placeholder="••••••••"/>
+          </div>
+          @if (errorMsg()) { <p class="error-msg" style="margin-bottom:12px">{{ errorMsg() }}</p> }
+          <button class="btn btn-gold" style="width:100%" type="submit" [disabled]="loading()">
+            {{ loading() ? 'Signing in…' : 'Sign In →' }}
+          </button>
+        </form>
+      }
+
+      @if (tab() === 'register') {
+        <form [formGroup]="registerForm" (ngSubmit)="register()">
+          <div class="form-group"><label class="form-label">Full Name</label><input class="input" formControlName="name" placeholder="Faisal Al-Ghamdi"/></div>
+          <div class="form-group"><label class="form-label">Email</label><input class="input" formControlName="email" type="email" placeholder="your@email.com"/></div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <div style="display:flex;gap:8px">
+              <select class="input" style="width:90px" formControlName="country_code">
+                <option value="+966">🇸🇦 +966</option><option value="+971">🇦🇪 +971</option>
+                <option value="+965">🇰🇼 +965</option><option value="+974">🇶🇦 +974</option>
+              </select>
+              <input class="input" formControlName="phone_number" placeholder="5X XXX XXXX" style="flex:1"/>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">Password</label><input class="input" formControlName="password" type="password" placeholder="Min. 8 characters"/></div>
+          <div class="form-group"><label class="form-label">Confirm Password</label><input class="input" formControlName="password_confirmation" type="password"/></div>
+          <label class="terms-check"><input type="checkbox" formControlName="terms"/><span>I agree to the Terms and Privacy Policy</span></label>
+          @if (errorMsg()) { <p class="error-msg" style="margin:8px 0 12px">{{ errorMsg() }}</p> }
+          <button class="btn btn-gold" style="width:100%;margin-top:12px" type="submit" [disabled]="loading()">
+            {{ loading() ? 'Creating account…' : 'Create Account →' }}
+          </button>
+        </form>
+      }
+
+      @if (tab() === 'otp') {
+        <div class="otp-panel">
+          <div class="otp-icon">📱</div>
+          <h3>Verify Your Phone</h3>
+          <p class="otp-sub">Enter the 6-digit code sent via SMS.</p>
+          <form [formGroup]="otpForm" (ngSubmit)="verifyOtp()">
+            <div class="form-group">
+              <label class="form-label">Verification Code</label>
+              <input class="input" formControlName="otp" placeholder="000000" maxlength="6" style="font-size:1.4rem;letter-spacing:.3em;text-align:center"/>
+            </div>
+            @if (errorMsg()) { <p class="error-msg">{{ errorMsg() }}</p> }
+            <button class="btn btn-gold" style="width:100%" type="submit" [disabled]="loading()">
+              {{ loading() ? 'Verifying…' : 'Verify & Continue →' }}
+            </button>
+            <div style="text-align:center;margin-top:16px">
+              <button type="button" class="resend-btn" (click)="resendOtp()">Resend OTP</button>
+            </div>
+          </form>
+        </div>
+      }
+    </div>
+  </div>
+</div>

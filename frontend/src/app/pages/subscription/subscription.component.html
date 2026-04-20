@@ -1,0 +1,196 @@
+<div class="sub-page">
+
+  <!-- Toast -->
+  @if (toast()) {
+    <div class="toast" [class.toast-ok]="toast()!.ok" [class.toast-err]="!toast()!.ok">
+      {{ toast()!.msg }}
+    </div>
+  }
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">SUBSCRIPTION & BILLING</h1>
+      <p class="page-sub">Manage your plan, upgrades, and payment history</p>
+    </div>
+    <div class="header-tabs">
+      <button class="tab-btn" [class.active]="activeTab()==='plans'" (click)="activeTab.set('plans')">Plans</button>
+      <button class="tab-btn" [class.active]="activeTab()==='invoices'" (click)="activeTab.set('invoices')">Invoices</button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading subscription data…</span>
+    </div>
+  } @else {
+
+    <!-- ── PLANS TAB ──────────────────────────────────────────── -->
+    @if (activeTab() === 'plans') {
+
+      <!-- Current Plan Banner -->
+      @if (currentSub()) {
+        <div class="current-banner">
+          <div class="current-banner-left">
+            <span class="current-icon">{{ getMeta(currentPlanKey()).icon }}</span>
+            <div>
+              <div class="current-label">CURRENT PLAN</div>
+              <div class="current-name">{{ currentPlanKey().toUpperCase() }}</div>
+              <div class="current-meta">
+                Active since {{ formatDate(currentSub()!.starts_at) }}
+                @if (currentSub()!.expires_at) {
+                  · Renews {{ formatDate(currentSub()!.expires_at) }}
+                }
+              </div>
+            </div>
+          </div>
+          <div class="current-banner-right">
+            <span class="status-badge" [class.active]="currentSub()!.status === 'active'">
+              {{ currentSub()!.status | uppercase }}
+            </span>
+            @if (currentPlanKey() !== 'free') {
+              <button class="cancel-link" (click)="showCancel.set(true)">Cancel subscription</button>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Plan Cards -->
+      <div class="plans-grid">
+        @for (plan of plans(); track plan.id) {
+          <div class="plan-card"
+               [class.highlight]="getMeta(plan.id).highlight"
+               [class.current]="isCurrentPlan(plan.id)"
+               [style.--plan-color]="getMeta(plan.id).color">
+
+            @if (getMeta(plan.id).highlight) {
+              <div class="popular-badge">MOST POPULAR</div>
+            }
+            @if (isCurrentPlan(plan.id)) {
+              <div class="current-badge">CURRENT PLAN</div>
+            }
+
+            <div class="plan-icon">{{ getMeta(plan.id).icon }}</div>
+            <div class="plan-name">{{ plan.name }}</div>
+            <div class="plan-name-ar">{{ plan.name_ar }}</div>
+
+            <div class="plan-price">
+              @if (plan.price === null) {
+                <span class="price-custom">Custom</span>
+              } @else if (plan.price === 0) {
+                <span class="price-free">Free</span>
+              } @else {
+                <span class="price-amount">{{ plan.price | number }}</span>
+                <span class="price-currency">SAR</span>
+                <span class="price-period">/mo</span>
+              }
+            </div>
+
+            <div class="plan-desc">{{ plan.description }}</div>
+
+            <ul class="feature-list">
+              @for (feat of getMeta(plan.id).featureList; track feat) {
+                <li><span class="feat-check">✓</span> {{ feat }}</li>
+              }
+            </ul>
+
+            <div class="plan-cta">
+              @if (isCurrentPlan(plan.id)) {
+                <button class="btn-current" disabled>Current Plan</button>
+              } @else if (plan.id === 'enterprise') {
+                <button class="btn-upgrade" (click)="upgrade(plan.id)">Contact Sales</button>
+              } @else {
+                <button class="btn-upgrade"
+                        [disabled]="upgrading() === plan.id"
+                        (click)="upgrade(plan.id)">
+                  @if (upgrading() === plan.id) {
+                    <span class="btn-spinner"></span> Upgrading…
+                  } @else {
+                    Upgrade to {{ plan.name }}
+                  }
+                </button>
+              }
+            </div>
+
+          </div>
+        }
+      </div>
+
+      <!-- Feature Comparison Note -->
+      <div class="compare-note">
+        All plans include SSL, 99.9% uptime SLA, and full Arabic RTL support.
+        <a href="mailto:support@dawri.gg">Contact us</a> for custom requirements.
+      </div>
+
+    }
+
+    <!-- ── INVOICES TAB ───────────────────────────────────────── -->
+    @if (activeTab() === 'invoices') {
+      <div class="invoices-section">
+        @if (invoices().length === 0) {
+          <div class="empty-state">
+            <div class="empty-icon">🧾</div>
+            <div class="empty-title">No invoices yet</div>
+            <div class="empty-sub">Your billing history will appear here once you upgrade to a paid plan.</div>
+          </div>
+        } @else {
+          <table class="invoice-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>PDF</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (inv of invoices(); track inv.id) {
+                <tr>
+                  <td>{{ formatDate(inv.created_at) }}</td>
+                  <td>{{ inv.description }}</td>
+                  <td>{{ inv.amount | number }} {{ inv.currency }}</td>
+                  <td>
+                    <span class="inv-status" [class.paid]="inv.status === 'paid'">
+                      {{ inv.status | uppercase }}
+                    </span>
+                  </td>
+                  <td>
+                    @if (inv.pdf_url) {
+                      <a [href]="inv.pdf_url" target="_blank" class="pdf-link">Download</a>
+                    } @else {
+                      <span class="no-pdf">—</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+
+  }
+
+  <!-- Cancel Confirmation Modal -->
+  @if (showCancel()) {
+    <div class="modal-overlay" (click)="showCancel.set(false)">
+      <div class="modal-box" (click)="$event.stopPropagation()">
+        <div class="modal-icon">⚠️</div>
+        <h3 class="modal-title">Cancel Subscription?</h3>
+        <p class="modal-body">
+          Your plan will remain active until the end of the current billing period.
+          You can resubscribe at any time.
+        </p>
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="showCancel.set(false)">Keep Plan</button>
+          <button class="btn-danger" [disabled]="cancelling()" (click)="cancelSub()">
+            @if (cancelling()) { Cancelling… } @else { Yes, Cancel }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

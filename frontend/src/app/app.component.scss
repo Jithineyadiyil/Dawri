@@ -1,0 +1,8 @@
+.main-content {
+  min-height: calc(100vh - 60px);
+  width: 100%;
+  overflow-x: hidden;
+  // Ensure child components can be full width
+  display: block;
+  position: relative;
+}

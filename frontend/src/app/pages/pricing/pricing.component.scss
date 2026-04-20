@@ -1,0 +1,25 @@
+.pricing-page { padding: 60px 32px 100px; max-width: 1100px; margin: 0 auto; }
+.pricing-hero { text-align: center; margin-bottom: 60px; }
+.section-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); margin-bottom: 12px; }
+.pricing-title { font-family: var(--fh); font-size: clamp(36px,5vw,60px); letter-spacing: 2px; margin-bottom: 16px; span { color: var(--gold); } }
+.pricing-sub { font-size: 16px; color: var(--mu); max-width: 520px; margin: 0 auto; line-height: 1.8; }
+
+.plans-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 16px; margin-bottom: 40px; }
+.plan-card {
+  background: var(--bg2); border: 1px solid var(--br); border-radius: 14px;
+  padding: 28px 24px; position: relative; display: flex; flex-direction: column; gap: 0;
+}
+.plan-card--highlight { border-color: var(--gold); background: rgba(240,165,0,.05); }
+.plan-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #000; font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 14px; border-radius: 12px; white-space: nowrap; }
+.plan-name { font-family: var(--fh); font-size: 1.6rem; letter-spacing: 1.5px; color: var(--text); margin-bottom: 2px; }
+.plan-name-ar { font-family: var(--fa); font-size: .85rem; color: var(--mu); margin-bottom: 20px; }
+.plan-price { margin-bottom: 12px; }
+.plan-price__n { font-family: var(--fh); font-size: 2.4rem; color: var(--gold); letter-spacing: .04em; }
+.plan-price__u { font-size: .78rem; color: var(--mu); margin-left: 4px; }
+.plan-desc { font-size: .86rem; color: var(--mu); line-height: 1.6; margin-bottom: 20px; }
+.plan-features { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; flex: 1; }
+.plan-features li { font-size: .86rem; color: var(--mu); display: flex; align-items: flex-start; gap: 8px; }
+.feat-tick { color: var(--green); font-weight: 700; flex-shrink: 0; }
+.plan-cta { display: block; text-align: center; padding: 11px; border-radius: var(--r); font-family: var(--fb); font-weight: 700; font-size: .82rem; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; border: 1px solid var(--br2); color: var(--mu); transition: all .15s; &:hover { border-color: var(--gold); color: var(--gold); } }
+.plan-cta--gold { background: var(--gold); color: #000; border-color: var(--gold); &:hover { opacity: .85; } }
+.pricing-note { text-align: center; font-size: .82rem; color: var(--dim); a { color: var(--gold); } }

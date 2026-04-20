@@ -1,0 +1,34 @@
+<div class="pricing-page">
+  <div class="pricing-hero">
+    <div class="section-label">Pricing</div>
+    <h1 class="pricing-title">Simple, transparent <span>pricing</span></h1>
+    <p class="pricing-sub">Players always join free. Corporate plans unlock tournament creation, HR integrations, and prize pool management.</p>
+  </div>
+
+  <div class="plans-grid">
+    @for (plan of plans; track plan.name) {
+      <div class="plan-card" [class.plan-card--highlight]="plan.highlight">
+        @if (plan.highlight) { <div class="plan-popular">Most popular</div> }
+        <div class="plan-name">{{ plan.name }}</div>
+        <div class="plan-name-ar" dir="rtl" lang="ar">{{ plan.nameAr }}</div>
+        <div class="plan-price">
+          @if (plan.price === 0) { <span class="plan-price__n">Free</span> }
+          @else if (plan.price === null) { <span class="plan-price__n">Custom</span> }
+          @else { <span class="plan-price__n">{{ plan.price | number }}</span><span class="plan-price__u">SAR / mo</span> }
+        </div>
+        <p class="plan-desc">{{ plan.desc }}</p>
+        <ul class="plan-features">
+          @for (f of plan.features; track f) {
+            <li><span class="feat-tick">✓</span> {{ f }}</li>
+          }
+        </ul>
+        <a [routerLink]="plan.ctaLink" class="plan-cta" [class.plan-cta--gold]="plan.highlight">{{ plan.cta }}</a>
+      </div>
+    }
+  </div>
+
+  <div class="pricing-note">
+    All prices are exclusive of VAT. Plans are billed monthly and can be cancelled at any time.
+    For custom enterprise requirements, <a href="#">contact our sales team</a>.
+  </div>
+</div>

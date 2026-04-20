@@ -1,0 +1,8 @@
+<div class="toast-wrap">
+  @for (t of toast.toasts(); track t.id) {
+    <div class="toast" [class]="'toast--' + t.type" (click)="toast.dismiss(t.id)" role="alert">
+      <span class="toast__icon">{{ icons[t.type] }}</span>
+      <span class="toast__msg">{{ t.message }}</span>
+    </div>
+  }
+</div>
