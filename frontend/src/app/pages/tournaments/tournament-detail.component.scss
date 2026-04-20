@@ -1,7 +1,14 @@
 // ── Variables (supplement global tokens) ─────────────────────────────────────
 $match-w:   180px;
 $match-h:   88px;
-$round-gap: 48px; // gap between rounds — wide enough for connector lines
+$slot-gap:  12px;      // Vertical gap between sibling matches — MUST match the
+                       // value used in the TS slotHeight formula:
+                       // `(MATCH_H + GAP) * 2^idx - GAP`.
+$gutter:    16px;      // Horizontal padding inside each round column. Also the
+                       // length of the connector stub that reaches from a match
+                       // card's edge into the inter-column gap. With two adjacent
+                       // columns each contributing $gutter + 1px border, the
+                       // total round-to-round separation is 33px.
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 .detail-page {
@@ -42,6 +49,12 @@ $round-gap: 48px; // gap between rounds — wide enough for connector lines
   margin-bottom: 4px;
 }
 .detail-title-ar { font-family: var(--fa); font-size: .95rem; color: var(--mu); }
+
+.registered-tag {
+  font-size: .78rem; font-weight: 700; color: var(--green);
+  background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3);
+  padding: 6px 14px; border-radius: 6px;
+}
 
 .detail-badges {
   display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
@@ -98,23 +111,95 @@ $round-gap: 48px; // gap between rounds — wide enough for connector lines
   &__stat   { font-size: .76rem; color: var(--dim); }
 }
 
-// ── Champion banner ───────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// CHAMPION BANNER — gold + cyan glow, sheen sweep, trophy bob, text shimmer
+// ═══════════════════════════════════════════════════════════════════════════
 .champion-banner {
-  display: flex; align-items: center; gap: 16px;
-  background: linear-gradient(135deg, rgba(240,165,0,.12), rgba(240,165,0,.04));
-  border: 1px solid rgba(240,165,0,.35); border-radius: 10px;
-  padding: 14px 20px; margin-bottom: 20px;
-  animation: glow 2s ease-in-out infinite alternate;
-  &__trophy { font-size: 2.2rem; }
-  &__label  { font-size: .68rem; text-transform: uppercase; letter-spacing: 2px; color: var(--gold); }
-  &__name   { font-family: var(--fh); font-size: 1.6rem; letter-spacing: 1px; }
-}
-@keyframes glow {
-  from { box-shadow: 0 0 0 rgba(240,165,0,0); }
-  to   { box-shadow: 0 0 20px rgba(240,165,0,.12); }
+  position: relative;
+  display: flex; align-items: center; gap: 18px;
+  padding: 18px 26px;
+  margin-bottom: 24px;
+  border-radius: 14px;
+  overflow: hidden;
+  isolation: isolate;
+
+  // Animated gold-leaning gradient that gently shifts.
+  background:
+    linear-gradient(135deg,
+      rgba(240,165,0,.18) 0%,
+      rgba(0,229,255,.06) 50%,
+      rgba(240,165,0,.18) 100%);
+  background-size: 200% 100%;
+  border: 1px solid rgba(240,165,0,.4);
+
+  animation: champ-glow 3s ease-in-out infinite,
+             champ-drift 8s linear infinite;
+
+  // Sheen: a bright band that sweeps across every few seconds.
+  &::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(105deg,
+      transparent 40%,
+      rgba(240,165,0,.25) 50%,
+      transparent 60%);
+    background-size: 220% 100%;
+    animation: champ-shine 4.5s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  &__trophy {
+    font-size: 2.6rem;
+    display: inline-block;
+    filter: drop-shadow(0 0 14px rgba(240,165,0,.55));
+    animation: trophy-bob 2s ease-in-out infinite;
+    z-index: 1;
+  }
+
+  &__body { position: relative; z-index: 1; }
+
+  &__label {
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 2px;
+  }
+
+  &__name {
+    font-family: var(--fh);
+    font-size: 1.8rem;
+    letter-spacing: 1.5px;
+    // Subtle gold→white→gold shimmer across the name text.
+    background: linear-gradient(90deg,
+      #fff 0%,
+      var(--gold) 50%,
+      #fff 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+            background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: champ-text 3s linear infinite;
+  }
 }
 
-// ── Bracket tree ──────────────────────────────────────────────────────────────
+@keyframes champ-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(240,165,0,.15), inset 0 0 24px rgba(0,229,255,.04); }
+  50%      { box-shadow: 0 0 42px rgba(240,165,0,.38), inset 0 0 36px rgba(0,229,255,.09); }
+}
+@keyframes champ-drift { from { background-position: 0% 0; } to { background-position: 200% 0; } }
+@keyframes champ-shine { 0%,100% { background-position: -60% 0; } 50% { background-position: 160% 0; } }
+@keyframes champ-text  { from { background-position: 0% 0; } to { background-position: -200% 0; } }
+@keyframes trophy-bob {
+  0%, 100% { transform: rotate(-5deg) scale(1); }
+  50%      { transform: rotate(5deg)  scale(1.1); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BRACKET TREE
+// ═══════════════════════════════════════════════════════════════════════════
 .bracket-scroll {
   overflow-x: auto;
   padding-bottom: 16px;
@@ -127,20 +212,17 @@ $round-gap: 48px; // gap between rounds — wide enough for connector lines
   gap: 0;
   min-width: max-content;
   padding: 16px 0;
-  align-items: flex-start; // rounds grow from top
+  align-items: flex-start;
 }
 
-// ── Round column ──────────────────────────────────────────────────────────────
+// ── Round column ─────────────────────────────────────────────────────────────
 .b-round {
   display: flex;
   flex-direction: column;
-  min-width: $match-w + 32px; // card width + padding
-  padding: 0 16px;
+  min-width: $match-w + ($gutter * 2);
+  padding: 0 $gutter;
 
-  // Right-side border between rounds (except last)
-  &:not(.b-round--last) {
-    border-right: 1px solid var(--br);
-  }
+  &:not(.b-round--last) { border-right: 1px solid var(--br); }
 
   &__header {
     text-align: center;
@@ -169,97 +251,190 @@ $round-gap: 48px; // gap between rounds — wide enough for connector lines
   &__matches {
     display: flex;
     flex-direction: column;
+    gap: $slot-gap;   // ── ALIGNMENT FIX ──
+                      // The TS slotHeight formula `(MATCH_H + GAP) * 2^idx - GAP`
+                      // assumes a `GAP` between slots. Without this gap, round 2
+                      // slot centres drift off round 1 pair midpoints.
+                      // With gap: 12px:
+                      //   R1 (4 slots × 88px + 3 × 12px = 388px tall)
+                      //   R2 (2 slots × 188px + 1 × 12px = 388px tall)
+                      //   R3 (1 slot × 388px = 388px tall)
+                      // Columns are equal height; match centres align perfectly.
   }
 
-  // Section label for losers bracket
-  &--losers &__label { color: #f87171; }
-  &--grand_final &__label { color: var(--gold); }
+  &--losers &__label       { color: #f87171; }
+  &--grand_final &__label  { color: var(--gold); }
 }
 
-// ── Slot (aligns match within round using height) ─────────────────────────────
+// ── Slot (match wrapper that participates in the alignment math) ────────────
 .b-slot {
   position: relative;
   display: flex;
-  align-items: center; // vertically center the match card within the slot
+  align-items: center;          // Match card is vertically centred in its slot.
   width: 100%;
+
+  // Staggered entry animation. `--delay` is set from TS per slot via:
+  //   [style.--delay.ms]="(matchIdx * 60) + (roundIdx * 120)"
+  animation: slot-enter .5s cubic-bezier(.2,.7,.2,1) both;
+  animation-delay: calc(var(--delay, 0) * 1ms);
+}
+@keyframes slot-enter {
+  from { opacity: 0; transform: translateY(14px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
-// ── Connector lines (CSS only) ────────────────────────────────────────────────
-.connector {
-  position: absolute;
-  pointer-events: none;
-
-  &--in {
-    // Left edge → matches coming from previous round
-    left: -16px;
-    top: 50%;
-    width: 16px;
-    height: 1px;
-    background: var(--br2);
-  }
-
-  &--out {
-    // Right edge → the vertical bracket spine going to next slot
-    right: -16px;
-    top: 50%;
-    width: 16px;
-    height: 1px;
-    background: var(--br2);
-  }
-}
-
-// For SE/DE: the vertical bar on the right side of the slot that connects two
-// feeder matches together. Achieved with ::after on every other slot.
+// ═══════════════════════════════════════════════════════════════════════════
+// CONNECTOR LINES — drawn entirely with CSS pseudo-elements on the slot.
+// `--slot-h` is set from TS via `[style.--slot-h.px]="round.slotHeight"` so
+// the vertical legs of the bracket know how tall to be.
+//
+// Shape drawn per pair of sibling slots:
+//
+//   ┌── match ──┐
+//   │ odd slot  │──┐         <-- ::after on odd slot:
+//   └───────────┘  │             top:50%, right:-16px,
+//                  │             width:16px, height:slotH/2 + gap/2
+//                  │             border-top + border-right
+//                  │
+//   ┌── match ──┐  │         <-- ::after on even slot:
+//   │ even slot │──┘             bottom:50%, right:-16px,
+//   └───────────┘                width:16px, height:slotH/2 + gap/2
+//                                border-bottom + border-right
+//
+// The next round's match has its own incoming horizontal stub (::before).
+// ═══════════════════════════════════════════════════════════════════════════
 .bracket-tree:not(.bracket-tree--rr):not(.bracket-tree--swiss) {
-  .b-round:not(.b-round--last) .b-slot:nth-child(odd)::after {
+
+  // ── Right-side outbound brackets (for every round except the last) ─────
+  .b-round:not(.b-round--last) .b-round__matches {
+
+    // Odd slot (1st, 3rd, 5th…): top of the `]` shape
+    .b-slot:nth-child(odd)::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: -$gutter;
+      width: $gutter;
+      height: calc(var(--slot-h, #{$match-h}) / 2 + #{$slot-gap} / 2);
+      border-top:   1px solid var(--br2);
+      border-right: 1px solid var(--br2);
+      pointer-events: none;
+    }
+
+    // Even slot (2nd, 4th, 6th…): bottom of the `]` shape
+    .b-slot:nth-child(even)::after {
+      content: '';
+      position: absolute;
+      bottom: 50%;
+      right: -$gutter;
+      width: $gutter;
+      height: calc(var(--slot-h, #{$match-h}) / 2 + #{$slot-gap} / 2);
+      border-bottom: 1px solid var(--br2);
+      border-right:  1px solid var(--br2);
+      pointer-events: none;
+    }
+  }
+
+  // ── Left-side inbound stub (for every round except the first) ──────────
+  .b-round + .b-round .b-slot::before {
     content: '';
     position: absolute;
-    right: -16px;
     top: 50%;
-    width: 1px;
+    left: -$gutter;
+    width: $gutter;
+    height: 1px;
     background: var(--br2);
-    // Height = distance from center of this slot to center of the next slot
-    // We can't know it statically, so use a generous value; it clips correctly
-    height: calc(var(--slot-h, 100px) + 1px);
+    pointer-events: none;
+  }
+
+  // ── Winner-path highlight ───────────────────────────────────────────────
+  // When the match's winner is known, its outbound L glows gold to show
+  // the path the winner takes to the next round.
+  .b-round:not(.b-round--last) .b-round__matches .b-slot:has(.b-match--completed)::after {
+    border-top-color:    rgba(240,165,0,.55);
+    border-bottom-color: rgba(240,165,0,.55);
+    border-right-color:  rgba(240,165,0,.55);
+    box-shadow: 0 0 6px rgba(240,165,0,.2);
+  }
+  .b-round + .b-round .b-slot:has(.b-match--completed)::before {
+    background: rgba(240,165,0,.55);
+    box-shadow: 0 0 4px rgba(240,165,0,.2);
   }
 }
 
-// ── Match card ────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// MATCH CARD
+// ═══════════════════════════════════════════════════════════════════════════
 .b-match {
   width: $match-w;
-  background: #111827;
+  background: linear-gradient(145deg, #131b2e 0%, #0f1525 100%);
   border: 1px solid var(--br);
   border-radius: 8px;
   overflow: hidden;
-  transition: border-color .15s, box-shadow .15s;
+  position: relative;
+  transition: transform .2s cubic-bezier(.2,.7,.2,1),
+              border-color .2s,
+              box-shadow .2s;
 
   &--clickable {
     cursor: pointer;
-    &:hover  { border-color: var(--br2); box-shadow: 0 0 0 1px rgba(255,255,255,.04); }
-    &:focus  { outline: 2px solid var(--gold); outline-offset: 2px; }
+    &:hover {
+      transform: translateY(-2px);
+      border-color: var(--br2);
+      box-shadow:
+        0 8px 22px rgba(0,0,0,.35),
+        0 0 0 1px rgba(0,229,255,.15),
+        0 0 24px rgba(0,229,255,.08);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--gold);
+      outline-offset: 2px;
+    }
   }
 
-  &--completed   { border-color: rgba(34,197,94,.2); }
-  &--submitted   { border-color: rgba(240,165,0,.3); }
-  &--disputed    { border-color: rgba(239,68,68,.3); animation: disputed-pulse 2s infinite; }
-  &--ongoing     { border-color: rgba(0,229,255,.3); animation: live-pulse 2s infinite; }
-  &--walkover    { opacity: .55; }
-  &--bye         { opacity: .45; cursor: default !important; }
+  &--completed {
+    border-color: rgba(34,197,94,.28);
+  }
+  &--submitted {
+    border-color: rgba(240,165,0,.4);
+    box-shadow: 0 0 14px rgba(240,165,0,.1);
+  }
+  &--disputed  { border-color: rgba(239,68,68,.4); animation: disputed-pulse 2s infinite; }
+  &--ongoing   { border-color: rgba(0,229,255,.4); animation: live-pulse 1.8s infinite; }
+  &--walkover  { opacity: .55; }
+  &--bye       { opacity: .45; cursor: default !important; }
 
   &__p {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 10px;
-    min-height: 30px;
+    padding: 9px 12px;
+    min-height: 32px;
     gap: 6px;
+    position: relative;
+    transition: background .2s;
 
-    &--winner { background: rgba(34,197,94,.1); }
-    &--loser  { opacity: .5; }
+    // ── Winner row: gold→green accent bar + soft green tint ────────────
+    &--winner {
+      background: linear-gradient(90deg,
+        rgba(34,197,94,.18) 0%,
+        rgba(34,197,94,.04) 100%);
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 3px;
+        background: linear-gradient(to bottom, var(--gold) 0%, var(--green) 100%);
+      }
+      .b-match__name { color: var(--text); font-weight: 700; }
+    }
+
+    &--loser { opacity: .42; }
   }
 
   &__name {
-    font-size: .8rem;
+    font-size: .82rem;
     font-weight: 600;
     color: var(--text);
     overflow: hidden;
@@ -279,20 +454,27 @@ $round-gap: 48px; // gap between rounds — wide enough for connector lines
     font-family: var(--fm);
     font-size: .72rem;
     background: var(--bg4);
-    padding: 1px 5px;
-    border-radius: 3px;
+    padding: 2px 7px;
+    border-radius: 4px;
     color: var(--mu);
-    min-width: 18px;
+    min-width: 22px;
     text-align: center;
     flex-shrink: 0;
-    &--win { background: rgba(34,197,94,.2); color: var(--green); }
+    transition: all .25s;
+
+    &--win {
+      background: linear-gradient(135deg, rgba(34,197,94,.3), rgba(34,197,94,.15));
+      color: var(--green);
+      box-shadow: 0 0 0 1px rgba(34,197,94,.25);
+      font-weight: 700;
+    }
   }
 
   &__divider {
     border-top: 1px solid var(--br);
     border-bottom: 1px solid var(--br);
-    padding: 3px 10px;
-    background: var(--bg3);
+    padding: 4px 12px;
+    background: linear-gradient(90deg, var(--bg3) 0%, rgba(26,34,53,.55) 100%);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -301,7 +483,7 @@ $round-gap: 48px; // gap between rounds — wide enough for connector lines
   &__status {
     font-size: .62rem;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
     color: var(--dim);
     &--submitted { color: var(--gold); }
@@ -311,11 +493,24 @@ $round-gap: 48px; // gap between rounds — wide enough for connector lines
     &--walkover  { color: var(--dim); }
   }
 
-  &__disputed-flag { font-size: .8rem; }
+  &__disputed-flag {
+    font-size: .8rem;
+    animation: shake .55s ease-in-out infinite alternate;
+  }
 }
 
-@keyframes live-pulse     { 0%,100%{ border-color: rgba(0,229,255,.3) } 50%{ border-color: rgba(0,229,255,.7) } }
-@keyframes disputed-pulse { 0%,100%{ border-color: rgba(239,68,68,.3) } 50%{ border-color: rgba(239,68,68,.7) } }
+@keyframes live-pulse {
+  0%,100% { border-color: rgba(0,229,255,.35); box-shadow: 0 0 0 0 rgba(0,229,255,0); }
+  50%     { border-color: rgba(0,229,255,.7);  box-shadow: 0 0 18px 2px rgba(0,229,255,.2); }
+}
+@keyframes disputed-pulse {
+  0%,100% { border-color: rgba(239,68,68,.35); }
+  50%     { border-color: rgba(239,68,68,.75); }
+}
+@keyframes shake {
+  0%   { transform: rotate(-5deg); }
+  100% { transform: rotate(5deg); }
+}
 
 // ── Bracket legend ────────────────────────────────────────────────────────────
 .bracket-legend {
@@ -485,4 +680,393 @@ textarea.input { resize: vertical; min-height: 80px; }
   .meta-strip     { flex-direction: column; }
   .meta-item      { border-right: none; border-bottom: 1px solid var(--br); &:last-child { border-bottom: none; } }
   .leaderboard__head, .leaderboard__row { grid-template-columns: 40px 1fr 36px 36px 44px; }
+}
+
+// ── Reduced-motion preference ─────────────────────────────────────────────────
+@media (prefers-reduced-motion: reduce) {
+  .champion-banner,
+  .champion-banner::before,
+  .champion-banner__name,
+  .champion-banner__trophy,
+  .b-slot,
+  .b-match,
+  .b-match__disputed-flag {
+    animation: none !important;
+  }
+  .b-match--clickable:hover { transform: none; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SPRINT 2 — Match modal extensions: Schedule / Reschedule / Evidence
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Wider modal so the new sections don't feel cramped.
+.modal--wide {
+  max-width: 560px;
+}
+
+// Consistent section wrapper used by Schedule / Reschedule / Evidence.
+.m-section {
+  background: var(--bg3);
+  border: 1px solid var(--br);
+  border-radius: 10px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  animation: section-in .35s cubic-bezier(.2,.7,.2,1) both;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--br);
+    background: linear-gradient(90deg, rgba(240,165,0,.05) 0%, transparent 70%);
+  }
+
+  &__icon  {
+    font-size: 1rem;
+    opacity: .9;
+  }
+
+  &__title {
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text);
+    flex: 1;
+  }
+
+  &__count {
+    font-size: .7rem;
+    background: var(--bg4);
+    color: var(--mu);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-family: var(--fm);
+  }
+
+  &__action {
+    background: transparent;
+    border: 1px solid rgba(240,165,0,.35);
+    color: var(--gold);
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all .15s;
+    &:hover { background: rgba(240,165,0,.1); border-color: var(--gold); }
+  }
+
+  &__body {
+    padding: 12px 14px;
+  }
+
+  &__empty {
+    font-size: .82rem;
+    color: var(--dim);
+    margin: 0;
+  }
+}
+
+@keyframes section-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// ── Schedule display ─────────────────────────────────────────────────────────
+.scheduled-at {
+  font-size: .95rem;
+  color: var(--text);
+  strong { color: var(--gold); font-weight: 700; }
+}
+
+// ── Inline forms inside sections ─────────────────────────────────────────────
+.m-inline-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  &--stack {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+
+    .m-inline-form--stack & {
+      margin-left: 0;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    .btn { flex: 0 0 auto; }
+  }
+
+  input[type="datetime-local"],
+  input[type="text"],
+  textarea {
+    color-scheme: dark; // makes the native date picker match the theme
+  }
+}
+
+// ── Reschedule cards ─────────────────────────────────────────────────────────
+.reschedule-card {
+  background: var(--bg);
+  border: 1px solid var(--br);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  animation: section-in .3s cubic-bezier(.2,.7,.2,1) both;
+
+  &:last-child { margin-bottom: 0; }
+
+  &__head {
+    font-size: .85rem;
+    color: var(--text);
+    margin-bottom: 6px;
+    strong { color: var(--gold); }
+  }
+
+  &__time {
+    font-family: var(--fm);
+    font-size: 1rem;
+    color: var(--cyan);
+    margin-bottom: 4px;
+  }
+
+  &__reason {
+    font-size: .82rem;
+    color: var(--mu);
+    font-style: italic;
+    margin-bottom: 8px;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    .btn { flex: 1; }
+  }
+
+  // State variants: warm gold border when opponent needs to respond to you.
+  &--awaiting-you {
+    border-color: rgba(240,165,0,.45);
+    background: linear-gradient(135deg, rgba(240,165,0,.08) 0%, transparent 50%);
+    box-shadow: 0 0 18px rgba(240,165,0,.08);
+    animation: awaiting-pulse 2.5s ease-in-out infinite;
+  }
+
+  &--mine {
+    border-color: rgba(0,229,255,.3);
+    background: linear-gradient(135deg, rgba(0,229,255,.04) 0%, transparent 50%);
+  }
+
+  &--organizer {
+    border-color: rgba(167,139,250,.35);
+    background: linear-gradient(135deg, rgba(167,139,250,.06) 0%, transparent 50%);
+    .reschedule-card__head strong { color: #a78bfa; }
+  }
+}
+
+@keyframes awaiting-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(240,165,0,.08); }
+  50%      { box-shadow: 0 0 24px rgba(240,165,0,.22); }
+}
+
+// ── Reschedule history expandable ────────────────────────────────────────────
+.reschedule-history {
+  margin-top: 10px;
+  summary {
+    cursor: pointer;
+    font-size: .72rem;
+    color: var(--mu);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 0;
+    list-style: none;
+    &::-webkit-details-marker { display: none; }
+    &::before {
+      content: '▸ ';
+      transition: transform .15s;
+      display: inline-block;
+    }
+    &:hover { color: var(--text); }
+  }
+
+  &[open] summary::before { transform: rotate(90deg); }
+
+  &__row {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: .78rem;
+    border-top: 1px solid var(--br);
+  }
+
+  .rs__date   { font-family: var(--fm); color: var(--text); }
+  .rs__who    { color: var(--mu); }
+  .rs__status { font-weight: 700; letter-spacing: .5px; }
+  .rs__tag    {
+    font-size: .65rem;
+    background: rgba(167,139,250,.15);
+    color: #a78bfa;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  .rs--pending    .rs__status { color: var(--gold); }
+  .rs--accepted   .rs__status { color: var(--green); }
+  .rs--rejected   .rs__status { color: #f87171; }
+  .rs--cancelled  .rs__status { color: var(--dim); }
+  .rs--overridden .rs__status { color: #a78bfa; }
+}
+
+// ── Evidence upload ──────────────────────────────────────────────────────────
+.evidence-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px dashed var(--br2);
+  border-radius: 8px;
+  margin-bottom: 12px;
+
+  &__drop {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 72px;
+    padding: 14px;
+    border: 1px dashed rgba(0,229,255,.3);
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    transition: all .2s;
+
+    &:hover { border-color: var(--cyan); background: rgba(0,229,255,.04); }
+
+    input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+    }
+  }
+
+  &__prompt {
+    color: var(--mu);
+    font-size: .82rem;
+    small { color: var(--dim); font-size: .7rem; }
+  }
+
+  &__file {
+    color: var(--cyan);
+    font-size: .85rem;
+    font-weight: 600;
+    font-family: var(--fm);
+  }
+}
+
+// ── Evidence grid ────────────────────────────────────────────────────────────
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.evidence-item {
+  position: relative;
+  background: var(--bg);
+  border: 1px solid var(--br);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color .15s, transform .15s;
+  animation: section-in .3s cubic-bezier(.2,.7,.2,1) both;
+
+  &:hover {
+    border-color: var(--br2);
+    transform: translateY(-1px);
+  }
+
+  a { display: block; color: inherit; text-decoration: none; }
+
+  img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    display: block;
+  }
+
+  &__video-link {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, var(--bg3), var(--bg));
+    color: var(--cyan);
+    font-size: .92rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    &:hover { color: var(--gold); background: linear-gradient(135deg, var(--bg3), rgba(240,165,0,.05)); }
+  }
+
+  &__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    font-size: .68rem;
+    color: var(--mu);
+    border-top: 1px solid var(--br);
+  }
+
+  &__who  { font-weight: 700; color: var(--text); }
+  &__date { font-family: var(--fm); }
+
+  &__caption {
+    padding: 0 10px 8px;
+    margin: 0;
+    font-size: .75rem;
+    color: var(--mu);
+    font-style: italic;
+  }
+
+  &__delete {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,.65);
+    color: #fff;
+    font-size: .7rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s, background .15s;
+
+    &:hover { background: rgba(239,68,68,.8); }
+  }
+
+  &:hover &__delete { opacity: 1; }
+}
+
+// Reduce motion
+@media (prefers-reduced-motion: reduce) {
+  .m-section,
+  .reschedule-card,
+  .evidence-item {
+    animation: none !important;
+  }
+  .reschedule-card--awaiting-you {
+    animation: none !important;
+  }
 }

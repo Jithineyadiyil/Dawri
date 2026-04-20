@@ -43,9 +43,7 @@
       </div>
 
       <div class="detail-badges">
-        <span class="badge" [class]="'badge--game-' + t.game">
-          {{ t.game_label }}
-        </span>
+        <span class="badge" [class]="'badge--game-' + t.game">{{ t.game_label }}</span>
         <span class="badge badge--format">{{ t.format_label }}</span>
         <span class="badge" [class.badge--open]="t.is_registration_open"
               [class.badge--closed]="!t.is_registration_open">
@@ -88,15 +86,12 @@
 
     <!-- ── Tabs ─────────────────────────────────────────────────── -->
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" [class.tab--active]="activeTab()==='bracket'"
-        (click)="activeTab.set('bracket')">Bracket</button>
-      <button class="tab" role="tab" [class.tab--active]="activeTab()==='leaderboard'"
-        (click)="activeTab.set('leaderboard')">
+      <button class="tab" role="tab" [class.tab--active]="activeTab()==='bracket'" (click)="activeTab.set('bracket')">Bracket</button>
+      <button class="tab" role="tab" [class.tab--active]="activeTab()==='leaderboard'" (click)="activeTab.set('leaderboard')">
         {{ t.participants?.length ? 'Players (' + t.participants.length + ')' : 'Players' }}
       </button>
       @if (t.prize_pool && t.prize_pool.length) {
-        <button class="tab" role="tab" [class.tab--active]="activeTab()==='prize'"
-          (click)="activeTab.set('prize')">Prize Pool</button>
+        <button class="tab" role="tab" [class.tab--active]="activeTab()==='prize'" (click)="activeTab.set('prize')">Prize Pool</button>
       }
     </div>
 
@@ -104,20 +99,16 @@
     <!-- BRACKET TAB                                                -->
     <!-- ═══════════════════════════════════════════════════════════ -->
     @if (activeTab() === 'bracket') {
-
       @if (!t.bracket) {
         <div class="empty-state">
           <div class="empty-state__icon">🏆</div>
-          <p>{{ t.is_registration_open
-            ? 'Bracket will be generated when registration closes.'
-            : t.status === 'ongoing' ? 'Bracket generation in progress…'
-            : 'Bracket has not been generated yet.' }}</p>
+          <p>{{ t.is_registration_open ? 'Bracket will be generated when registration closes.'
+              : t.status === 'ongoing' ? 'Bracket generation in progress…'
+              : 'Bracket has not been generated yet.' }}</p>
         </div>
       }
 
       @if (t.bracket; as b) {
-
-        <!-- Status bar -->
         <div class="bracket-bar">
           <div class="bracket-bar__left">
             <span class="bracket-bar__round">
@@ -131,7 +122,6 @@
           </div>
         </div>
 
-        <!-- Champion banner -->
         @if (b.status === 'completed' && b.winner) {
           <div class="champion-banner">
             <div class="champion-banner__trophy">🏆</div>
@@ -142,34 +132,29 @@
           </div>
         }
 
-        <!-- ── Bracket grid ────────────────────────────────────── -->
         <div class="bracket-scroll">
           <div class="bracket-tree"
             [class.bracket-tree--rr]="t.format === 'round_robin'"
             [class.bracket-tree--swiss]="t.format === 'swiss'">
 
-            @for (round of rounds(); track round.num + round.section; let last = $last) {
+            @for (round of rounds(); track round.num + round.section;
+                  let last = $last; let roundIdx = $index) {
               <div class="b-round" [class]="'b-round--' + round.section" [class.b-round--last]="last">
-
-                <!-- Round column header -->
                 <div class="b-round__header">
-                  <span class="b-round__label" [class.b-round__label--losers]="round.section === 'losers'"
+                  <span class="b-round__label"
+                    [class.b-round__label--losers]="round.section === 'losers'"
                     [class.b-round__label--final]="round.section === 'grand_final'">
                     {{ round.label }}
                   </span>
                 </div>
 
-                <!-- Match slots -->
                 <div class="b-round__matches">
-                  @for (m of round.matches; track m.id) {
-                    <div class="b-slot" [style.height.px]="round.slotHeight">
+                  @for (m of round.matches; track m.id; let matchIdx = $index) {
+                    <div class="b-slot"
+                         [style.height.px]="round.slotHeight"
+                         [style.--slot-h.px]="round.slotHeight"
+                         [style.--delay.ms]="(matchIdx * 60) + (roundIdx * 120)">
 
-                      <!-- Connector lines -->
-                      @if (round.section === 'winners' && round.num > 1) {
-                        <div class="connector connector--in"></div>
-                      }
-
-                      <!-- Match card -->
                       <div class="b-match"
                         [class]="'b-match--' + m.status"
                         [class.b-match--clickable]="matchIsClickable(m)"
@@ -178,7 +163,6 @@
                         [attr.role]="matchIsClickable(m) ? 'button' : null"
                         [attr.tabindex]="matchIsClickable(m) ? 0 : null">
 
-                        <!-- Participant A -->
                         <div class="b-match__p"
                           [class.b-match__p--winner]="m.winner_id === m.participant_a?.id && m.status === 'completed'"
                           [class.b-match__p--loser]="m.winner_id && m.winner_id !== m.participant_a?.id && m.status === 'completed'">
@@ -187,14 +171,12 @@
                             @else { {{ m.participant_a?.name ?? 'TBD' }} }
                           </span>
                           @if (m.score_a !== null && m.score_a !== undefined) {
-                            <span class="b-match__score"
-                              [class.b-match__score--win]="m.winner_id === m.participant_a?.id">
+                            <span class="b-match__score" [class.b-match__score--win]="m.winner_id === m.participant_a?.id">
                               {{ m.score_a }}
                             </span>
                           }
                         </div>
 
-                        <!-- Divider -->
                         <div class="b-match__divider">
                           <span class="b-match__status" [class]="'b-match__status--' + m.status">
                             {{ statusLabel(m.status) }}
@@ -204,7 +186,6 @@
                           }
                         </div>
 
-                        <!-- Participant B -->
                         <div class="b-match__p"
                           [class.b-match__p--winner]="m.winner_id === m.participant_b?.id && m.status === 'completed'"
                           [class.b-match__p--loser]="m.winner_id && m.winner_id !== m.participant_b?.id && m.status === 'completed'">
@@ -213,39 +194,27 @@
                             @else { {{ m.participant_b?.name ?? 'TBD' }} }
                           </span>
                           @if (m.score_b !== null && m.score_b !== undefined) {
-                            <span class="b-match__score"
-                              [class.b-match__score--win]="m.winner_id === m.participant_b?.id">
+                            <span class="b-match__score" [class.b-match__score--win]="m.winner_id === m.participant_b?.id">
                               {{ m.score_b }}
                             </span>
                           }
                         </div>
-
-                      </div><!-- /b-match -->
-
-                      <!-- Connector out -->
-                      @if (round.section === 'winners' && !last) {
-                        <div class="connector connector--out"></div>
-                      }
-
-                    </div><!-- /b-slot -->
+                      </div>
+                    </div>
                   }
-                </div><!-- /b-round__matches -->
-
-              </div><!-- /b-round -->
+                </div>
+              </div>
             }
-
-          </div><!-- /bracket-tree -->
-        </div><!-- /bracket-scroll -->
-
-        <!-- Legend -->
-        <div class="bracket-legend">
-          <span class="legend-item"><span class="legend-dot ld--pending"></span>Pending</span>
-          <span class="legend-item"><span class="legend-dot ld--submitted"></span>Awaiting confirm</span>
-          <span class="legend-item"><span class="legend-dot ld--disputed"></span>Disputed</span>
-          <span class="legend-item"><span class="legend-dot ld--completed"></span>Completed</span>
-          <span class="legend-item legend-item--click">Click an active match to submit or confirm results</span>
+          </div>
         </div>
 
+        <div class="bracket-legend">
+          <div class="legend-item"><span class="legend-dot ld--pending"></span>Pending</div>
+          <div class="legend-item"><span class="legend-dot ld--submitted"></span>Submitted</div>
+          <div class="legend-item"><span class="legend-dot ld--disputed"></span>Disputed</div>
+          <div class="legend-item"><span class="legend-dot ld--completed"></span>Completed</div>
+          <div class="legend-item legend-item--click">Click any match to view or submit a result.</div>
+        </div>
       }
     }
 
@@ -253,27 +222,19 @@
     <!-- LEADERBOARD / PLAYERS TAB                                  -->
     <!-- ═══════════════════════════════════════════════════════════ -->
     @if (activeTab() === 'leaderboard') {
-      @if (!t.participants || t.participants.length === 0) {
-        <div class="empty-state">
-          <div class="empty-state__icon">📊</div>
-          <p>No players registered yet.</p>
-        </div>
+      @if (!t.participants?.length) {
+        <div class="empty-state"><div class="empty-state__icon">👥</div><p>No players registered yet.</p></div>
       } @else {
         <div class="leaderboard">
           <div class="leaderboard__head">
-            <span>#</span>
-            <span>Player</span>
-            <span>Seed</span>
-            <span>W</span>
-            <span>L</span>
-            <span>Pts</span>
+            <span>#</span><span>Name</span><span>Seed</span><span>W</span><span>L</span><span>Pts</span>
             @if (t.format === 'swiss') { <span>Buchholz</span> }
           </div>
-          @for (p of t.participants; track p.id; let i = $index) {
+          @for (p of leaderboard(); track p.name; let i = $index) {
             <div class="leaderboard__row"
-              [class.leaderboard__row--gold]="i === 0 && p.wins > 0"
-              [class.leaderboard__row--silver]="i === 1 && p.wins > 0"
-              [class.leaderboard__row--bronze]="i === 2 && p.wins > 0">
+              [class.leaderboard__row--gold]="i === 0"
+              [class.leaderboard__row--silver]="i === 1"
+              [class.leaderboard__row--bronze]="i === 2">
               <span class="leaderboard__rank">{{ i + 1 }}</span>
               <span class="leaderboard__name">{{ p.name }}</span>
               <span class="leaderboard__stat">{{ p.seed }}</span>
@@ -287,15 +248,9 @@
       }
     }
 
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- PRIZE TAB                                                  -->
-    <!-- ═══════════════════════════════════════════════════════════ -->
     @if (activeTab() === 'prize') {
       @if (!t.prize_pool || !t.prize_pool.length) {
-        <div class="empty-state">
-          <div class="empty-state__icon">🎁</div>
-          <p>No prizes configured.</p>
-        </div>
+        <div class="empty-state"><div class="empty-state__icon">🎁</div><p>No prizes configured.</p></div>
       } @else {
         <div class="prize-list">
           @for (p of t.prize_pool; track p.position) {
@@ -303,9 +258,7 @@
               [class.prize-row--1]="p.position === 1"
               [class.prize-row--2]="p.position === 2"
               [class.prize-row--3]="p.position === 3">
-              <span class="prize-row__medal">
-                {{ p.position === 1 ? '🥇' : p.position === 2 ? '🥈' : p.position === 3 ? '🥉' : '#' + p.position }}
-              </span>
+              <span class="prize-row__medal">{{ p.position === 1 ? '🥇' : p.position === 2 ? '🥈' : p.position === 3 ? '🥉' : '#' + p.position }}</span>
               <span class="prize-row__reward">{{ p.reward }}</span>
             </div>
           }
@@ -316,12 +269,12 @@
   }
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- MATCH MODAL                                                    -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- MATCH MODAL — extended with Schedule + Reschedule + Evidence       -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
 @if (selectedMatch(); as m) {
   <div class="modal-overlay" (click)="closeModal()" role="dialog" aria-modal="true">
-    <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal modal--wide" (click)="$event.stopPropagation()">
 
       <div class="modal__header">
         <div>
@@ -354,9 +307,226 @@
         </span>
       </div>
 
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- SECTION: SCHEDULE                                           -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section class="m-section m-section--schedule">
+        <header class="m-section__head">
+          <span class="m-section__icon">🕐</span>
+          <span class="m-section__title">Schedule</span>
+          @if (canManageMatch() && !showScheduleEditor() && m.status !== 'completed' && m.status !== 'walkover') {
+            <button type="button" class="m-section__action" (click)="toggleScheduleEditor()">
+              {{ m.scheduled_at ? 'Change' : 'Set Time' }}
+            </button>
+          }
+        </header>
+        <div class="m-section__body">
+          @if (!showScheduleEditor()) {
+            @if (m.scheduled_at) {
+              <div class="scheduled-at">
+                <strong>{{ m.scheduled_at | date:'EEEE, d MMM y' }}</strong>
+                at {{ m.scheduled_at | date:'HH:mm' }}
+              </div>
+            } @else {
+              <p class="m-section__empty">Not yet scheduled.</p>
+            }
+          } @else {
+            <form (ngSubmit)="saveSchedule()" [formGroup]="scheduleForm" class="m-inline-form">
+              <input type="datetime-local" class="input" formControlName="scheduled_at" />
+              <div class="m-inline-form__actions">
+                <button type="button" class="btn btn--ghost" (click)="toggleScheduleEditor()">Cancel</button>
+                <button type="submit" class="btn btn--gold" [disabled]="scheduleForm.invalid || submitting()">
+                  {{ submitting() ? 'Saving…' : 'Save' }}
+                </button>
+              </div>
+            </form>
+          }
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- SECTION: RESCHEDULE REQUESTS                                -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      @if (m.scheduled_at || rescheduleRequests().length) {
+        <section class="m-section m-section--reschedule">
+          <header class="m-section__head">
+            <span class="m-section__icon">↻</span>
+            <span class="m-section__title">Reschedule Requests</span>
+            @if (currentUserIsParticipant() && !showRescheduleForm() && !myPendingReschedule() && m.status !== 'completed' && m.status !== 'walkover') {
+              <button type="button" class="m-section__action" (click)="toggleRescheduleForm()">
+                Propose Change
+              </button>
+            }
+          </header>
+          <div class="m-section__body">
+
+            <!-- Propose a new time form -->
+            @if (showRescheduleForm()) {
+              <form (ngSubmit)="requestReschedule()" [formGroup]="rescheduleForm" class="m-inline-form m-inline-form--stack">
+                <label class="form-label">Proposed Time <span class="req">*</span></label>
+                <input type="datetime-local" class="input" formControlName="proposed_at" />
+                <label class="form-label">Reason (optional)</label>
+                <textarea class="input" formControlName="reason" rows="2" maxlength="500"
+                  placeholder="Exam clash, travel, etc."></textarea>
+                <div class="m-inline-form__actions">
+                  <button type="button" class="btn btn--ghost" (click)="toggleRescheduleForm()">Cancel</button>
+                  <button type="submit" class="btn btn--gold" [disabled]="rescheduleForm.invalid || submitting()">
+                    {{ submitting() ? 'Sending…' : 'Send Request' }}
+                  </button>
+                </div>
+              </form>
+            }
+
+            <!-- Awaiting the current user's response -->
+            @if (pendingRescheduleAwaitingMe(); as req) {
+              <div class="reschedule-card reschedule-card--awaiting-you">
+                <div class="reschedule-card__head">
+                  <strong>{{ req.requested_by.name ?? 'Opponent' }}</strong> proposed a new time:
+                </div>
+                <div class="reschedule-card__time">
+                  {{ req.proposed_at | date:'EEE, d MMM · HH:mm' }}
+                </div>
+                @if (req.reason) {
+                  <div class="reschedule-card__reason">"{{ req.reason }}"</div>
+                }
+                <div class="reschedule-card__actions">
+                  <button class="btn btn--ghost" [disabled]="submitting()" (click)="respondToReschedule(req, false)">Reject</button>
+                  <button class="btn btn--gold"  [disabled]="submitting()" (click)="respondToReschedule(req, true)">Accept</button>
+                </div>
+              </div>
+            }
+
+            <!-- Current user's own pending request -->
+            @if (myPendingReschedule(); as req) {
+              <div class="reschedule-card reschedule-card--mine">
+                <div class="reschedule-card__head">
+                  You proposed <strong>{{ req.proposed_at | date:'EEE, d MMM · HH:mm' }}</strong> —
+                  awaiting opponent.
+                </div>
+                @if (req.reason) {
+                  <div class="reschedule-card__reason">"{{ req.reason }}"</div>
+                }
+                <div class="reschedule-card__actions">
+                  <button class="btn btn--ghost" (click)="cancelMyReschedule(req)">Cancel request</button>
+                </div>
+              </div>
+            }
+
+            <!-- Organizer override panel (for any pending request) -->
+            @if (canManageMatch()) {
+              @for (r of rescheduleRequests(); track r.id) {
+                @if (r.is_pending) {
+                  <div class="reschedule-card reschedule-card--organizer">
+                    <div class="reschedule-card__head">
+                      <strong>Organizer override</strong> — {{ r.requested_by.name }} proposed
+                      {{ r.proposed_at | date:'EEE, d MMM · HH:mm' }}
+                    </div>
+                    <div class="reschedule-card__actions">
+                      <button class="btn btn--danger" [disabled]="submitting()" (click)="organizerOverride(r, false)">Force Reject</button>
+                      <button class="btn btn--cyan"   [disabled]="submitting()" (click)="organizerOverride(r, true)">Force Accept</button>
+                    </div>
+                  </div>
+                }
+              }
+            }
+
+            <!-- History -->
+            @if (rescheduleRequests().length) {
+              <details class="reschedule-history">
+                <summary>History ({{ rescheduleRequests().length }})</summary>
+                @for (r of rescheduleRequests(); track r.id) {
+                  <div class="reschedule-history__row" [class]="'rs--' + r.status">
+                    <span class="rs__date">{{ r.proposed_at | date:'d MMM · HH:mm' }}</span>
+                    <span class="rs__who">{{ r.requested_by.name }}</span>
+                    <span class="rs__status">{{ rescheduleStatusLabel(r.status) }}</span>
+                    @if (r.was_organizer_override) {
+                      <span class="rs__tag">organizer</span>
+                    }
+                  </div>
+                }
+              </details>
+            } @else if (!showRescheduleForm()) {
+              <p class="m-section__empty">No reschedule activity yet.</p>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- SECTION: EVIDENCE                                           -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      @if (m.scheduled_at) {
+        <section class="m-section m-section--evidence">
+          <header class="m-section__head">
+            <span class="m-section__icon">📎</span>
+            <span class="m-section__title">Evidence</span>
+            <span class="m-section__count">{{ evidenceList().length }}</span>
+          </header>
+          <div class="m-section__body">
+
+            <!-- Upload form (participants + organizer, while not completed) -->
+            @if ((currentUserIsParticipant() || canManageMatch()) && m.status !== 'completed' && m.status !== 'walkover') {
+              <form [formGroup]="evidenceForm" (ngSubmit)="uploadEvidence()" class="evidence-upload">
+                <label class="evidence-upload__drop">
+                  <input id="evidence-file-input" type="file"
+                         accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
+                         (change)="onEvidenceFileSelected($event)" />
+                  @if (evidenceFile(); as f) {
+                    <span class="evidence-upload__file">📎 {{ f.name }}</span>
+                  } @else {
+                    <span class="evidence-upload__prompt">
+                      Choose file<br><small>JPG/PNG/WEBP ≤5MB · MP4/WEBM ≤50MB</small>
+                    </span>
+                  }
+                </label>
+                <input type="text" class="input" formControlName="caption"
+                       placeholder="Optional caption (e.g. 'Final score screen')" maxlength="255"/>
+                <button type="submit" class="btn btn--gold"
+                        [disabled]="!evidenceFile() || uploadingEvidence()">
+                  {{ uploadingEvidence() ? 'Uploading…' : 'Upload' }}
+                </button>
+              </form>
+            }
+
+            <!-- List -->
+            @if (evidenceList().length) {
+              <div class="evidence-grid">
+                @for (e of evidenceList(); track e.id) {
+                  <div class="evidence-item" [class]="'evidence-item--' + e.file_type">
+                    @if (e.file_type === 'image') {
+                      <a [href]="e.url" target="_blank" rel="noopener">
+                        <img [src]="e.url" [alt]="e.caption ?? 'Evidence'" loading="lazy"/>
+                      </a>
+                    } @else {
+                      <a class="evidence-item__video-link" [href]="e.url" target="_blank" rel="noopener">
+                        ▶ Open video
+                      </a>
+                    }
+                    <div class="evidence-item__meta">
+                      <span class="evidence-item__who">{{ e.uploaded_by.name ?? '—' }}</span>
+                      <span class="evidence-item__date">{{ e.created_at | date:'d MMM · HH:mm' }}</span>
+                    </div>
+                    @if (e.caption) {
+                      <p class="evidence-item__caption">"{{ e.caption }}"</p>
+                    }
+                    @if (canDeleteEvidence(e)) {
+                      <button class="evidence-item__delete" (click)="deleteEvidence(e)" aria-label="Delete">✕</button>
+                    }
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="m-section__empty">No evidence uploaded yet.</p>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- SECTION: RESULT LIFECYCLE (Sprint 1 — unchanged)            -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
       @if (!disputeMode()) {
 
-        <!-- Pending / Ongoing → submit result -->
         @if (m.status === 'pending' || m.status === 'scheduled' || m.status === 'ongoing') {
           <form [formGroup]="resultForm" (ngSubmit)="submitResult()" class="modal__form">
             <div class="form-group">
@@ -395,7 +565,6 @@
           </form>
         }
 
-        <!-- Submitted → confirm or dispute -->
         @if (m.status === 'submitted') {
           <div class="modal__submitted">
             <p class="modal__submitted__note">
@@ -413,7 +582,6 @@
           </div>
         }
 
-        <!-- Disputed -->
         @if (m.status === 'disputed') {
           <div class="modal__note modal__note--warn">
             ⚠ Under moderator review.
@@ -422,7 +590,6 @@
           <div class="modal__actions"><button class="btn btn--ghost" (click)="closeModal()">Close</button></div>
         }
 
-        <!-- Completed -->
         @if (m.status === 'completed' || m.status === 'walkover') {
           <div class="modal__note">
             🏆 Winner: <strong>{{ getWinnerName(m) }}</strong>
@@ -431,8 +598,6 @@
         }
 
       } @else {
-
-        <!-- Dispute form -->
         <form [formGroup]="disputeForm" (ngSubmit)="submitDispute()" class="modal__form">
           <div class="form-group">
             <label class="form-label">Reason for dispute</label>
@@ -449,7 +614,6 @@
             </button>
           </div>
         </form>
-
       }
 
     </div>

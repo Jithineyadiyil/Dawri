@@ -113,6 +113,7 @@ export interface Tournament {
   prize_pool: any;
   swiss_rounds: number | null;
   organizer: { id: string; name: string } | null;
+  organizer_id?: string;
   participants?: TournamentParticipant[];
   matches?: TournamentMatch[];
   bracket?: BracketData | null;
@@ -139,6 +140,35 @@ export interface TournamentParticipant {
   name: string;
 }
 
+// ─── Sprint 2: Match Scheduling & Evidence ────────────────────────────────────
+
+export interface MatchRescheduleRequest {
+  id: string;
+  match_id: string;
+  requested_by: { id: string; name: string | null };
+  proposed_at: string;
+  reason: string | null;
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'overridden';
+  responded_by?: { id: string; name: string | null };
+  responded_at: string | null;
+  was_organizer_override: boolean;
+  is_pending: boolean;
+  created_at: string;
+}
+
+export interface MatchEvidence {
+  id: string;
+  match_id: string;
+  uploaded_by: { id: string; name: string | null };
+  file_type: 'image' | 'video';
+  file_mime: string;
+  file_size: number | null;
+  url: string;
+  caption: string | null;
+  created_at: string;
+}
+
+// ── TournamentMatch extended for Sprint 2 ─────────────────────────────────────
 export interface TournamentMatch {
   id: string;
   round_number: number;
@@ -154,6 +184,13 @@ export interface TournamentMatch {
   participant_a: { id: string; name: string } | null;
   participant_b: { id: string; name: string } | null;
   winner: { id: string; name: string } | null;
+
+  // Sprint 2 additions — may be undefined on older cached payloads.
+  scheduled_at?: string | null;
+  scheduled_by_id?: string | null;
+  pending_reschedule?: MatchRescheduleRequest | null;
+  evidence_count?: number;
+  dispute_reason?: string | null;
 }
 
 export interface TournamentFilters {
@@ -244,19 +281,15 @@ export class ApiService {
   login(payload: LoginPayload): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${API_BASE}/auth/login`, payload);
   }
-
   register(payload: RegisterPayload): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${API_BASE}/auth/register`, payload);
   }
-
   logout(): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${API_BASE}/auth/logout`, {});
   }
-
   sendOtp(): Observable<OtpResponse> {
     return this.http.post<OtpResponse>(`${API_BASE}/auth/otp/send`, {});
   }
-
   verifyOtp(otp: string): Observable<OtpResponse> {
     return this.http.post<OtpResponse>(`${API_BASE}/auth/otp/verify`, { otp });
   }
@@ -285,7 +318,6 @@ export class ApiService {
   getPlayerProfile(userId: string): Observable<{ data: PlayerProfile }> {
     return this.http.get<{ data: PlayerProfile }>(`${API_BASE}/players/${userId}`);
   }
-
   getPlayerMatches(
     userId: string,
     opts: { limit?: number; page?: number } = {}
@@ -307,35 +339,30 @@ export class ApiService {
     if (filters.page)   params = params.set('page',   filters.page.toString());
     return this.http.get<PaginatedResponse<Tournament>>(`${API_BASE}/tournaments`, { params });
   }
-
   getTournament(id: string): Observable<{ data: Tournament }> {
     return this.http.get<{ data: Tournament }>(`${API_BASE}/tournaments/${id}`);
   }
-
   createTournament(payload: any): Observable<{ data: Tournament }> {
     return this.http.post<{ data: Tournament }>(`${API_BASE}/tournaments`, payload);
   }
-
   updateTournament(id: string, payload: any): Observable<{ data: Tournament }> {
     return this.http.put<{ data: Tournament }>(`${API_BASE}/tournaments/${id}`, payload);
   }
-
   deleteTournament(id: string): Observable<void> {
     return this.http.delete<void>(`${API_BASE}/tournaments/${id}`);
   }
-
   generateBracket(id: string): Observable<{ message: string; tournament: Tournament }> {
     return this.http.post<{ message: string; tournament: Tournament }>(
       `${API_BASE}/tournaments/${id}/generate-bracket`, {}
     );
   }
-
   registerForTournament(id: string): Observable<{ message: string; participants_count: number }> {
     return this.http.post<{ message: string; participants_count: number }>(
       `${API_BASE}/tournaments/${id}/register`, {}
     );
   }
 
+  // ── Matches (Sprint 1) ─────────────────────────────────────────────────────
   /**
    * Submit match result.
    * Route: POST /tournaments/{tournamentId}/matches/{matchId}/result
@@ -346,17 +373,116 @@ export class ApiService {
     payload: { winner_participant_id: string; score_a?: number | null; score_b?: number | null }
   ): Observable<{ message: string; data: any }> {
     return this.http.post<{ message: string; data: any }>(
-      `${API_BASE}/tournaments/${tournamentId}/matches/${matchId}/result`,
-      payload
+      `${API_BASE}/tournaments/${tournamentId}/matches/${matchId}/result`, payload
     );
   }
-
   confirmResult(matchId: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${API_BASE}/matches/${matchId}/confirm`, {});
   }
-
   disputeResult(matchId: string, reason: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${API_BASE}/matches/${matchId}/dispute`, { reason });
+  }
+
+  // ── Matches (Sprint 2 — scheduling) ────────────────────────────────────────
+
+  /**
+   * Organizer/admin directly sets the match schedule.
+   * @param matchId     Target match UUID
+   * @param scheduledAt ISO-8601 datetime (must be future)
+   */
+  scheduleMatch(matchId: string, scheduledAt: string): Observable<{ message: string; data: any }> {
+    return this.http.post<{ message: string; data: any }>(
+      `${API_BASE}/matches/${matchId}/schedule`, { scheduled_at: scheduledAt }
+    );
+  }
+
+  /**
+   * Participant proposes a new match time.
+   * @param matchId     Target match UUID
+   * @param proposedAt  ISO-8601 datetime (must be future)
+   * @param reason      Optional rationale, max 500 chars
+   */
+  requestReschedule(
+    matchId: string,
+    proposedAt: string,
+    reason?: string,
+  ): Observable<{ data: MatchRescheduleRequest }> {
+    return this.http.post<{ data: MatchRescheduleRequest }>(
+      `${API_BASE}/matches/${matchId}/reschedule-requests`,
+      { proposed_at: proposedAt, reason: reason || null },
+    );
+  }
+
+  /**
+   * List all reschedule requests (pending + history) for a match.
+   * Only participants / organizer / admin can view.
+   */
+  listReschedules(matchId: string): Observable<{ data: MatchRescheduleRequest[] }> {
+    return this.http.get<{ data: MatchRescheduleRequest[] }>(
+      `${API_BASE}/matches/${matchId}/reschedule-requests`,
+    );
+  }
+
+  /**
+   * Respond to a pending reschedule request.
+   * @param action   'accept' | 'reject'
+   * @param override If true AND the caller is organizer/admin, bypasses the
+   *                 dual-acceptance rule.
+   */
+  respondReschedule(
+    matchId: string,
+    requestId: string,
+    action: 'accept' | 'reject',
+    override = false,
+  ): Observable<{ data: MatchRescheduleRequest }> {
+    return this.http.post<{ data: MatchRescheduleRequest }>(
+      `${API_BASE}/matches/${matchId}/reschedule-requests/${requestId}/respond`,
+      { action, override },
+    );
+  }
+
+  /** Requester cancels their own pending request. */
+  cancelReschedule(matchId: string, requestId: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(
+      `${API_BASE}/matches/${matchId}/reschedule-requests/${requestId}`,
+    );
+  }
+
+  // ── Matches (Sprint 2 — evidence) ──────────────────────────────────────────
+
+  /**
+   * Upload an evidence file (screenshot or video clip).
+   * Multipart/form-data POST.
+   *
+   * @param matchId Target match UUID
+   * @param file    The file blob (≤5MB image, ≤50MB video)
+   * @param caption Optional caption, max 255 chars
+   */
+  uploadEvidence(
+    matchId: string,
+    file: File,
+    caption?: string,
+  ): Observable<{ data: MatchEvidence }> {
+    const form = new FormData();
+    form.append('file', file);
+    if (caption) { form.append('caption', caption); }
+    return this.http.post<{ data: MatchEvidence }>(
+      `${API_BASE}/matches/${matchId}/evidence`, form,
+    );
+  }
+
+  /** List all evidence files on a match. */
+  listEvidence(matchId: string): Observable<{ data: MatchEvidence[] }> {
+    return this.http.get<{ data: MatchEvidence[] }>(
+      `${API_BASE}/matches/${matchId}/evidence`,
+    );
+  }
+
+  /** Delete one evidence file. Uploader or organizer only. */
+  deleteEvidence(matchId: string, evidenceId: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(
+      `${API_BASE}/matches/${matchId}/evidence/${evidenceId}`,
+    );
   }
 
   // ── Marketplace ─────────────────────────────────────────────────────────────
@@ -366,15 +492,12 @@ export class ApiService {
     if (category) params = params.set('category', category);
     return this.http.get<PaginatedResponse<Product>>(`${API_BASE}/marketplace/products`, { params });
   }
-
   purchaseProduct(productId: string, quantity = 1): Observable<{ data: Order }> {
     return this.http.post<{ data: Order }>(`${API_BASE}/marketplace/orders`, { product_id: productId, quantity });
   }
-
   getOrders(): Observable<PaginatedResponse<Order>> {
     return this.http.get<PaginatedResponse<Order>>(`${API_BASE}/marketplace/orders`);
   }
-
   revealCode(orderId: string): Observable<{ code: string }> {
     return this.http.post<{ code: string }>(`${API_BASE}/marketplace/orders/${orderId}/reveal`, {});
   }
@@ -384,7 +507,6 @@ export class ApiService {
   getWallet(): Observable<{ data: Wallet }> {
     return this.http.get<{ data: Wallet }>(`${API_BASE}/wallet`);
   }
-
   topUpWallet(amount: number, paymentMethod: string): Observable<{ message: string; redirect_url?: string }> {
     return this.http.post<{ message: string; redirect_url?: string }>(
       `${API_BASE}/wallet/topup`, { amount, payment_method: paymentMethod }
@@ -396,27 +518,22 @@ export class ApiService {
   getSubscriptionPlans(): Observable<{ data: SubscriptionPlan[] }> {
     return this.http.get<{ data: SubscriptionPlan[] }>(`${API_BASE}/subscription/plans`);
   }
-
   getSubscription(): Observable<{ data: Subscription | null }> {
     return this.http.get<{ data: Subscription | null }>(`${API_BASE}/subscription`);
   }
-
   subscribeToPlan(planKey: string): Observable<{ message: string; subscription: Subscription }> {
     return this.http.post<{ message: string; subscription: Subscription }>(
       `${API_BASE}/subscription`, { plan: planKey }
     );
   }
-
   changeSubscriptionPlan(planKey: string): Observable<{ message: string; subscription: Subscription }> {
     return this.http.put<{ message: string; subscription: Subscription }>(
       `${API_BASE}/subscription`, { plan: planKey }
     );
   }
-
   cancelSubscription(): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${API_BASE}/subscription`);
   }
-
   getInvoices(): Observable<PaginatedResponse<Invoice>> {
     return this.http.get<PaginatedResponse<Invoice>>(`${API_BASE}/subscription/invoices`);
   }

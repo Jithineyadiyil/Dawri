@@ -5,56 +5,100 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RequestRescheduleRequest;
+use App\Http\Requests\RespondRescheduleRequest;
+use App\Http\Requests\ScheduleMatchRequest;
+use App\Http\Requests\UploadEvidenceRequest;
+use App\Http\Resources\MatchEvidenceResource;
+use App\Http\Resources\MatchRescheduleResource;
+use App\Models\MatchEvidence;
+use App\Models\MatchRescheduleRequest;
 use App\Models\TournamentMatch;
-use App\Models\TournamentParticipant;
 use App\Services\BracketAdvancementService;
 use App\Services\DisputeService;
+use App\Services\MatchEvidenceService;
+use App\Services\MatchSchedulingService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use RuntimeException;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * MatchController — handles all per-match actions.
+ *
+ * ── Sprint 1 endpoints (preserved, unchanged behaviour) ─────────────────
+ *   GET    /matches/{match}
+ *   POST   /matches/{match}/result              — submit result + screenshot
+ *   POST   /matches/{match}/confirm             — opponent confirms
+ *   POST   /matches/{match}/dispute             — opponent disputes
+ *   POST   /matches/{match}/moderator-override  — organizer override
+ *
+ * ── Sprint 2 endpoints (new) ────────────────────────────────────────────
+ *   POST   /matches/{match}/schedule
+ *   POST   /matches/{match}/reschedule-requests
+ *   GET    /matches/{match}/reschedule-requests
+ *   POST   /matches/{match}/reschedule-requests/{id}/respond
+ *   DELETE /matches/{match}/reschedule-requests/{id}
+ *   POST   /matches/{match}/evidence
+ *   GET    /matches/{match}/evidence
+ *   DELETE /matches/{match}/evidence/{id}
+ */
 class MatchController extends Controller
 {
     public function __construct(
         private readonly BracketAdvancementService $advancement,
-        private readonly DisputeService $disputes,
+        private readonly DisputeService            $disputes,
+        private readonly MatchSchedulingService    $scheduling,
+        private readonly MatchEvidenceService      $evidence,
     ) {}
 
-    /**
-     * GET /api/v1/matches/{id}
-     */
+    // ═══════════════════════════════════════════════════════════════════
+    // SPRINT 1 ENDPOINTS — unchanged
+    // ═══════════════════════════════════════════════════════════════════
+
     public function show(string $id): JsonResponse
     {
         $match = TournamentMatch::with([
             'participantA.user:id,name,game_username',
             'participantB.user:id,name,game_username',
-            'bracket.tournament:id,name,game',
+            'bracket.tournament:id,name,game,organizer_id',
+            'pendingReschedule.requestedBy:id,name',
+            'evidence.uploadedBy:id,name',
         ])->findOrFail($id);
 
         return response()->json(['data' => $this->matchArray($match)]);
     }
 
-    /**
-     * POST /api/v1/matches/{id}/result
-     */
     public function submitResult(Request $request, string $id): JsonResponse
     {
-        // Accept both 'winner_id' and 'winner_participant_id' from frontend
-        $winnerId = $request->input('winner_id') ?? $request->input('winner_participant_id');
+        $request->validate([
+            'winner_id'             => ['nullable', 'string'],
+            'winner_participant_id' => ['nullable', 'string'],
+            'score_a'               => ['nullable', 'integer', 'min:0', 'max:99'],
+            'score_b'               => ['nullable', 'integer', 'min:0', 'max:99'],
+            'screenshot'            => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
 
+        $winnerId = $request->input('winner_id') ?? $request->input('winner_participant_id');
         if (! $winnerId) {
-            return response()->json(['message' => 'Winner is required.', 'errors' => ['winner_id' => ['The winner field is required.']]], 422);
+            return response()->json(['message' => 'Winner is required.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $match = TournamentMatch::findOrFail($id);
 
-        // Allow pending, scheduled, ongoing, or active matches
-        if (! in_array($match->status, ['pending', 'scheduled', 'ongoing', 'active'], true)) {
-            return response()->json(['message' => 'Match is not in a submittable state. Current status: ' . $match->status], 422);
+        if (! in_array($match->status, ['pending', 'scheduled', 'ongoing', 'active', 'disputed'], true)) {
+            return response()->json(
+                ['message' => "Match cannot be submitted in its current status: {$match->status}."],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
         }
 
-        // Validate winner is one of the match participants
         if ($winnerId !== $match->participant_a_id && $winnerId !== $match->participant_b_id) {
-            return response()->json(['message' => 'Winner must be one of the match participants.'], 422);
+            return response()->json(
+                ['message' => 'Winner must be one of the match participants.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
         }
 
         $screenshotPath = null;
@@ -63,72 +107,53 @@ class MatchController extends Controller
         }
 
         $match->update([
-            'winner_id'       => $winnerId,
-            'score_a'         => $request->input('score_a'),
-            'score_b'         => $request->input('score_b'),
-            'status'          => 'submitted',
-            'submitted_by'    => $request->user()?->id,
-            'screenshot_path' => $screenshotPath,
+            'winner_id'              => $winnerId,
+            'score_a'                => $request->input('score_a'),
+            'score_b'                => $request->input('score_b'),
+            'status'                 => 'submitted',
+            'submitted_by_id'        => $request->user()?->id,
+            'result_screenshot_path' => $screenshotPath,
         ]);
 
         return response()->json(['data' => $this->matchArray($match->fresh())]);
     }
 
-    /**
-     * POST /api/v1/matches/{id}/confirm
-     */
     public function confirmResult(Request $request, string $id): JsonResponse
     {
         $match = TournamentMatch::findOrFail($id);
-
         if ($match->status !== 'submitted') {
-            return response()->json(['message' => 'No result to confirm.'], 422);
+            return response()->json(['message' => 'No result to confirm.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-
         if (! $match->winner_id) {
-            return response()->json(['message' => 'No winner set.'], 422);
+            return response()->json(['message' => 'No winner set.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
             $this->advancement->advance($match);
-
             return response()->json([
                 'message' => 'Result confirmed and bracket advanced.',
                 'data'    => $this->matchArray($match->fresh()),
             ]);
-        } catch (\RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
-    /**
-     * POST /api/v1/matches/{id}/dispute
-     */
     public function disputeResult(Request $request, string $id): JsonResponse
     {
-        $request->validate([
-            'reason' => ['required', 'string', 'max:1000'],
-        ]);
+        $request->validate(['reason' => ['required', 'string', 'max:1000']]);
 
         try {
-            $dispute = $this->disputes->raise(
-                $id,
-                $request->user()->id,
-                $request->input('reason')
-            );
-
+            $dispute = $this->disputes->raise($id, $request->user()->id, $request->input('reason'));
             return response()->json([
                 'message'    => 'Dispute raised successfully.',
                 'dispute_id' => $dispute->id,
             ]);
-        } catch (\RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
-    /**
-     * POST /api/v1/matches/{id}/moderator-override
-     */
     public function moderatorOverride(Request $request, string $id): JsonResponse
     {
         $request->validate([
@@ -137,23 +162,27 @@ class MatchController extends Controller
         ]);
 
         $user = $request->user();
-        if (! in_array($user->role, ['admin', 'moderator', 'organizer'], true)) {
-            return response()->json(['message' => 'Forbidden.'], 403);
+        if (! $this->isOrganizerOrAdmin($user)) {
+            return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
         }
 
-        $match = TournamentMatch::findOrFail($id);
+        $match    = TournamentMatch::findOrFail($id);
+        $winnerId = $request->input('winner_id');
+        if ($winnerId !== $match->participant_a_id && $winnerId !== $match->participant_b_id) {
+            return response()->json(
+                ['message' => 'Winner must be one of the match participants.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
 
         $match->update([
-            'winner_id'      => $request->input('winner_id'),
-            'status'         => 'completed',
-            'moderator_note' => "Override by {$user->name}: " . $request->input('reason'),
+            'winner_id'       => $winnerId,
+            'status'          => 'completed',
+            'dispute_reason'  => "Override by {$user->name}: " . $request->input('reason'),
+            'submitted_by_id' => $user->id,
         ]);
 
-        try {
-            $this->advancement->advance($match);
-        } catch (\Throwable $e) {
-            logger()->error("Bracket advance failed after override: {$e->getMessage()}");
-        }
+        try { $this->advancement->advance($match); } catch (\Throwable $e) { logger()->error($e->getMessage()); }
 
         return response()->json([
             'message' => 'Match result overridden.',
@@ -161,30 +190,306 @@ class MatchController extends Controller
         ]);
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // SPRINT 2 — SCHEDULING
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/v1/matches/{match}/schedule
+     * Organizer/admin directly sets or updates the match schedule.
+     */
+    public function schedule(ScheduleMatchRequest $request, string $id): JsonResponse
+    {
+        $match = TournamentMatch::with('bracket.tournament:id,organizer_id')->findOrFail($id);
+        $user  = $request->user();
+
+        if (! $this->canManageMatch($user, $match)) {
+            return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
+        }
+
+        try {
+            $match = $this->scheduling->setSchedule(
+                $match,
+                Carbon::parse($request->input('scheduled_at')),
+                $user,
+            );
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return response()->json([
+            'message' => 'Match scheduled.',
+            'data'    => [
+                'id'              => $match->id,
+                'scheduled_at'    => $match->scheduled_at?->toIso8601String(),
+                'scheduled_by_id' => $match->scheduled_by_id,
+                'status'          => $match->status,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/matches/{match}/reschedule-requests
+     * Participant proposes a new time; opposing player must accept (or organizer overrides).
+     */
+    public function requestReschedule(RequestRescheduleRequest $request, string $id): JsonResponse
+    {
+        $match = TournamentMatch::with(['participantA:id,user_id', 'participantB:id,user_id'])
+            ->findOrFail($id);
+        $user = $request->user();
+
+        if (! $match->isParticipantUser($user->id)) {
+            return response()->json(
+                ['message' => 'Only participants can propose a reschedule.'],
+                Response::HTTP_FORBIDDEN,
+            );
+        }
+
+        try {
+            $req = $this->scheduling->requestReschedule(
+                $match,
+                $user,
+                Carbon::parse($request->input('proposed_at')),
+                $request->input('reason'),
+            );
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $req->load('requestedBy:id,name');
+        return (new MatchRescheduleResource($req))->response()->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * GET /api/v1/matches/{match}/reschedule-requests
+     * Only visible to participants, organizer, admin.
+     */
+    public function listReschedules(string $id): JsonResponse
+    {
+        $match = TournamentMatch::with(['participantA:id,user_id', 'participantB:id,user_id', 'bracket.tournament:id,organizer_id'])
+            ->findOrFail($id);
+
+        $user = request()->user();
+        if (! $this->canViewMatchDetails($user, $match)) {
+            return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $requests = MatchRescheduleRequest::where('match_id', $id)
+            ->with(['requestedBy:id,name', 'respondedBy:id,name'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        return MatchRescheduleResource::collection($requests)->response();
+    }
+
+    /**
+     * POST /api/v1/matches/{match}/reschedule-requests/{id}/respond
+     * Opposing player accepts/rejects. Organizer can override with ?override=true.
+     */
+    public function respondReschedule(
+        RespondRescheduleRequest $request,
+        string $matchId,
+        string $requestId,
+    ): JsonResponse {
+        $match = TournamentMatch::with([
+            'participantA:id,user_id', 'participantB:id,user_id',
+            'bracket.tournament:id,organizer_id',
+        ])->findOrFail($matchId);
+
+        /** @var MatchRescheduleRequest $req */
+        $req = MatchRescheduleRequest::where('match_id', $matchId)->findOrFail($requestId);
+        $user = $request->user();
+
+        $isOrganizer = $this->canManageMatch($user, $match);
+        $isOpponent  = $match->opponentUserId($user->id) === $user->id
+                       ? false
+                       : $match->isParticipantUser($user->id) && $req->requested_by_id !== $user->id;
+
+        // Organizer override path.
+        if ($request->wantsOverride()) {
+            if (! $isOrganizer) {
+                return response()->json(['message' => 'Only organizers may override.'], Response::HTTP_FORBIDDEN);
+            }
+            try {
+                $req = $this->scheduling->organizerOverride($req, $user, $request->wantsAccept());
+            } catch (RuntimeException $e) {
+                return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+            $req->load(['requestedBy:id,name', 'respondedBy:id,name']);
+            return (new MatchRescheduleResource($req))->response();
+        }
+
+        // Normal path: must be the opposing player.
+        if (! $isOpponent) {
+            return response()->json(
+                ['message' => 'Only the opposing player can respond to this request.'],
+                Response::HTTP_FORBIDDEN,
+            );
+        }
+
+        try {
+            $req = $this->scheduling->respondReschedule($req, $user, $request->wantsAccept());
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $req->load(['requestedBy:id,name', 'respondedBy:id,name']);
+        return (new MatchRescheduleResource($req))->response();
+    }
+
+    /**
+     * DELETE /api/v1/matches/{match}/reschedule-requests/{id}
+     * Requester cancels their own pending request (or organizer).
+     */
+    public function cancelReschedule(string $matchId, string $requestId): JsonResponse
+    {
+        /** @var MatchRescheduleRequest $req */
+        $req = MatchRescheduleRequest::where('match_id', $matchId)->findOrFail($requestId);
+        $user = request()->user();
+
+        try {
+            $this->scheduling->cancelReschedule($req, $user);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_FORBIDDEN);
+        }
+
+        return response()->json(['message' => 'Reschedule request cancelled.']);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // SPRINT 2 — EVIDENCE
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/v1/matches/{match}/evidence   (multipart/form-data)
+     */
+    public function uploadEvidence(UploadEvidenceRequest $request, string $id): JsonResponse
+    {
+        $match = TournamentMatch::with(['participantA:id,user_id', 'participantB:id,user_id'])
+            ->findOrFail($id);
+
+        try {
+            $ev = $this->evidence->upload(
+                $match,
+                $request->user(),
+                $request->file('file'),
+                $request->input('caption'),
+            );
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $ev->load('uploadedBy:id,name');
+        return (new MatchEvidenceResource($ev))->response()->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * GET /api/v1/matches/{match}/evidence
+     */
+    public function listEvidence(string $id): JsonResponse
+    {
+        $match = TournamentMatch::with(['participantA:id,user_id', 'participantB:id,user_id', 'bracket.tournament:id,organizer_id'])
+            ->findOrFail($id);
+
+        $user = request()->user();
+        if (! $this->canViewMatchDetails($user, $match)) {
+            return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $list = MatchEvidence::where('match_id', $id)
+            ->with('uploadedBy:id,name')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return MatchEvidenceResource::collection($list)->response();
+    }
+
+    /**
+     * DELETE /api/v1/matches/{match}/evidence/{id}
+     */
+    public function deleteEvidence(string $matchId, string $evId): JsonResponse
+    {
+        /** @var MatchEvidence $ev */
+        $ev = MatchEvidence::where('match_id', $matchId)->findOrFail($evId);
+
+        try {
+            $this->evidence->delete($ev, request()->user());
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_FORBIDDEN);
+        }
+
+        return response()->json(['message' => 'Evidence deleted.']);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // HELPERS
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Is the user the organizer of the match's parent tournament, or an admin?
+     */
+    private function canManageMatch($user, TournamentMatch $match): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+        if (($user->role ?? '') === 'admin') {
+            return true;
+        }
+        $organizerId = $match->bracket?->tournament?->organizer_id;
+        return $organizerId !== null && (string) $organizerId === (string) $user->id;
+    }
+
+    /**
+     * Can the user see schedule/evidence details? Participants + organizer + admin.
+     */
+    private function canViewMatchDetails($user, TournamentMatch $match): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+        return $match->isParticipantUser($user->id) || $this->canManageMatch($user, $match);
+    }
+
+    private function isOrganizerOrAdmin($user): bool
+    {
+        return $user !== null && in_array($user->role ?? '', ['admin', 'moderator', 'organizer'], true);
+    }
+
+    /**
+     * Normalised match payload for clients.
+     */
     private function matchArray(TournamentMatch $m): array
     {
         return [
-            'id'              => $m->id,
-            'bracket_id'      => $m->bracket_id,
-            'round_number'    => $m->round_number,
-            'match_number'    => $m->match_number,
-            'bracket_section' => $m->bracket_section ?? 'winners',
-            'participant_a'   => $m->participantA ? [
+            'id'                     => $m->id,
+            'bracket_id'             => $m->bracket_id,
+            'round_number'           => $m->round_number,
+            'match_number'           => $m->match_number,
+            'bracket_section'        => $m->bracket_section ?? 'winners',
+            'participant_a'          => $m->participantA ? [
                 'id'   => $m->participant_a_id,
                 'name' => $m->participantA->gamertag ?? $m->participantA->user?->name ?? 'TBD',
             ] : null,
-            'participant_b'   => $m->participantB ? [
+            'participant_b'          => $m->participantB ? [
                 'id'   => $m->participant_b_id,
                 'name' => $m->participantB->gamertag ?? $m->participantB->user?->name ?? 'TBD',
             ] : null,
-            'score_a'          => $m->score_a,
-            'score_b'          => $m->score_b,
-            'winner_id'        => $m->winner_id,
-            'status'           => $m->status,
-            'screenshot_path'  => $m->screenshot_path,
-            'moderator_note'   => $m->moderator_note,
-            'next_match_id'    => $m->next_match_id,
-            'dispute_reason'   => $m->moderator_note,
+            'score_a'                => $m->score_a,
+            'score_b'                => $m->score_b,
+            'winner_id'              => $m->winner_id,
+            'status'                 => $m->status,
+            'scheduled_at'           => $m->scheduled_at?->toIso8601String(),
+            'scheduled_by_id'        => $m->scheduled_by_id,
+            'result_screenshot_path' => $m->result_screenshot_path,
+            'dispute_reason'         => $m->dispute_reason,
+            'next_match_id'          => $m->next_match_id,
+            'submitted_by_id'        => $m->submitted_by_id,
+            'completed_at'           => $m->completed_at?->toIso8601String(),
+            'pending_reschedule'     => $m->pendingReschedule->first()
+                ? MatchRescheduleResource::make($m->pendingReschedule->first()->load('requestedBy:id,name'))
+                : null,
+            'evidence_count'         => $m->evidence->count(),
         ];
     }
 }

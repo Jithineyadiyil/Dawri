@@ -10,14 +10,31 @@ use App\Models\TournamentMatch;
 use App\Models\TournamentParticipant;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Throwable;
 
 /**
  * Advances winners after a match result is recorded.
  * Uses correct schema: bracket_id, round_number, bracket_section,
- * participant_a_id, participant_b_id, next_match_id
+ * participant_a_id, participant_b_id, next_match_id.
+ *
+ * ── Sprint 1 fix applied ────────────────────────────────────────────────────
+ *   RankingService is now injected and invoked on tournament completion.
+ *   Previously the PATCH_BracketAdvancementService.php file described this
+ *   integration as pseudocode, but it was never wired into the real service.
+ *   Result: tournaments completed without any ranking points being awarded,
+ *   the leaderboard stayed empty, and PRD §9.2 metrics could not be measured.
  */
 class BracketAdvancementService
 {
+    public function __construct(
+        private readonly RankingService $ranking,
+    ) {}
+
+    /**
+     * Entry point — routes the finalised match to the correct format handler.
+     *
+     * @throws RuntimeException When the match has no winner set.
+     */
     public function advance(TournamentMatch $match): void
     {
         if ($match->winner_id === null) {
@@ -42,14 +59,13 @@ class BracketAdvancementService
 
     private function advanceSE(TournamentMatch $match, Bracket $bracket, Tournament $tournament): void
     {
-        // Use next_match_id linkage built during generation
         if ($match->next_match_id) {
             $nextMatch = TournamentMatch::find($match->next_match_id);
             if ($nextMatch) {
                 $this->fillParticipantSlot($nextMatch, $match->winner_id);
             }
         } else {
-            // No next match — this was the final
+            // No next match — this was the final.
             $this->completeTournament($bracket, $tournament, $match->winner_id);
         }
     }
@@ -58,16 +74,18 @@ class BracketAdvancementService
 
     private function advanceDE(TournamentMatch $match, Bracket $bracket, Tournament $tournament): void
     {
-        // Advance winner
+        // Advance winner up the same bracket side.
         $this->advanceSE($match, $bracket, $tournament);
 
-        // Drop loser to losers bracket (only from winners bracket matches)
+        // Drop the loser into the losers bracket only from winners-side matches.
         if ($match->bracket_section === 'winners') {
             $loserId = ($match->winner_id === $match->participant_a_id)
                 ? $match->participant_b_id
                 : $match->participant_a_id;
 
-            if ($loserId === null) return;
+            if ($loserId === null) {
+                return;
+            }
 
             $nextLosers = TournamentMatch::where('bracket_id', $bracket->id)
                 ->where('bracket_section', 'losers')
@@ -84,7 +102,7 @@ class BracketAdvancementService
             }
         }
 
-        // Check if grand final is complete
+        // Completion detection: grand final is done when no pending matches remain.
         $pending = TournamentMatch::where('bracket_id', $bracket->id)
             ->whereIn('status', ['pending', 'ongoing'])
             ->count();
@@ -118,7 +136,9 @@ class BracketAdvancementService
             ->whereIn('status', ['pending', 'ongoing'])
             ->count();
 
-        if ($pendingInRound > 0) return;
+        if ($pendingInRound > 0) {
+            return;
+        }
 
         $totalRounds = $bracket->total_rounds
             ?? $tournament->swiss_rounds
@@ -129,10 +149,10 @@ class BracketAdvancementService
             return;
         }
 
-        // Update bracket current round
+        // Advance round pointer.
         $bracket->update(['current_round' => $currentRound + 1]);
 
-        // Generate next Swiss round
+        // Generate the next Swiss round using Monrad pairing with rematch avoidance.
         $standings   = $this->buildSwissStandings($bracket);
         $matchNumber = TournamentMatch::where('bracket_id', $bracket->id)->count() + 1;
         $unpaired    = $standings;
@@ -140,13 +160,19 @@ class BracketAdvancementService
         while (count($unpaired) >= 2) {
             $p1 = array_shift($unpaired);
             $opponentIndex = null;
+
             foreach ($unpaired as $idx => $p2) {
-                if (!in_array($p2['id'], $p1['played'], true)) {
+                if (! in_array($p2['id'], $p1['played'], true)) {
                     $opponentIndex = $idx;
                     break;
                 }
             }
-            if ($opponentIndex === null) $opponentIndex = 0;
+
+            // Fallback: if every remaining opponent has been played, accept a rematch.
+            if ($opponentIndex === null) {
+                $opponentIndex = 0;
+            }
+
             $p2 = $unpaired[$opponentIndex];
             unset($unpaired[$opponentIndex]);
             $unpaired = array_values($unpaired);
@@ -164,8 +190,10 @@ class BracketAdvancementService
             ]);
         }
 
+        // Odd participant gets a bye (auto-win).
         if (count($unpaired) === 1) {
             $bye = $unpaired[0];
+
             TournamentMatch::create([
                 'bracket_id'           => $bracket->id,
                 'round_number'         => $currentRound + 1,
@@ -175,7 +203,7 @@ class BracketAdvancementService
                 'participant_b_id'     => null,
                 'participant_a_is_bye' => false,
                 'participant_b_is_bye' => true,
-                'status'               => 'bye',
+                'status'               => 'walkover',
                 'winner_id'            => $bye['id'],
             ]);
         }
@@ -198,9 +226,14 @@ class BracketAdvancementService
         $match->save();
     }
 
+    /**
+     * Compute Swiss standings: points + Buchholz tie-break + played-opponent list.
+     *
+     * @return array<int, array{id:string, points:int, buchholz:int, played:array<int,string>}>
+     */
     private function buildSwissStandings(Bracket $bracket): array
     {
-        $matches   = TournamentMatch::where('bracket_id', $bracket->id)
+        $matches = TournamentMatch::where('bracket_id', $bracket->id)
             ->whereNotNull('winner_id')
             ->get();
 
@@ -208,14 +241,16 @@ class BracketAdvancementService
         $opponents = [];
 
         foreach ($matches as $m) {
-            if ($m->status === 'bye') {
+            if (in_array($m->status, ['walkover', 'bye'], true)) {
                 $points[$m->participant_a_id] = ($points[$m->participant_a_id] ?? 0) + 1;
                 continue;
             }
+
             $winner = $m->winner_id;
             $loser  = ($winner === $m->participant_a_id) ? $m->participant_b_id : $m->participant_a_id;
-            $points[$winner] = ($points[$winner] ?? 0) + 1;
-            $points[$loser]  = ($points[$loser]  ?? 0);
+
+            $points[$winner]      = ($points[$winner] ?? 0) + 1;
+            $points[$loser]       = ($points[$loser]  ?? 0);
             $opponents[$winner][] = $loser;
             $opponents[$loser][]  = $winner;
         }
@@ -233,13 +268,30 @@ class BracketAdvancementService
         ])->sortByDesc('buchholz')->sortByDesc('points')->values()->toArray();
     }
 
+    /**
+     * Tournament complete: mark bracket + tournament, then award ranking points.
+     */
     private function completeTournament(Bracket $bracket, Tournament $tournament, ?string $winnerId): void
     {
         $bracket->update([
-            'status'                 => 'completed',
-            'completed_at'           => now(),
-            'winner_participant_id'  => $winnerId,
+            'status'                => 'completed',
+            'completed_at'          => now(),
+            'winner_participant_id' => $winnerId,
         ]);
+
         $tournament->update(['status' => 'completed']);
+
+        // ── Sprint 1 fix: award ranking points on tournament completion ─────
+        // Wrapped in try/catch so a ranking failure does NOT roll back the
+        // bracket completion transaction — the tournament is finalised either
+        // way. Ranking errors are surfaced to the log for follow-up.
+        try {
+            $this->ranking->awardTournamentPoints((string) $tournament->id);
+        } catch (Throwable $e) {
+            logger()->error('Ranking point award failed after tournament completion', [
+                'tournament_id' => $tournament->id,
+                'error'         => $e->getMessage(),
+            ]);
+        }
     }
 }

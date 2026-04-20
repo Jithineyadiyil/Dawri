@@ -1,15 +1,21 @@
 import {
   ChangeDetectionStrategy, Component, OnInit,
-  inject, signal, computed
+  inject, signal, computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { switchMap } from 'rxjs/operators';
-import { ApiService }  from '../../core/services/api.service';
+import { ApiService, MatchEvidence, MatchRescheduleRequest } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 
+/**
+ * Bracket match shape used by the template. Sprint 2 adds scheduling and
+ * evidence fields so the modal can render the schedule / reschedule /
+ * evidence sub-sections without extra round trips to the API for simple
+ * reads.
+ */
 export interface BracketMatch {
   id: string;
   round_number: number;
@@ -25,6 +31,12 @@ export interface BracketMatch {
   score_b: number | null;
   dispute_reason: string | null;
   next_match_id: string | null;
+
+  // Sprint 2
+  scheduled_at?: string | null;
+  scheduled_by_id?: string | null;
+  pending_reschedule?: MatchRescheduleRequest | null;
+  evidence_count?: number;
 }
 
 export interface BracketRound {
@@ -50,6 +62,7 @@ export class TournamentDetailComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly fb    = inject(FormBuilder);
 
+  // ── Top-level page state ─────────────────────────────────────────────
   readonly tournament    = signal<any>(null);
   readonly loading       = signal(true);
   readonly error         = signal<string | null>(null);
@@ -60,6 +73,15 @@ export class TournamentDetailComponent implements OnInit {
   readonly selectedMatch = signal<BracketMatch | null>(null);
   readonly disputeMode   = signal(false);
 
+  // ── Sprint 2 modal state ─────────────────────────────────────────────
+  readonly showScheduleEditor    = signal(false);
+  readonly showRescheduleForm    = signal(false);
+  readonly rescheduleRequests    = signal<MatchRescheduleRequest[]>([]);
+  readonly evidenceList          = signal<MatchEvidence[]>([]);
+  readonly loadingMatchDetails   = signal(false);
+  readonly uploadingEvidence     = signal(false);
+
+  // ── Forms ────────────────────────────────────────────────────────────
   readonly resultForm = this.fb.group({
     winner_participant_id: ['', Validators.required],
     score_a: [null as number | null],
@@ -70,6 +92,21 @@ export class TournamentDetailComponent implements OnInit {
     reason: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(1000)]],
   });
 
+  readonly scheduleForm = this.fb.group({
+    scheduled_at: ['', Validators.required],
+  });
+
+  readonly rescheduleForm = this.fb.group({
+    proposed_at: ['', Validators.required],
+    reason:      ['', Validators.maxLength(500)],
+  });
+
+  readonly evidenceForm = this.fb.group({
+    caption: ['', Validators.maxLength(255)],
+  });
+  readonly evidenceFile = signal<File | null>(null);
+
+  // ── Computed ─────────────────────────────────────────────────────────
   readonly rounds = computed<BracketRound[]>(() => {
     const t = this.tournament();
     if (!t) return [];
@@ -128,6 +165,52 @@ export class TournamentDetailComponent implements OnInit {
     return role === 'organizer' || role === 'admin';
   });
 
+  /**
+   * True if the current user is the organizer of this tournament OR an admin.
+   * Distinguished from generic role check — this also considers ownership.
+   */
+  readonly canManageMatch = computed(() => {
+    const t = this.tournament();
+    const u = this.auth.currentUser();
+    if (!u) return false;
+    if (u.role === 'admin') return true;
+    const organizerId = t?.organizer_id ?? t?.organizer?.id;
+    return organizerId !== undefined && String(organizerId) === String(u.id);
+  });
+
+  /** True if the current user is a participant in the currently-selected match. */
+  readonly currentUserIsParticipant = computed(() => {
+    const m = this.selectedMatch();
+    const u = this.auth.currentUser();
+    if (!m || !u) return false;
+    // We don't have participant→user mapping on the BracketMatch shape, so
+    // fall back to the tournament.participants list to resolve it.
+    const t = this.tournament();
+    const parts = t?.participants ?? [];
+    const myP = parts.find((p: any) => String(p.user_id) === String(u.id));
+    if (!myP) return false;
+    return myP.id === m.participant_a?.id || myP.id === m.participant_b?.id;
+  });
+
+  /** True if there's a pending reschedule request awaiting the current user's response. */
+  readonly pendingRescheduleAwaitingMe = computed<MatchRescheduleRequest | null>(() => {
+    const reqs = this.rescheduleRequests();
+    const u    = this.auth.currentUser();
+    if (!u || !reqs.length) return null;
+    return reqs.find(r =>
+      r.is_pending && r.requested_by.id !== String(u.id)
+    ) ?? null;
+  });
+
+  /** The current user's own pending request, if any. */
+  readonly myPendingReschedule = computed<MatchRescheduleRequest | null>(() => {
+    const reqs = this.rescheduleRequests();
+    const u    = this.auth.currentUser();
+    if (!u || !reqs.length) return null;
+    return reqs.find(r => r.is_pending && r.requested_by.id === String(u.id)) ?? null;
+  });
+
+  // ── Lifecycle ────────────────────────────────────────────────────────
   ngOnInit(): void {
     this.route.paramMap.pipe(
       switchMap(p => {
@@ -142,6 +225,7 @@ export class TournamentDetailComponent implements OnInit {
     });
   }
 
+  // ── Registration / bracket ───────────────────────────────────────────
   register(): void {
     if (!this.auth.isLoggedIn()) { this.toast.info('Sign in to register.'); return; }
     this.registering.set(true);
@@ -168,11 +252,22 @@ export class TournamentDetailComponent implements OnInit {
     if (!this.matchIsClickable(m)) return;
     this.selectedMatch.set(m);
     this.disputeMode.set(false);
+    this.showScheduleEditor.set(false);
+    this.showRescheduleForm.set(false);
+    this.evidenceFile.set(null);
     this.resultForm.reset({ winner_participant_id: '', score_a: null, score_b: null });
     this.disputeForm.reset();
+    this.scheduleForm.reset({ scheduled_at: this.toLocalIso(m.scheduled_at) });
+    this.rescheduleForm.reset({ proposed_at: '', reason: '' });
+    this.evidenceForm.reset();
+    this.loadMatchDetails(m.id);
   }
 
-  closeModal(): void { this.selectedMatch.set(null); }
+  closeModal(): void {
+    this.selectedMatch.set(null);
+    this.rescheduleRequests.set([]);
+    this.evidenceList.set([]);
+  }
 
   getWinnerName(m: BracketMatch): string {
     if (!m.winner_id) return 'N/A';
@@ -181,6 +276,7 @@ export class TournamentDetailComponent implements OnInit {
     return 'N/A';
   }
 
+  // ── Result lifecycle (Sprint 1) ──────────────────────────────────────
   submitResult(): void {
     if (this.resultForm.invalid) { this.resultForm.markAllAsTouched(); return; }
     this.submitting.set(true);
@@ -211,6 +307,197 @@ export class TournamentDetailComponent implements OnInit {
     });
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // SPRINT 2: SCHEDULE HANDLERS
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * Loads all reschedule requests and evidence for a match. Called when
+   * the modal opens.
+   */
+  private loadMatchDetails(matchId: string): void {
+    this.loadingMatchDetails.set(true);
+    this.api.listReschedules(matchId).subscribe({
+      next: res => this.rescheduleRequests.set(res.data),
+      error: () => this.rescheduleRequests.set([]),
+    });
+    this.api.listEvidence(matchId).subscribe({
+      next: res => { this.evidenceList.set(res.data); this.loadingMatchDetails.set(false); },
+      error: () => { this.evidenceList.set([]); this.loadingMatchDetails.set(false); },
+    });
+  }
+
+  toggleScheduleEditor(): void {
+    const m = this.selectedMatch();
+    if (!m) return;
+    this.scheduleForm.reset({ scheduled_at: this.toLocalIso(m.scheduled_at) });
+    this.showScheduleEditor.update(v => !v);
+  }
+
+  /** Organizer saves a direct schedule change. */
+  saveSchedule(): void {
+    if (this.scheduleForm.invalid) { this.scheduleForm.markAllAsTouched(); return; }
+    const m = this.selectedMatch();
+    if (!m) return;
+    const iso = this.fromLocalIso(this.scheduleForm.value.scheduled_at!);
+    this.submitting.set(true);
+    this.api.scheduleMatch(m.id, iso).subscribe({
+      next: res => {
+        this.submitting.set(false);
+        this.toast.success('Schedule updated.');
+        this.showScheduleEditor.set(false);
+        // Update the modal-local match with new schedule
+        this.selectedMatch.update(curr => curr ? ({
+          ...curr,
+          scheduled_at: res.data?.scheduled_at ?? iso,
+          status: res.data?.status ?? curr.status,
+        }) : curr);
+        this.refresh();
+      },
+      error: (err: any) => {
+        this.submitting.set(false);
+        this.toast.error(err.error?.message ?? 'Failed to update schedule.');
+      },
+    });
+  }
+
+  toggleRescheduleForm(): void {
+    this.rescheduleForm.reset({ proposed_at: '', reason: '' });
+    this.showRescheduleForm.update(v => !v);
+  }
+
+  /** Player proposes a new time — opponent must accept (or organizer overrides). */
+  requestReschedule(): void {
+    if (this.rescheduleForm.invalid) { this.rescheduleForm.markAllAsTouched(); return; }
+    const m = this.selectedMatch();
+    if (!m) return;
+    const iso = this.fromLocalIso(this.rescheduleForm.value.proposed_at!);
+    this.submitting.set(true);
+    this.api.requestReschedule(m.id, iso, this.rescheduleForm.value.reason || undefined).subscribe({
+      next: res => {
+        this.submitting.set(false);
+        this.toast.success('Reschedule request sent.');
+        this.showRescheduleForm.set(false);
+        this.rescheduleRequests.update(list => [res.data, ...list]);
+      },
+      error: (err: any) => {
+        this.submitting.set(false);
+        this.toast.error(err.error?.message ?? 'Failed to request reschedule.');
+      },
+    });
+  }
+
+  respondToReschedule(req: MatchRescheduleRequest, accept: boolean): void {
+    const m = this.selectedMatch();
+    if (!m) return;
+    this.submitting.set(true);
+    this.api.respondReschedule(m.id, req.id, accept ? 'accept' : 'reject').subscribe({
+      next: res => {
+        this.submitting.set(false);
+        this.toast.success(accept ? 'Reschedule accepted.' : 'Reschedule rejected.');
+        this.rescheduleRequests.update(list => list.map(r => r.id === req.id ? res.data : r));
+        if (accept) {
+          this.selectedMatch.update(curr => curr ? ({ ...curr, scheduled_at: req.proposed_at }) : curr);
+          this.refresh();
+        }
+      },
+      error: (err: any) => {
+        this.submitting.set(false);
+        this.toast.error(err.error?.message ?? 'Failed to respond.');
+      },
+    });
+  }
+
+  /** Organizer/admin forces acceptance (or rejection) without opponent consent. */
+  organizerOverride(req: MatchRescheduleRequest, accept: boolean): void {
+    const m = this.selectedMatch();
+    if (!m) return;
+    this.submitting.set(true);
+    this.api.respondReschedule(m.id, req.id, accept ? 'accept' : 'reject', true).subscribe({
+      next: res => {
+        this.submitting.set(false);
+        this.toast.success('Request overridden.');
+        this.rescheduleRequests.update(list => list.map(r => r.id === req.id ? res.data : r));
+        if (accept) {
+          this.selectedMatch.update(curr => curr ? ({ ...curr, scheduled_at: req.proposed_at }) : curr);
+          this.refresh();
+        }
+      },
+      error: (err: any) => {
+        this.submitting.set(false);
+        this.toast.error(err.error?.message ?? 'Failed to override.');
+      },
+    });
+  }
+
+  cancelMyReschedule(req: MatchRescheduleRequest): void {
+    const m = this.selectedMatch();
+    if (!m) return;
+    this.api.cancelReschedule(m.id, req.id).subscribe({
+      next: () => {
+        this.toast.info('Request cancelled.');
+        this.rescheduleRequests.update(list => list.map(r =>
+          r.id === req.id ? { ...r, status: 'cancelled' as const, is_pending: false } : r
+        ));
+      },
+      error: (err: any) => this.toast.error(err.error?.message ?? 'Failed to cancel.'),
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SPRINT 2: EVIDENCE HANDLERS
+  // ═══════════════════════════════════════════════════════════════════
+
+  onEvidenceFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file  = input.files?.[0] ?? null;
+    this.evidenceFile.set(file);
+  }
+
+  uploadEvidence(): void {
+    const m    = this.selectedMatch();
+    const file = this.evidenceFile();
+    if (!m || !file) { this.toast.info('Choose a file first.'); return; }
+    this.uploadingEvidence.set(true);
+    this.api.uploadEvidence(m.id, file, this.evidenceForm.value.caption || undefined).subscribe({
+      next: res => {
+        this.uploadingEvidence.set(false);
+        this.toast.success('Evidence uploaded.');
+        this.evidenceList.update(list => [res.data, ...list]);
+        this.evidenceFile.set(null);
+        this.evidenceForm.reset();
+        // Clear the file input element
+        const input = document.querySelector<HTMLInputElement>('#evidence-file-input');
+        if (input) input.value = '';
+      },
+      error: (err: any) => {
+        this.uploadingEvidence.set(false);
+        this.toast.error(err.error?.message ?? 'Upload failed.');
+      },
+    });
+  }
+
+  deleteEvidence(ev: MatchEvidence): void {
+    const m = this.selectedMatch();
+    if (!m) return;
+    if (!confirm('Delete this evidence? This cannot be undone.')) return;
+    this.api.deleteEvidence(m.id, ev.id).subscribe({
+      next: () => {
+        this.toast.info('Evidence deleted.');
+        this.evidenceList.update(list => list.filter(e => e.id !== ev.id));
+      },
+      error: (err: any) => this.toast.error(err.error?.message ?? 'Delete failed.'),
+    });
+  }
+
+  canDeleteEvidence(ev: MatchEvidence): boolean {
+    const u = this.auth.currentUser();
+    if (!u) return false;
+    return String(ev.uploaded_by.id) === String(u.id) || this.isOrganizerOrAdmin();
+  }
+
+  // ── Utilities ────────────────────────────────────────────────────────
+
   statusLabel(status: string): string {
     const map: Record<string, string> = {
       pending: 'Pending', scheduled: 'Scheduled', ongoing: 'Live',
@@ -218,6 +505,38 @@ export class TournamentDetailComponent implements OnInit {
       disputed: 'Disputed', completed: 'Done', walkover: 'Walkover', bye: 'Bye',
     };
     return map[status] ?? status;
+  }
+
+  rescheduleStatusLabel(s: string): string {
+    const map: Record<string, string> = {
+      pending: 'Pending', accepted: 'Accepted', rejected: 'Rejected',
+      cancelled: 'Cancelled', overridden: 'Overridden',
+    };
+    return map[s] ?? s;
+  }
+
+  /**
+   * Convert an ISO-8601 UTC timestamp to a value suitable for an
+   * <input type="datetime-local"> element (i.e. local timezone, no tz suffix,
+   * "YYYY-MM-DDTHH:mm").
+   */
+  private toLocalIso(iso: string | null | undefined): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const off = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - off * 60 * 1000);
+    return local.toISOString().slice(0, 16);
+  }
+
+  /**
+   * Convert a datetime-local input value (local, no tz) back to a UTC ISO
+   * string the backend expects.
+   */
+  private fromLocalIso(localVal: string): string {
+    if (!localVal) return '';
+    // `new Date(localVal)` interprets as local time.
+    return new Date(localVal).toISOString();
   }
 
   private roundLabel(section: string, num: number, total: number, format: string): string {

@@ -11,54 +11,45 @@ use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TournamentController;
+use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes — Dawri Platform
-| Base URL: http://localhost:8001/api/v1
+| Base: http://localhost:8001/api/v1
 |--------------------------------------------------------------------------
 */
 
 Route::prefix('v1')->group(function () {
 
-    // ── Auth (public) ─────────────────────────────────────────────────────────
+    // ── Auth (public) ─────────────────────────────────────────────────────
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login',    [AuthController::class, 'login']);
 
         Route::middleware('auth:sanctum')->group(function () {
+            Route::get ('/me',         [AuthController::class, 'me']);
             Route::post('/logout',     [AuthController::class, 'logout']);
             Route::post('/otp/send',   [AuthController::class, 'sendOtp']);
             Route::post('/otp/verify', [AuthController::class, 'verifyOtp']);
         });
     });
 
-    // ── Games (public) ────────────────────────────────────────────────────────
-    Route::get('/games',        [GameController::class, 'index']);
-    Route::get('/games/active', [GameController::class, 'active']);
-
-    // ── Leaderboard (public) ──────────────────────────────────────────────────
-    Route::get('/leaderboard', [LeaderboardController::class, 'index']);
-
-    // ── Marketplace products (public) ─────────────────────────────────────────
-    Route::get('/marketplace/products', [MarketplaceController::class, 'products']);
-
-    // ── Tournaments (public read) ─────────────────────────────────────────────
-    Route::get('/tournaments',              [TournamentController::class, 'index']);
+    // ── Games / Leaderboard / Marketplace / Tournaments / Players (public) ──
+    Route::get('/games',                 [GameController::class, 'index']);
+    Route::get('/games/active',          [GameController::class, 'active']);
+    Route::get('/leaderboard',           [LeaderboardController::class, 'index']);
+    Route::get('/marketplace/products',  [MarketplaceController::class, 'products']);
+    Route::get('/tournaments',           [TournamentController::class, 'index']);
     Route::get('/tournaments/{tournament}', [TournamentController::class, 'show']);
+    Route::get('/players/{user}',            [PlayerController::class, 'show']);
+    Route::get('/players/{user}/matches',    [PlayerController::class, 'matches']);
+    Route::get('/invoices/{id}/download',    [InvoiceController::class, 'download']);
 
-    // ── Players (public profiles) ─────────────────────────────────────────────
-    Route::get('/players/{user}',         [PlayerController::class, 'show']);
-    Route::get('/players/{user}/matches', [PlayerController::class, 'matches']);
-
-    // ── Invoice PDF download (auth via token query param) ─────────────────────
-    Route::get('/invoices/{id}/download', [InvoiceController::class, 'download']);
-
-    // ── Authenticated ─────────────────────────────────────────────────────────
+    // ── Authenticated ─────────────────────────────────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
 
-        // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index']);
 
         // Tournaments — write
@@ -69,19 +60,34 @@ Route::prefix('v1')->group(function () {
         Route::post  ('/tournaments/{tournament}/generate-bracket',         [TournamentController::class, 'generateBracket']);
         Route::post  ('/tournaments/{tournament}/matches/{matchId}/result', [TournamentController::class, 'submitResult']);
 
-        // Matches
-        Route::post('/matches/{match}/result',  [MatchController::class, 'submitResult']);
-        Route::post('/matches/{match}/confirm', [MatchController::class, 'confirm']);
-        Route::post('/matches/{match}/dispute', [MatchController::class, 'dispute']);
+        // ── Matches — Sprint 1 (result lifecycle) ─────────────────────────
+        Route::get ('/matches/{match}',                    [MatchController::class, 'show']);
+        Route::post('/matches/{match}/result',             [MatchController::class, 'submitResult']);
+        Route::post('/matches/{match}/confirm',            [MatchController::class, 'confirmResult']);
+        Route::post('/matches/{match}/dispute',            [MatchController::class, 'disputeResult']);
+        Route::post('/matches/{match}/moderator-override', [MatchController::class, 'moderatorOverride']);
+
+        // ── Matches — Sprint 2 (scheduling) ───────────────────────────────
+        Route::post  ('/matches/{match}/schedule',                         [MatchController::class, 'schedule']);
+        Route::post  ('/matches/{match}/reschedule-requests',              [MatchController::class, 'requestReschedule']);
+        Route::get   ('/matches/{match}/reschedule-requests',              [MatchController::class, 'listReschedules']);
+        Route::post  ('/matches/{match}/reschedule-requests/{reqId}/respond', [MatchController::class, 'respondReschedule']);
+        Route::delete('/matches/{match}/reschedule-requests/{reqId}',      [MatchController::class, 'cancelReschedule']);
+
+        // ── Matches — Sprint 2 (evidence) ─────────────────────────────────
+        Route::post  ('/matches/{match}/evidence',           [MatchController::class, 'uploadEvidence']);
+        Route::get   ('/matches/{match}/evidence',           [MatchController::class, 'listEvidence']);
+        Route::delete('/matches/{match}/evidence/{evId}',    [MatchController::class, 'deleteEvidence']);
 
         // Marketplace — orders
-        Route::post('/marketplace/orders',                [MarketplaceController::class, 'placeOrder']);
-        Route::get ('/marketplace/orders',                [MarketplaceController::class, 'orders']);
-        Route::post('/marketplace/orders/{id}/reveal',    [MarketplaceController::class, 'revealCode']);
+        Route::post('/marketplace/orders',             [MarketplaceController::class, 'placeOrder']);
+        Route::get ('/marketplace/orders',             [MarketplaceController::class, 'orders']);
+        Route::post('/marketplace/orders/{id}/reveal', [MarketplaceController::class, 'revealCode']);
 
-        // Wallet — handled by MarketplaceController
-        Route::get ('/wallet',       [MarketplaceController::class, 'wallet']);
-        Route::post('/wallet/topup', [MarketplaceController::class, 'topUp']);
+        // Wallet
+        Route::get ('/wallet',              [WalletController::class, 'balance']);
+        Route::post('/wallet/topup',        [WalletController::class, 'topUp']);
+        Route::get ('/wallet/transactions', [WalletController::class, 'transactions']);
 
         // Subscription
         Route::get   ('/subscription/plans',    [SubscriptionController::class, 'plans']);
@@ -91,42 +97,17 @@ Route::prefix('v1')->group(function () {
         Route::delete('/subscription',          [SubscriptionController::class, 'cancel']);
         Route::get   ('/subscription/invoices', [SubscriptionController::class, 'invoices']);
 
-        // ── Admin ─────────────────────────────────────────────────────────────
-        Route::prefix('admin')->group(function () {
-
-            // Overview / stats
-            Route::get('/overview', [AdminController::class, 'overview']);
-
-            // Plans & pricing
-            Route::get('/plans',       [AdminController::class, 'plans']);
-            Route::put('/plans/{key}', [AdminController::class, 'updatePlan']);
-
-            // Companies
-            Route::get   ('/companies',      [AdminController::class, 'companies']);
-            Route::post  ('/companies',      [AdminController::class, 'createCompany']);
-            Route::put   ('/companies/{id}', [AdminController::class, 'updateCompany']);
-            Route::delete('/companies/{id}', [AdminController::class, 'deleteCompany']);
-
-            // Subscriptions
-            Route::get ('/subscriptions',             [AdminController::class, 'subscriptions']);
-            Route::post('/subscriptions',             [AdminController::class, 'createSubscription']);
-            Route::put ('/subscriptions/{id}',        [AdminController::class, 'updateSubscription']);
-            Route::post('/subscriptions/{id}/cancel', [AdminController::class, 'cancelSubscription']);
-            Route::post('/subscriptions/{id}/extend', [AdminController::class, 'extendSubscription']);
-
-            // Users
-            Route::get('/users',      [AdminController::class, 'users']);
-            Route::put('/users/{id}', [AdminController::class, 'updateUser']);
-
-            // Invoices
-            Route::get('/invoices',                [AdminController::class, 'invoices']);
-            Route::put('/invoices/{id}/mark-paid', [AdminController::class, 'markInvoicePaid']);
-
-            // Games CRUD
-            Route::post  ('/games',               [GameController::class, 'store']);
-            Route::put   ('/games/{game}',        [GameController::class, 'update']);
-            Route::patch ('/games/{game}/toggle', [GameController::class, 'toggle']);
-            Route::delete('/games/{game}',        [GameController::class, 'destroy']);
+        // ── Admin ──────────────────────────────────────────────────────────
+        Route::prefix('admin')->middleware('admin')->group(function () {
+            Route::get ('/overview',               [AdminController::class, 'overview']);
+            Route::get ('/users',                  [AdminController::class, 'users']);
+            Route::put ('/users/{user}',           [AdminController::class, 'updateUser']);
+            Route::post('/users/{user}/suspend',   [AdminController::class, 'suspendUser']);
+            Route::post('/users/{user}/activate',  [AdminController::class, 'activateUser']);
+            Route::get ('/companies',              [AdminController::class, 'companies']);
+            Route::get ('/plans',                  [AdminController::class, 'plans']);
+            Route::put ('/plans/{key}',            [AdminController::class, 'updatePlan']);
+            Route::get ('/distributor-health',     [AdminController::class, 'distributorHealth']);
         });
     });
 });
