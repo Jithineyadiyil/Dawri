@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
+/**
+ * Tournament — Sprint 3 adds cover image, rules, company link, brand override.
+ */
 class Tournament extends Model
 {
     use HasUuids, SoftDeletes;
@@ -19,85 +24,68 @@ class Tournament extends Model
     protected $table = 'tournaments';
 
     protected $fillable = [
-        'name', 'name_ar', 'game', 'format', 'max_participants',
-        'swiss_rounds', 'registration_closes_at', 'starts_at', 'timezone',
-        'is_public', 'entry_fee_sar', 'prize_pool', 'organizer_id',
-        'moderator_id', 'status', 'tier', 'company_id',
+        'name', 'name_ar', 'game', 'format',
+        'max_participants', 'swiss_rounds',
+        'registration_closes_at', 'starts_at', 'timezone',
+        'is_public', 'entry_fee_sar', 'prize_pool',
+        'organizer_id', 'moderator_id', 'company_id', 'status',
+        'cover_image_path', 'rules', 'brand_override',
+        'primary_color', 'secondary_color', 'accent_color',
+        'background_color', 'font_family', 'logo_url',
     ];
 
     protected $casts = [
-        'max_participants'       => 'integer',
-        'swiss_rounds'           => 'integer',
         'is_public'              => 'boolean',
-        'entry_fee_sar'          => 'integer',
+        'brand_override'         => 'boolean',
         'prize_pool'             => 'array',
         'registration_closes_at' => 'datetime',
         'starts_at'              => 'datetime',
+        'swiss_rounds'           => 'integer',
+        'max_participants'       => 'integer',
+        'entry_fee_sar'          => 'integer',
     ];
 
     protected $attributes = [
-        'status'        => 'registration_open',
-        'is_public'     => true,
-        'entry_fee_sar' => 0,
-        'tier'          => 'standard',
+        'is_public'      => true,
+        'brand_override' => false,
+        'timezone'       => 'Asia/Riyadh',
+        'entry_fee_sar'  => 0,
     ];
 
-    // ── Relationships ─────────────────────────────────────────────────
+    protected $appends = ['cover_image_url'];
 
-    public function organizer(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'organizer_id');
-    }
-
-    public function moderator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'moderator_id');
-    }
-
-    public function participants(): HasMany
-    {
-        return $this->hasMany(TournamentParticipant::class);
-    }
-
-    public function bracket(): HasOne
-    {
-        return $this->hasOne(Bracket::class);
-    }
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Company::class);
-    }
-
-    /**
-     * All matches via: tournaments → brackets.tournament_id → tournament_matches.bracket_id
-     */
+    public function organizer(): BelongsTo   { return $this->belongsTo(User::class, 'organizer_id'); }
+    public function moderator(): BelongsTo   { return $this->belongsTo(User::class, 'moderator_id'); }
+    public function company(): BelongsTo     { return $this->belongsTo(Company::class); }
+    public function participants(): HasMany  { return $this->hasMany(TournamentParticipant::class); }
+    public function bracket(): HasOne        { return $this->hasOne(Bracket::class); }
     public function matches(): HasManyThrough
     {
         return $this->hasManyThrough(
-            TournamentMatch::class,
-            Bracket::class,
-            'tournament_id', // FK on brackets pointing to tournaments
-            'bracket_id',    // FK on tournament_matches pointing to brackets
-            'id',            // PK on tournaments
-            'id',            // PK on brackets
+            TournamentMatch::class, Bracket::class,
+            'tournament_id', 'bracket_id', 'id', 'id',
         );
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────
+    protected function coverImageUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => $this->cover_image_path
+                ? Storage::disk('public')->url($this->cover_image_path)
+                : null,
+        );
+    }
 
     public function isRegistrationOpen(): bool
     {
-        return $this->status === 'registration_open';
+        return in_array($this->status, ['registration', 'registration_open'], true);
     }
 
-    public function isInProgress(): bool
-    {
-        return $this->status === 'in_progress';
-    }
+    public function isInProgress(): bool { return $this->status === 'in_progress'; }
+    public function isCompleted(): bool  { return $this->status === 'completed'; }
 
-    public function isCompleted(): bool
+    public function hasRules(): bool
     {
-        return $this->status === 'completed';
+        return ! empty(trim((string) $this->rules));
     }
 }

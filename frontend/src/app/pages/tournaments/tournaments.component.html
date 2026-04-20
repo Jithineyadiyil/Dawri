@@ -1,122 +1,155 @@
 <div class="t-page">
 
-  <div class="t-header">
-    <div>
-      <h1 class="t-title">Tournaments</h1>
-      <p class="t-sub">Join competitive events across EA FC 25, PUBG Mobile, and Call of Duty Mobile.</p>
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <section class="t-hero">
+    <div class="t-hero__text">
+      <h1 class="t-hero__title">Tournaments</h1>
+      <p class="t-hero__sub">Compete across EA FC 25, PUBG Mobile, and Call of Duty Mobile. Join free or paid brackets, win prizes, climb the rankings.</p>
     </div>
-    <div class="t-header__actions">
+    <div class="t-hero__cta">
+      @if (!auth.isLoggedIn()) {
+        <a routerLink="/auth" class="btn btn--gold">Join Free →</a>
+      }
       @if (canCreate()) {
-        <button class="btn btn--gold" (click)="showCreate.set(true)">
-          + New Tournament
+        <a routerLink="/tournaments/create" class="btn btn--cyan">
+          <span class="btn__plus">+</span> Create Tournament
+        </a>
+      }
+    </div>
+  </section>
+
+  <!-- ── Filters ────────────────────────────────────────────────── -->
+  <section class="t-filters">
+    <input class="t-search" type="text" placeholder="🔍 Search tournaments…"
+           [ngModel]="search()" (ngModelChange)="search.set($event)"/>
+
+    <div class="chip-row">
+      @for (g of games; track g.value) {
+        <button type="button" class="chip"
+          [class.chip--active]="filter.game() === g.value"
+          (click)="setFilter('game', g.value)">
+          <span class="chip__emoji">{{ g.emoji }}</span> {{ g.label }}
         </button>
       }
-      @if (!auth.isLoggedIn()) {
-        <a routerLink="/auth" class="btn btn--gold">Join Free</a>
-      }
     </div>
-  </div>
 
-  <form [formGroup]="filterForm" class="filters">
-    <input class="filter-search" formControlName="search" type="text" placeholder="Search tournaments..."/>
-    <select class="filter-select" formControlName="game">
-      @for (g of games; track g.value) {
-        <option [value]="g.value">{{ g.label }}</option>
-      }
-    </select>
-    <select class="filter-select" formControlName="format">
+    <div class="chip-row chip-row--small">
       @for (f of formats; track f.value) {
-        <option [value]="f.value">{{ f.label }}</option>
+        <button type="button" class="chip chip--sm"
+          [class.chip--active]="filter.format() === f.value"
+          (click)="setFilter('format', f.value)">{{ f.label }}</button>
       }
-    </select>
-    <label class="filter-toggle">
-      <input type="checkbox" formControlName="openOnly"/> Open only
-    </label>
-  </form>
+      <span class="chip-divider"></span>
+      @for (s of statuses; track s.value) {
+        <button type="button" class="chip chip--sm"
+          [class.chip--active]="filter.status() === s.value"
+          (click)="setFilter('status', s.value)">{{ s.label }}</button>
+      }
+    </div>
+  </section>
 
-  @if (error()) {
-    <div class="alert alert--error">{{ error() }}</div>
-  }
+  <!-- ── Error ──────────────────────────────────────────────────── -->
+  @if (error()) { <div class="alert alert--error">{{ error() }}</div> }
 
+  <!-- ── Loading skeleton ───────────────────────────────────────── -->
   @if (loading()) {
-    <div class="t-skeleton">
-      @for (i of [1,2,3,4,5,6]; track i) { <div class="skel-card"></div> }
+    <div class="t-grid">
+      @for (i of [1,2,3,4,5,6,7,8]; track i) {
+        <div class="t-card t-card--skel">
+          <div class="t-card__img-skel"></div>
+          <div class="t-card__body">
+            <div class="skel-line skel-line--short"></div>
+            <div class="skel-line"></div>
+            <div class="skel-line skel-line--sm"></div>
+          </div>
+        </div>
+      }
     </div>
   }
 
-  @if (!loading()) {
-    @if (filtered().length > 0) {
-      <p class="t-count">{{ filtered().length }} tournament{{ filtered().length === 1 ? '' : 's' }}</p>
-    }
-
-    @if (filtered().length === 0) {
-      <div class="empty-state">
-        <div class="empty-state__icon">🏆</div>
-        <p>No tournaments match your filters.</p>
-        <button class="btn btn--ghost" (click)="filterForm.reset()">Clear filters</button>
-      </div>
-    }
+  <!-- ── Results ────────────────────────────────────────────────── -->
+  @if (!loading() && filtered().length > 0) {
+    <p class="t-count">{{ filtered().length }} tournament{{ filtered().length === 1 ? '' : 's' }}</p>
 
     <div class="t-grid">
-      @for (t of filtered(); track t.id) {
-        <article class="t-card" [routerLink]="['/tournaments', t.id]">
+      @for (t of filtered(); track t.id; let i = $index) {
+        <a class="t-card" [routerLink]="['/tournaments', t.id]"
+           [style.--delay.ms]="i * 60">
 
-          <div class="t-card__top">
-            <span class="t-card__game-badge" [class]="'game--' + t.game">
-              {{ t.game === 'ea_fc25' ? 'EA FC 25' : t.game === 'pubg_mobile' ? 'PUBG' : 'CoD' }}
-            </span>
-            <span class="t-card__format">{{ t.format_label }}</span>
-          </div>
-
-          <h2 class="t-card__name">{{ t.name }}</h2>
-          @if (t.name_ar) {
-            <p class="t-card__name-ar" dir="rtl" lang="ar">{{ t.name_ar }}</p>
-          }
-
-          <div class="t-card__stats">
-            <span class="t-card__stat"><b>{{ t.participant_count }}</b>/{{ t.max_participants }} players</span>
-            <span class="t-card__sep"></span>
-            <span class="t-card__stat">{{ t.entry_fee_sar === 0 ? 'Free' : (t.entry_fee_sar + ' SAR') }}</span>
-            <span class="t-card__sep"></span>
-            <span class="t-card__stat" [class.stat--open]="t.is_registration_open">
-              {{ t.is_registration_open ? 'Open' : 'Closed' }}
+          <!-- Cover image or game-specific default gradient -->
+          <div class="t-card__cover" [class]="t.cover_image_url ? '' : defaultCoverClass(t.game)">
+            @if (t.cover_image_url) {
+              <img [src]="t.cover_image_url" [alt]="t.name" loading="lazy"/>
+            }
+            <!-- Game badge overlaid top-left -->
+            <span class="t-card__game-badge">{{ t.game_label }}</span>
+            <!-- Format badge overlaid top-right -->
+            <span class="t-card__format-badge">{{ t.format_label }}</span>
+            <!-- Live status dot -->
+            <span [class]="statusAccentClass(t.status)">
+              {{ t.status_label }}
             </span>
           </div>
 
-          <div class="t-card__date">Starts {{ t.starts_at | date:'d MMM yyyy, HH:mm' }}</div>
+          <div class="t-card__body">
+            <div class="t-card__title-row">
+              <h3 class="t-card__title">{{ t.name }}</h3>
+              @if (t.company?.logo_url) {
+                <img class="t-card__company-logo" [src]="t.company.logo_url" [alt]="t.company.name"/>
+              }
+            </div>
+            @if (t.name_ar) {
+              <p class="t-card__title-ar" dir="rtl" lang="ar">{{ t.name_ar }}</p>
+            }
 
-          @if (t.prize_pool && t.prize_pool.length) {
-            <div class="t-card__prize">🏆 {{ t.prize_pool[0].reward }}</div>
-          }
+            <div class="t-card__stats">
+              <div class="stat">
+                <span class="stat__val"
+                  [class.stat__val--full]="t.is_full">{{ t.participant_count }}<span class="stat__max">/{{ t.max_participants }}</span></span>
+                <span class="stat__label">Players</span>
+              </div>
+              <div class="stat">
+                <span class="stat__val">{{ t.entry_fee_sar === 0 ? 'Free' : (t.entry_fee_sar + ' SAR') }}</span>
+                <span class="stat__label">Entry</span>
+              </div>
+              @if (t.prize_pool?.length) {
+                <div class="stat stat--prize">
+                  <span class="stat__val">🏆</span>
+                  <span class="stat__label">Prizes</span>
+                </div>
+              }
+            </div>
 
-          <div class="t-card__actions" (click)="$event.stopPropagation()">
-            @if (t.is_registration_open) {
-              <button class="btn btn--gold btn--sm" (click)="register(t, $event)">Register</button>
-            }
-            @if (!t.is_registration_open && !t.bracket) {
-              <button class="btn btn--cyan btn--sm"
-                [disabled]="generating() === t.id"
-                (click)="generateBracket(t, $event)">
-                {{ generating() === t.id ? 'Generating...' : 'Generate Bracket' }}
-              </button>
-            }
-            @if (t.bracket) {
-              <a [routerLink]="['/tournaments', t.id]" class="btn btn--ghost btn--sm"
-                (click)="$event.stopPropagation()">View Bracket</a>
-              <span class="t-card__bracket-status" [class]="'bs--' + t.bracket.status">{{ t.bracket.status }}</span>
-            }
+            <div class="t-card__foot">
+              <span class="t-card__date">
+                @if (t.starts_at) { 🗓 {{ t.starts_at | date:'d MMM · HH:mm' }} }
+              </span>
+              @if (t.is_registration_open) {
+                <span class="t-card__chip t-card__chip--open">Register →</span>
+              } @else if (t.status === 'in_progress') {
+                <span class="t-card__chip t-card__chip--live">Live →</span>
+              } @else if (t.status === 'completed') {
+                <span class="t-card__chip t-card__chip--done">View →</span>
+              } @else {
+                <span class="t-card__chip">View →</span>
+              }
+            </div>
           </div>
-
-        </article>
+        </a>
       }
     </div>
   }
-</div>
 
-<!-- Create Tournament Modal -->
-@if (showCreate()) {
-  <app-create-tournament
-    (created)="onTournamentCreated($event)"
-    (cancelled)="showCreate.set(false)">
-  </app-create-tournament>
-}
+  <!-- ── Empty state ────────────────────────────────────────────── -->
+  @if (!loading() && filtered().length === 0) {
+    <div class="empty-state">
+      <div class="empty-state__icon">🏆</div>
+      <h3>No tournaments match your filters</h3>
+      <p>Try clearing a filter or check back soon — new tournaments are added regularly.</p>
+      @if (canCreate()) {
+        <a routerLink="/tournaments/create" class="btn btn--gold">+ Create One</a>
+      }
+    </div>
+  }
+
+</div>

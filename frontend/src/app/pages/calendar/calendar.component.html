@@ -1,0 +1,143 @@
+<div class="calendar-page">
+
+  <!-- Header -->
+  <header class="cal-header">
+    <div>
+      <div class="cal-eyebrow">{{ companyName() || (scope() === 'player' ? 'Player' : 'My Company') }}</div>
+      <h1 class="cal-title">{{ pageTitle() }}</h1>
+    </div>
+    @if (canCreateTournament()) {
+      <a routerLink="/tournaments/create" class="btn btn--gold btn--sm">+ New Tournament</a>
+    } @else {
+      <a routerLink="/tournaments" class="btn btn--cyan btn--sm">Browse Tournaments</a>
+    }
+  </header>
+
+  <!-- Month controls + stats -->
+  <div class="cal-toolbar">
+    <div class="cal-nav">
+      <button type="button" class="btn btn--ghost btn--icon" (click)="prevMonth()" aria-label="Previous month">‹</button>
+      <div class="cal-month">{{ monthLabel() }}</div>
+      <button type="button" class="btn btn--ghost btn--icon" (click)="nextMonth()" aria-label="Next month">›</button>
+      <button type="button" class="btn btn--cyan btn--sm cal-today" (click)="goToday()">Today</button>
+    </div>
+
+    <div class="cal-stats">
+      <span class="stat"><span class="stat__num">{{ stats().total }}</span>Tournaments</span>
+      @if (scope() === 'player') {
+        <span class="stat stat--match"><span class="stat__num">{{ stats().matches }}</span>Matches</span>
+      } @else {
+        <span class="stat stat--open"><span class="stat__num">{{ stats().open }}</span>Open</span>
+      }
+      <span class="stat stat--live"><span class="stat__num">{{ stats().live }}</span>Live</span>
+      <span class="stat stat--done"><span class="stat__num">{{ stats().completed }}</span>Completed</span>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="cal-legend">
+    <span class="legend"><span class="dot dot--open"></span>Registration open</span>
+    <span class="legend"><span class="dot dot--live"></span>Live</span>
+    <span class="legend"><span class="dot dot--done"></span>Completed</span>
+    @if (scope() === 'player') {
+      <span class="legend"><span class="dot dot--match"></span>My match</span>
+    } @else {
+      <span class="legend"><span class="dot dot--draft"></span>Draft</span>
+    }
+    <span class="legend">🔒 Registration closes</span>
+  </div>
+
+  <!-- Status -->
+  @if (loading()) {
+    <div class="cal-state cal-state--loading">Loading calendar…</div>
+  } @else if (error()) {
+    <div class="cal-state cal-state--error">{{ error() }}</div>
+  } @else if (!events().length && !matches().length) {
+    <div class="cal-state cal-state--empty">
+      <div class="cal-empty__icon">🏆</div>
+      @if (scope() === 'player') {
+        <div>You haven't registered for any tournaments this month.</div>
+        <a routerLink="/tournaments" class="btn btn--gold btn--sm">Browse Tournaments</a>
+      } @else {
+        <div>No tournaments scheduled this month.</div>
+        <a routerLink="/tournaments/create" class="btn btn--gold btn--sm">Schedule one</a>
+      }
+    </div>
+  }
+
+  <!-- Grid -->
+  @if (!loading() && !error()) {
+    <div class="cal-grid">
+      <!-- Weekday headers -->
+      @for (wd of weekdays; track wd) {
+        <div class="cal-dow">{{ wd }}</div>
+      }
+
+      <!-- Days -->
+      @for (week of monthGrid(); track $index) {
+        @for (day of week; track day.iso) {
+          <div class="cal-day"
+            [class.cal-day--out]="!day.inMonth"
+            [class.cal-day--weekend]="day.isWeekend"
+            [class.cal-day--today]="day.isToday">
+            <div class="cal-day__header">
+              <span class="cal-day__num">{{ day.date.getDate() }}</span>
+              @if (day.regClosures.length) {
+                <span class="cal-day__close-badge"
+                  [title]="day.regClosures.length + ' registration deadline(s)'">
+                  🔒{{ day.regClosures.length > 1 ? day.regClosures.length : '' }}
+                </span>
+              }
+            </div>
+
+            <!-- My scheduled matches (player view) -->
+            @for (match of day.matches; track match.id) {
+              <a [routerLink]="['/tournaments', match.tournament_id]"
+                 class="chip chip--match"
+                 [title]="'Match vs ' + match.opponent_display_name + ' · ' + (match.scheduled_at_time ?? '') + ' · ' + (match.tournament_name ?? '')">
+                <span class="chip__match-head">
+                  @if (match.opponent_avatar_url) {
+                    <img class="chip__match-avatar" [src]="match.opponent_avatar_url" [alt]="match.opponent_display_name"/>
+                  } @else {
+                    <span class="chip__match-avatar chip__match-avatar--ph">
+                      {{ (match.opponent_display_name || '?').charAt(0).toUpperCase() }}
+                    </span>
+                  }
+                  <span class="chip__name">vs {{ match.opponent_display_name }}</span>
+                </span>
+                <span class="chip__meta">
+                  <span class="chip__time">{{ match.scheduled_at_time }}</span>
+                  · R{{ match.round_number }}
+                </span>
+              </a>
+            }
+
+            <!-- Tournaments starting this day -->
+            @for (ev of day.starts; track ev.id) {
+              <a [routerLink]="['/tournaments', ev.id]"
+                 class="chip"
+                 [class]="'chip ' + statusClass(ev) + (ev.is_participant ? ' chip--registered' : '')"
+                 [title]="ev.name + ' · ' + ev.game_label + ' · ' + ev.status_label">
+                <span class="chip__name">
+                  @if (ev.is_participant) { <span class="chip__tag">★</span> }
+                  @if (ev.has_prize) { <span class="chip__prize">🏆</span> }
+                  {{ ev.name }}
+                </span>
+                <span class="chip__meta">{{ ev.game_label }}</span>
+              </a>
+            }
+
+            <!-- Registration deadlines landing this day (if different from start) -->
+            @for (ev of day.regClosures; track ev.id + ':close') {
+              <a [routerLink]="['/tournaments', ev.id]"
+                 class="chip chip--close"
+                 [title]="'Registration closes: ' + ev.name">
+                <span class="chip__name">🔒 {{ ev.name }}</span>
+              </a>
+            }
+          </div>
+        }
+      }
+    </div>
+  }
+</div>

@@ -10,6 +10,40 @@
 
   @if (tournament(); as t) {
 
+    <!-- ── Hero Banner (Sprint 3) ───────────────────────────────── -->
+    <section class="hero-banner"
+      [class.hero-banner--has-cover]="t.cover_image_url"
+      [class]="'hero-banner game-bg game-bg--' + t.game + (t.cover_image_url ? ' hero-banner--has-cover' : '')">
+      @if (t.cover_image_url) {
+        <img class="hero-banner__img" [src]="t.cover_image_url" [alt]="t.name" loading="eager"/>
+      }
+      <div class="hero-banner__overlay"></div>
+
+      <div class="hero-banner__content">
+        <div class="hero-banner__text">
+          <div class="hero-banner__meta">
+            <span class="hero-banner__game">{{ t.game_label }}</span>
+            <span class="hero-banner__format">{{ t.format_label }}</span>
+            <span class="hero-banner__status" [class]="'hero-banner__status--' + t.status">
+              {{ t.status_label }}
+            </span>
+          </div>
+          <h1 class="hero-banner__name">{{ t.name }}</h1>
+          @if (t.name_ar) {
+            <p class="hero-banner__name-ar" dir="rtl" lang="ar">{{ t.name_ar }}</p>
+          }
+        </div>
+        <div class="hero-banner__logos">
+          @if (t.company?.logo_url) {
+            <img class="hero-banner__company-logo" [src]="t.company.logo_url" [alt]="t.company.name"/>
+          }
+          @if (t.logo_url) {
+            <img class="hero-banner__logo" [src]="t.logo_url" [alt]="t.name + ' logo'"/>
+          }
+        </div>
+      </div>
+    </section>
+
     <!-- ── Header ───────────────────────────────────────────────── -->
     <div class="detail-header">
       <div class="breadcrumb">
@@ -84,13 +118,81 @@
       }
     </div>
 
+    <!-- ── Rules & Conditions (Sprint 3) ────────────────────────── -->
+    @if (t.has_rules && t.rules) {
+      <section class="rules-section"
+        [class.rules-section--expanded]="rulesExpanded()">
+        <header class="rules-section__head" (click)="rulesExpanded.set(!rulesExpanded())">
+          <span class="rules-section__icon">📜</span>
+          <span class="rules-section__title">Rules & Conditions</span>
+          <span class="rules-section__toggle">
+            {{ rulesExpanded() ? '▲ Hide' : '▼ Show' }}
+          </span>
+        </header>
+        @if (rulesExpanded()) {
+          <div class="rules-section__body">
+            <pre class="rules-text">{{ t.rules }}</pre>
+            @if (t.my_participant?.rules_accepted_at) {
+              <p class="rules-accepted">
+                ✓ Rules accepted on {{ t.my_participant.rules_accepted_at | date:'d MMM y · HH:mm' }}
+              </p>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    <!-- ── Prize Showcase (Sprint 3) ────────────────────────────── -->
+    @if (normalizedPrizes().length > 0) {
+      <section class="prize-showcase">
+        <header class="prize-showcase__head">
+          <span class="prize-showcase__icon">🏆</span>
+          <h2 class="prize-showcase__title">Prize Pool</h2>
+          <span class="prize-showcase__count">{{ normalizedPrizes().length }} {{ normalizedPrizes().length === 1 ? 'tier' : 'tiers' }}</span>
+          @if (canEditTournament()) {
+            <button type="button" class="prize-edit-btn" (click)="openPrizeEditor()" aria-label="Edit prizes" title="Edit prizes">
+              ✎ Edit
+            </button>
+          }
+        </header>
+        <div class="prize-showcase__grid">
+          @for (p of normalizedPrizes(); track p.position; let i = $index) {
+            <div class="prize-card"
+              [class.prize-card--1]="p.position === 1"
+              [class.prize-card--2]="p.position === 2"
+              [class.prize-card--3]="p.position === 3"
+              [style.--delay.ms]="i * 120">
+              <div class="prize-card__medal">
+                {{ p.position === 1 ? '🥇' : p.position === 2 ? '🥈' : p.position === 3 ? '🥉' : '🏅' }}
+              </div>
+              <div class="prize-card__position">
+                {{ p.position === 1 ? '1ST PLACE' : p.position === 2 ? '2ND PLACE' : p.position === 3 ? '3RD PLACE' : (p.position + 'TH PLACE') }}
+              </div>
+              <div class="prize-card__reward">{{ p.reward }}</div>
+            </div>
+          }
+        </div>
+      </section>
+    } @else if (canEditTournament()) {
+      <button type="button" class="prize-showcase prize-showcase--empty" (click)="openPrizeEditor()">
+        <div class="prize-showcase__empty">
+          <span class="prize-showcase__icon">🏆</span>
+          <div class="prize-showcase__empty-text">
+            <h3>No prizes configured</h3>
+            <p>Click to add prize tiers. Visible only to you as the organizer.</p>
+          </div>
+          <span class="prize-showcase__empty-cta">+ Add Prizes</span>
+        </div>
+      </button>
+    }
+
     <!-- ── Tabs ─────────────────────────────────────────────────── -->
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" [class.tab--active]="activeTab()==='bracket'" (click)="activeTab.set('bracket')">Bracket</button>
       <button class="tab" role="tab" [class.tab--active]="activeTab()==='leaderboard'" (click)="activeTab.set('leaderboard')">
         {{ t.participants?.length ? 'Players (' + t.participants.length + ')' : 'Players' }}
       </button>
-      @if (t.prize_pool && t.prize_pool.length) {
+      @if (normalizedPrizes().length) {
         <button class="tab" role="tab" [class.tab--active]="activeTab()==='prize'" (click)="activeTab.set('prize')">Prize Pool</button>
       }
     </div>
@@ -168,7 +270,18 @@
                           [class.b-match__p--loser]="m.winner_id && m.winner_id !== m.participant_a?.id && m.status === 'completed'">
                           <span class="b-match__name">
                             @if (m.participant_a_is_bye) { <em class="b-match__bye">BYE</em> }
-                            @else { {{ m.participant_a?.name ?? 'TBD' }} }
+                            @else {
+                              @if (m.participant_a; as pa) {
+                                @if (pa.avatar_url) {
+                                  <img class="b-match__avatar" [src]="pa.avatar_url" [alt]="pa.display_name ?? ''"/>
+                                } @else {
+                                  <span class="b-match__avatar b-match__avatar--placeholder">{{ (pa.display_name ?? '?').charAt(0).toUpperCase() }}</span>
+                                }
+                                <span class="b-match__name-text">{{ pa.display_name || pa.name || 'TBD' }}</span>
+                              } @else {
+                                <span class="b-match__name-text">TBD</span>
+                              }
+                            }
                           </span>
                           @if (m.score_a !== null && m.score_a !== undefined) {
                             <span class="b-match__score" [class.b-match__score--win]="m.winner_id === m.participant_a?.id">
@@ -178,8 +291,13 @@
                         </div>
 
                         <div class="b-match__divider">
-                          <span class="b-match__status" [class]="'b-match__status--' + m.status">
-                            {{ statusLabel(m.status) }}
+                          <span class="b-match__status" [class]="'b-match__status--' + m.status"
+                            [class.b-match__status--with-time]="m.status === 'scheduled' && m.scheduled_at">
+                            @if (m.status === 'scheduled' && m.scheduled_at) {
+                              {{ m.scheduled_at | date:'d MMM · HH:mm' }}
+                            } @else {
+                              {{ statusLabel(m.status) }}
+                            }
                           </span>
                           @if (m.status === 'disputed') {
                             <span class="b-match__disputed-flag">⚠</span>
@@ -191,7 +309,18 @@
                           [class.b-match__p--loser]="m.winner_id && m.winner_id !== m.participant_b?.id && m.status === 'completed'">
                           <span class="b-match__name">
                             @if (m.participant_b_is_bye) { <em class="b-match__bye">BYE</em> }
-                            @else { {{ m.participant_b?.name ?? 'TBD' }} }
+                            @else {
+                              @if (m.participant_b; as pb) {
+                                @if (pb.avatar_url) {
+                                  <img class="b-match__avatar" [src]="pb.avatar_url" [alt]="pb.display_name ?? ''"/>
+                                } @else {
+                                  <span class="b-match__avatar b-match__avatar--placeholder">{{ (pb.display_name ?? '?').charAt(0).toUpperCase() }}</span>
+                                }
+                                <span class="b-match__name-text">{{ pb.display_name || pb.name || 'TBD' }}</span>
+                              } @else {
+                                <span class="b-match__name-text">TBD</span>
+                              }
+                            }
                           </span>
                           @if (m.score_b !== null && m.score_b !== undefined) {
                             <span class="b-match__score" [class.b-match__score--win]="m.winner_id === m.participant_b?.id">
@@ -236,7 +365,14 @@
               [class.leaderboard__row--silver]="i === 1"
               [class.leaderboard__row--bronze]="i === 2">
               <span class="leaderboard__rank">{{ i + 1 }}</span>
-              <span class="leaderboard__name">{{ p.name }}</span>
+              <span class="leaderboard__name">
+                @if (p.avatar_url) {
+                  <img class="leaderboard__avatar" [src]="p.avatar_url" [alt]="p.display_name ?? ''"/>
+                } @else {
+                  <span class="leaderboard__avatar leaderboard__avatar--placeholder">{{ (p.display_name ?? p.name ?? '?').charAt(0).toUpperCase() }}</span>
+                }
+                <span>{{ p.display_name ?? p.name }}</span>
+              </span>
               <span class="leaderboard__stat">{{ p.seed }}</span>
               <span class="leaderboard__stat">{{ p.wins }}</span>
               <span class="leaderboard__stat">{{ p.losses }}</span>
@@ -249,11 +385,11 @@
     }
 
     @if (activeTab() === 'prize') {
-      @if (!t.prize_pool || !t.prize_pool.length) {
-        <div class="empty-state"><div class="empty-state__icon">🎁</div><p>No prizes configured.</p></div>
+      @if (!normalizedPrizes().length) {
+        <div class="empty-state">No prizes configured.</div>
       } @else {
         <div class="prize-list">
-          @for (p of t.prize_pool; track p.position) {
+          @for (p of normalizedPrizes(); track p.position) {
             <div class="prize-row"
               [class.prize-row--1]="p.position === 1"
               [class.prize-row--2]="p.position === 2"
@@ -268,6 +404,81 @@
 
   }
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PRIZE EDIT MODAL (Sprint 3)                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+@if (showPrizeEditor()) {
+  <div class="modal-overlay" (click)="showPrizeEditor.set(false)" role="dialog" aria-modal="true">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="modal__round-label">Edit tournament</p>
+          <h3 class="modal__title">🏆 Prize Pool</h3>
+        </div>
+        <button class="modal__close" (click)="showPrizeEditor.set(false)" aria-label="Close">✕</button>
+      </div>
+
+      <form [formGroup]="prizeForm" (ngSubmit)="savePrizes()" class="modal__body prize-edit-form">
+        <div class="form-group">
+          <label class="form-label">🥇 1st Place</label>
+          <input class="input" formControlName="prize_1" placeholder="e.g. 500 SAR PSN voucher" maxlength="150"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">🥈 2nd Place</label>
+          <input class="input" formControlName="prize_2" placeholder="e.g. 300 SAR" maxlength="150"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">🥉 3rd Place</label>
+          <input class="input" formControlName="prize_3" placeholder="e.g. 150 SAR" maxlength="150"/>
+        </div>
+        <p class="prize-edit-hint">Leave a field blank to omit that tier. Clearing all three removes the prize pool.</p>
+
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" (click)="showPrizeEditor.set(false)">Cancel</button>
+          <button type="submit" class="btn btn--gold" [disabled]="savingPrizes()">
+            {{ savingPrizes() ? 'Saving…' : 'Save Prizes' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- RULES ACCEPTANCE MODAL (Sprint 3)                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+@if (showRegisterModal() && tournament(); as t) {
+  <div class="modal-overlay" (click)="showRegisterModal.set(false)" role="dialog" aria-modal="true">
+    <div class="modal modal--wide" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="modal__round-label">Before you register</p>
+          <h3 class="modal__title">Rules & Conditions</h3>
+        </div>
+        <button class="modal__close" (click)="showRegisterModal.set(false)" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <pre class="rules-text">{{ t.rules }}</pre>
+
+        <label class="rules-accept-box">
+          <input type="checkbox" [checked]="acceptedRules()"
+            (change)="acceptedRules.set($any($event.target).checked)"/>
+          <span>I have read and agree to the tournament rules and conditions.</span>
+        </label>
+      </div>
+
+      <div class="modal__actions">
+        <button class="btn btn--ghost" (click)="showRegisterModal.set(false)">Cancel</button>
+        <button class="btn btn--gold" [disabled]="!acceptedRules() || registering()"
+          (click)="confirmRegisterWithRules()">
+          {{ registering() ? 'Registering…' : 'Accept & Register' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- MATCH MODAL — extended with Schedule + Reschedule + Evidence       -->
@@ -287,7 +498,7 @@
       <!-- VS banner -->
       <div class="modal__vs-row">
         <div class="modal__player" [class.modal__player--winner]="m.winner_id === m.participant_a?.id && m.status === 'completed'">
-          <span class="modal__player__name">{{ m.participant_a?.name ?? 'TBD' }}</span>
+          <span class="modal__player__name">{{ m.participant_a?.display_name ?? m.participant_a?.name ?? 'TBD' }}</span>
           @if (m.score_a !== null && m.score_a !== undefined) {
             <span class="modal__player__score">{{ m.score_a }}</span>
           }
@@ -297,7 +508,7 @@
           @if (m.score_b !== null && m.score_b !== undefined) {
             <span class="modal__player__score">{{ m.score_b }}</span>
           }
-          <span class="modal__player__name">{{ m.participant_b?.name ?? 'TBD' }}</span>
+          <span class="modal__player__name">{{ m.participant_b?.display_name ?? m.participant_b?.name ?? 'TBD' }}</span>
         </div>
       </div>
 
@@ -536,13 +747,13 @@
                   [class.winner-btn--selected]="resultForm.value.winner_participant_id === m.participant_a?.id"
                   [disabled]="m.participant_a_is_bye || !m.participant_a"
                   (click)="resultForm.patchValue({ winner_participant_id: m.participant_a?.id })">
-                  {{ m.participant_a?.name ?? 'TBD' }}
+                  {{ m.participant_a?.display_name ?? m.participant_a?.name ?? 'TBD' }}
                 </button>
                 <button type="button" class="winner-btn"
                   [class.winner-btn--selected]="resultForm.value.winner_participant_id === m.participant_b?.id"
                   [disabled]="m.participant_b_is_bye || !m.participant_b"
                   (click)="resultForm.patchValue({ winner_participant_id: m.participant_b?.id })">
-                  {{ m.participant_b?.name ?? 'TBD' }}
+                  {{ m.participant_b?.display_name ?? m.participant_b?.name ?? 'TBD' }}
                 </button>
               </div>
             </div>

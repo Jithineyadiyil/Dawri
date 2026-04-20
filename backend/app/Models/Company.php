@@ -7,8 +7,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * Company — enterprise tenant with optional brand defaults.
+ */
 class Company extends Model
 {
     use HasUuids;
@@ -17,38 +19,26 @@ class Company extends Model
 
     protected $fillable = [
         'name', 'name_ar', 'domain', 'industry', 'country', 'city',
-        'logo_url', 'contact_name', 'contact_email', 'contact_phone',
+        'logo_url', 'primary_color', 'secondary_color', 'accent_color',
+        'background_color', 'font_family', 'brand_config',
+        'contact_name', 'contact_email', 'contact_phone',
         'employee_count', 'cr_number', 'status', 'notes',
     ];
 
     protected $casts = [
+        'brand_config'   => 'array',
         'employee_count' => 'integer',
     ];
 
-    public function users(): HasMany
-    {
-        return $this->hasMany(User::class);
-    }
+    public function users(): HasMany         { return $this->hasMany(User::class); }
+    public function tournaments(): HasMany   { return $this->hasMany(Tournament::class); }
+    public function subscriptions(): HasMany { return $this->hasMany(Subscription::class); }
 
-    public function subscriptions(): HasMany
+    public function hasBranding(): bool
     {
-        return $this->hasMany(Subscription::class);
-    }
-
-    public function activeSubscription(): HasOne
-    {
-        return $this->hasOne(Subscription::class)
-            ->whereIn('status', ['active', 'trial'])
-            ->latest();
-    }
-
-    public function tournaments(): HasMany
-    {
-        return $this->hasMany(Tournament::class);
-    }
-
-    public function isActive(): bool
-    {
-        return $this->status === 'active' || $this->status === 'trial';
+        return ! empty($this->logo_url)
+            || ! empty($this->primary_color)
+            || ! empty($this->secondary_color)
+            || ! empty($this->font_family);
     }
 }

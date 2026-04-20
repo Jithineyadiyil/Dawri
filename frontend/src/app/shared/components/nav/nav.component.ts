@@ -3,6 +3,15 @@ import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
 
+/**
+ * NavComponent — main top navigation.
+ *
+ * Sprint 4 updates:
+ *   • Avatar now renders the user's actual photo (avatar_url) when set,
+ *     falling back to a gold letter placeholder on first character of
+ *     nickname or name. Click navigates to /profile (self-edit page).
+ *   • Mobile drawer includes a dedicated "My Profile" entry.
+ */
 @Component({
   selector: 'app-nav',
   standalone: true,
@@ -26,15 +35,24 @@ import { AuthService } from '../../../core/services/auth.service';
       <div class="nav-actions">
         @if (auth.isLoggedIn()) {
           <a routerLink="/dashboard" class="nav-link nav-link--dash" routerLinkActive="active">Dashboard</a>
+          <a routerLink="/calendar" class="nav-link nav-link--cal" routerLinkActive="active">Calendar</a>
           @if (auth.currentUser()?.role === 'admin') {
             <a routerLink="/admin" class="nav-link nav-link--admin" routerLinkActive="active">Admin</a>
           }
           @if (auth.currentUser()?.role === 'organizer') {
             <a routerLink="/subscription" class="nav-link nav-link--sub" routerLinkActive="active">Plan</a>
           }
-          <a routerLink="/dashboard" class="nav-avatar" [title]="auth.currentUser()?.name ?? ''">
-            {{ (auth.currentUser()?.name ?? 'U')[0].toUpperCase() }}
+
+          <!-- Avatar → My Profile -->
+          <a routerLink="/profile" class="nav-avatar"
+             [title]="'My Profile · ' + (auth.currentUser()?.name ?? '')">
+            @if (auth.currentUser()?.avatar_url; as url) {
+              <img [src]="url" [alt]="auth.currentUser()?.name ?? 'Profile'"/>
+            } @else {
+              <span class="nav-avatar__letter">{{ avatarLetter() }}</span>
+            }
           </a>
+
           <button class="btn-nav-ghost" (click)="logout()">Sign out</button>
         } @else {
           <a routerLink="/auth" class="btn-nav-ghost">Sign In</a>
@@ -53,6 +71,17 @@ import { AuthService } from '../../../core/services/auth.service';
         <a routerLink="/pricing" class="drawer-link">Pricing</a>
         @if (auth.isLoggedIn()) {
           <a routerLink="/dashboard" class="drawer-link">Dashboard</a>
+          <a routerLink="/calendar" class="drawer-link">Calendar</a>
+          <a routerLink="/profile" class="drawer-link drawer-link--profile">
+            <span class="drawer-avatar">
+              @if (auth.currentUser()?.avatar_url; as url) {
+                <img [src]="url" [alt]=""/>
+              } @else {
+                {{ avatarLetter() }}
+              }
+            </span>
+            My Profile
+          </a>
           @if (auth.currentUser()?.role === 'admin') {
             <a routerLink="/admin" class="drawer-link drawer-link--admin">Admin Panel</a>
           }
@@ -87,16 +116,31 @@ import { AuthService } from '../../../core/services/auth.service';
     .nav-link:hover, .nav-link.active { color: var(--gold, #f0a500); }
     .nav-link--dash { color: var(--cyan, #00e5ff); }
     .nav-link--dash.active { color: var(--cyan, #00e5ff); background: rgba(0,229,255,0.08); }
+    .nav-link--cal { color: var(--gold, #f0a500); }
+    .nav-link--cal.active { color: var(--gold, #f0a500); background: rgba(240,165,0,0.08); }
     .nav-link--admin { color: #a855f7; }
     .nav-link--admin.active { color: #a855f7; background: rgba(168,85,247,0.08); }
     .nav-link--sub { color: var(--gold, #f0a500); opacity: 0.7; }
 
     .nav-actions { display: flex; align-items: center; gap: 8px; }
+
+    /* Avatar circle — Sprint 4 */
     .nav-avatar {
-      width: 32px; height: 32px; border-radius: 50%; background: var(--gold, #f0a500);
+      width: 34px; height: 34px; border-radius: 50%;
+      overflow: hidden;
+      background: linear-gradient(135deg, var(--gold, #f0a500), rgba(240,165,0,.6));
       color: #060810; font-weight: 700; font-size: 0.85rem;
       display: flex; align-items: center; justify-content: center; text-decoration: none;
+      border: 2px solid transparent;
+      transition: border-color .15s, transform .15s;
+      flex-shrink: 0;
     }
+    .nav-avatar:hover { border-color: var(--cyan, #00e5ff); transform: scale(1.05); }
+    .nav-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .nav-avatar__letter {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 0;
+    }
+
     .btn-nav-ghost {
       font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.78rem;
       letter-spacing: 0.08em; text-transform: uppercase; color: #8892a4;
@@ -127,10 +171,20 @@ import { AuthService } from '../../../core/services/auth.service';
       letter-spacing: 0.06em; text-transform: uppercase; color: #c8cfd8;
       text-decoration: none; padding: 0.75rem 0; border-bottom: 1px solid #1e2a3a;
       background: none; border-left: none; border-right: none; border-top: none;
-      cursor: pointer; text-align: left; width: 100%; display: block;
+      cursor: pointer; text-align: left; width: 100%; display: flex; align-items: center; gap: 10px;
     }
     .drawer-link:hover { color: var(--gold, #f0a500); }
     .drawer-link--admin { color: #a855f7; }
+    .drawer-link--profile { color: var(--gold, #f0a500); }
+
+    .drawer-avatar {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
+      background: linear-gradient(135deg, var(--gold, #f0a500), rgba(240,165,0,.6));
+      color: #060810; font-family: 'Bebas Neue', sans-serif; font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+    .drawer-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
     @media (max-width: 768px) {
       .nav-links, .nav-actions { display: none; }
@@ -142,6 +196,16 @@ export class NavComponent {
   readonly auth     = inject(AuthService);
   readonly router   = inject(Router);
   readonly menuOpen = signal(false);
+
+  /**
+   * First character of the user's nickname (if set) or name, uppercased.
+   * Used as the avatar placeholder when no photo is uploaded.
+   */
+  avatarLetter(): string {
+    const u = this.auth.currentUser();
+    const label = (u?.nickname || u?.name || 'U') as string;
+    return label.charAt(0).toUpperCase();
+  }
 
   logout(): void {
     this.auth.logout();

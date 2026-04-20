@@ -4,19 +4,27 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * User model — Sprint 4 adds:
+ *   • nickname (gamer tag, shown on tournament matches/leaderboards)
+ *   • avatar_url accessor (handles both URL and stored-path forms)
+ *   • display_name helper (returns nickname if set, otherwise name)
+ */
 class User extends Authenticatable
 {
     use HasApiTokens, HasUuids, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'phone', 'role',
+        'name', 'nickname', 'email', 'password', 'phone', 'role',
         'avatar', 'status',
         'game_username', 'psn_id', 'pubg_id', 'cod_id',
         'preferred_games', 'bio', 'country', 'city',
@@ -40,6 +48,9 @@ class User extends Authenticatable
         'subscription_plan' => 'free',
         'status'            => 'active',
     ];
+
+    /** @var array<int, string> */
+    protected $appends = ['avatar_url', 'display_name'];
 
     // ── Relationships ─────────────────────────────────────────────────
 
@@ -68,8 +79,33 @@ class User extends Authenticatable
         return $this->hasMany(PlayerStat::class);
     }
 
-    public function subscriptions(): HasMany
+    // ── Accessors ─────────────────────────────────────────────────────
+
+    /**
+     * Returns a usable avatar URL. Handles three storage forms:
+     *   • full URL (http/https)       → returned as-is
+     *   • storage path (e.g. "avatars/abc.jpg") → prefixed with Storage::url()
+     *   • null / empty                → null
+     */
+    protected function avatarUrl(): Attribute
     {
-        return $this->hasMany(Subscription::class);
+        return Attribute::make(
+            get: function (): ?string {
+                $value = $this->avatar;
+                if (empty($value)) { return null; }
+                if (preg_match('#^https?://#i', (string) $value)) { return (string) $value; }
+                return Storage::disk('public')->url($value);
+            },
+        );
+    }
+
+    /**
+     * Preferred display name for UI: nickname if set and non-empty, else real name.
+     */
+    protected function displayName(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => ! empty($this->nickname) ? (string) $this->nickname : (string) ($this->name ?? '—'),
+        );
     }
 }

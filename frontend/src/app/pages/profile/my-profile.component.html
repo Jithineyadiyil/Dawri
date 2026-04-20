@@ -1,0 +1,147 @@
+<div class="profile-page">
+
+  <header class="profile-header">
+    <a routerLink="/dashboard" class="profile-back">← Back</a>
+    <h1 class="profile-title">My Profile</h1>
+    <p class="profile-sub">Your nickname and photo will be shown on tournament brackets and leaderboards.</p>
+  </header>
+
+  @if (loading()) {
+    <div class="loading">Loading…</div>
+  } @else if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  } @else {
+    @if (profile(); as p) {
+    <div class="profile-grid">
+
+      <!-- ── Avatar card (left) ──────────────────────────────── -->
+      <section class="card avatar-card">
+        <div class="avatar-display">
+          @if (p.avatar_url) {
+            <img [src]="p.avatar_url" [alt]="p.display_name" class="avatar-img"/>
+          } @else {
+            <div class="avatar-placeholder">{{ avatarLetter() }}</div>
+          }
+          @if (uploading()) { <div class="avatar-overlay">Uploading…</div> }
+        </div>
+
+        <div class="avatar-name">
+          <div class="avatar-display-name">{{ p.display_name }}</div>
+          @if (p.nickname && p.name !== p.nickname) {
+            <div class="avatar-real-name">{{ p.name }}</div>
+          }
+        </div>
+
+        <div class="avatar-actions">
+          <label class="btn btn--cyan btn--sm">
+            <input type="file" accept="image/jpeg,image/png,image/webp" (change)="onAvatarSelected($event)" hidden/>
+            {{ p.avatar_url ? 'Change Photo' : 'Upload Photo' }}
+          </label>
+          @if (p.avatar_url) {
+            <button type="button" class="btn btn--ghost btn--sm" (click)="removeAvatar()">Remove</button>
+          }
+        </div>
+        <p class="hint">JPG / PNG / WEBP · Max 2MB · Square works best</p>
+      </section>
+
+      <!-- ── Form (right) ────────────────────────────────────── -->
+      <form [formGroup]="form" (ngSubmit)="save()" class="profile-form">
+
+        <!-- Identity -->
+        <section class="card">
+          <h2 class="card__title">Identity</h2>
+
+          <div class="field">
+            <label class="label">Full Name <span class="req">*</span></label>
+            <input class="input" formControlName="name" placeholder="Your real name" maxlength="100"/>
+            @if (form.controls.name.touched && form.controls.name.errors?.['required']) {
+              <span class="err">Name is required.</span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="label">
+              Nickname <span class="label-hint">(gamer tag)</span>
+            </label>
+            <div class="nickname-input">
+              <span class="at">&#64;</span>
+              <input class="input input--flush" formControlName="nickname"
+                placeholder="e.g. dawri_king" maxlength="30" autocomplete="off"/>
+            </div>
+            @if (form.controls.nickname.touched && form.controls.nickname.errors; as errs) {
+              @if (errs['pattern']) { <span class="err">Letters, numbers, and underscores only.</span> }
+              @else if (errs['minlength']) { <span class="err">Minimum 3 characters.</span> }
+              @else if (errs['taken']) { <span class="err">That nickname is already taken.</span> }
+            }
+            <small class="hint">This is how opponents see you on brackets and leaderboards. Leave blank to show your real name.</small>
+          </div>
+
+          <div class="field">
+            <label class="label">
+              Bio <span class="label-hint">({{ bioLen() }}/500)</span>
+            </label>
+            <textarea class="input input--textarea" formControlName="bio" rows="4" maxlength="500"
+              placeholder="Tell people about your game, achievements, or favorite setup…"></textarea>
+          </div>
+        </section>
+
+        <!-- Location -->
+        <section class="card">
+          <h2 class="card__title">Location</h2>
+          <div class="field-row">
+            <div class="field">
+              <label class="label">Country</label>
+              <input class="input" formControlName="country" placeholder="Saudi Arabia" maxlength="50"/>
+            </div>
+            <div class="field">
+              <label class="label">City</label>
+              <input class="input" formControlName="city" placeholder="Riyadh" maxlength="50"/>
+            </div>
+          </div>
+        </section>
+
+        <!-- Game handles -->
+        <section class="card">
+          <h2 class="card__title">Game Handles</h2>
+          <p class="card__desc">Optional. Used to help verify match results with official game APIs.</p>
+
+          <div class="field-row">
+            <div class="field">
+              <label class="label">🎮 PSN ID</label>
+              <input class="input" formControlName="psn_id" placeholder="PSN-Username" maxlength="50"/>
+            </div>
+            <div class="field">
+              <label class="label">🔫 PUBG ID</label>
+              <input class="input" formControlName="pubg_id" placeholder="PUBG-Username" maxlength="50"/>
+            </div>
+            <div class="field">
+              <label class="label">🎯 CoD ID</label>
+              <input class="input" formControlName="cod_id" placeholder="CoD-Username" maxlength="50"/>
+            </div>
+          </div>
+        </section>
+
+        <!-- Read-only account info -->
+        <section class="card">
+          <h2 class="card__title">Account</h2>
+          <div class="readonly-grid">
+            <div><span class="readonly-label">Email</span><span class="readonly-value">{{ p.email }}</span></div>
+            @if (p.phone) {
+              <div><span class="readonly-label">Phone</span><span class="readonly-value">{{ p.phone }}</span></div>
+            }
+            <div><span class="readonly-label">Role</span><span class="readonly-value">{{ p.role | titlecase }}</span></div>
+            <div><span class="readonly-label">Plan</span><span class="readonly-value">{{ p.subscription_plan | titlecase }}</span></div>
+          </div>
+        </section>
+
+        <!-- Actions -->
+        <div class="profile-actions">
+          <button type="submit" class="btn btn--gold" [disabled]="saving() || form.pristine">
+            {{ saving() ? 'Saving…' : 'Save Profile' }}
+          </button>
+        </div>
+      </form>
+    </div>
+    }
+  }
+</div>

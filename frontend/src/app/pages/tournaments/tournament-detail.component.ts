@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, OnInit,
+  ChangeDetectionStrategy, Component, OnInit, OnDestroy,
   inject, signal, computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -8,6 +8,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { switchMap } from 'rxjs/operators';
 import { ApiService, MatchEvidence, MatchRescheduleRequest } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { BrandingService } from '../../core/services/branding.service';
 import { ToastService } from '../../core/services/toast.service';
 
 /**
@@ -22,8 +23,8 @@ export interface BracketMatch {
   match_number: number;
   bracket_section: string;
   status: string;
-  participant_a: { id: string; name: string } | null;
-  participant_b: { id: string; name: string } | null;
+  participant_a: { id: string; name: string; display_name?: string | null; nickname?: string | null; avatar_url?: string | null } | null;
+  participant_b: { id: string; name: string; display_name?: string | null; nickname?: string | null; avatar_url?: string | null } | null;
   participant_a_is_bye: boolean;
   participant_b_is_bye: boolean;
   winner_id: string | null;
@@ -55,12 +56,13 @@ export interface BracketRound {
   templateUrl: './tournament-detail.component.html',
   styleUrls: ['./tournament-detail.component.scss'],
 })
-export class TournamentDetailComponent implements OnInit {
+export class TournamentDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly api   = inject(ApiService);
   readonly auth          = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly fb    = inject(FormBuilder);
+  private readonly brand = inject(BrandingService);
 
   // ── Top-level page state ─────────────────────────────────────────────
   readonly tournament    = signal<any>(null);
@@ -72,6 +74,101 @@ export class TournamentDetailComponent implements OnInit {
   readonly activeTab     = signal<'bracket' | 'leaderboard' | 'prize'>('bracket');
   readonly selectedMatch = signal<BracketMatch | null>(null);
   readonly disputeMode   = signal(false);
+
+  // ── Sprint 3 state ───────────────────────────────────────────────────
+  readonly rulesExpanded   = signal(false);
+  readonly showRegisterModal = signal(false);
+  readonly acceptedRules   = signal(false);
+
+  // Prize edit modal
+  readonly showPrizeEditor = signal(false);
+  readonly savingPrizes    = signal(false);
+  readonly prizeForm       = this.fb.group({
+    prize_1: [''],
+    prize_2: [''],
+    prize_3: [''],
+  });
+
+  /** True when the logged-in user can edit this tournament (organizer or admin). */
+  readonly canEditTournament = computed(() => {
+    const u = this.auth.currentUser();
+    const t = this.tournament();
+    if (!u || !t) return false;
+    return u.role === 'admin' || u.id === (t as any).organizer_id;
+  });
+
+  /** Open the prize editor modal pre-populated from current normalizedPrizes. */
+  openPrizeEditor(): void {
+    const prizes = this.normalizedPrizes();
+    this.prizeForm.reset({
+      prize_1: prizes.find(p => p.position === 1)?.reward ?? '',
+      prize_2: prizes.find(p => p.position === 2)?.reward ?? '',
+      prize_3: prizes.find(p => p.position === 3)?.reward ?? '',
+    });
+    this.showPrizeEditor.set(true);
+  }
+
+  /** Save prizes via PUT /tournaments/{id}. */
+  savePrizes(): void {
+    const v = this.prizeForm.value;
+    const pool: Array<{ position: number; reward: string }> = [];
+    if (v.prize_1?.trim()) pool.push({ position: 1, reward: v.prize_1.trim() });
+    if (v.prize_2?.trim()) pool.push({ position: 2, reward: v.prize_2.trim() });
+    if (v.prize_3?.trim()) pool.push({ position: 3, reward: v.prize_3.trim() });
+
+    this.savingPrizes.set(true);
+    this.api.updateTournament(this.tournament()?.id, {
+      prize_pool: pool.length ? pool : null,
+    }).subscribe({
+      next: (res: any) => {
+        // Merge the fresh tournament into the signal so normalizedPrizes updates.
+        const current = this.tournament();
+        this.tournament.set({ ...current, prize_pool: pool.length ? pool : null });
+        this.savingPrizes.set(false);
+        this.showPrizeEditor.set(false);
+        this.toast.success('Prizes saved.');
+      },
+      error: (err: any) => {
+        this.savingPrizes.set(false);
+        this.toast.error(err.error?.message ?? 'Failed to save prizes.');
+      },
+    });
+  }
+
+  /**
+   * Normalized prize list. Handles all observed shapes:
+   *   • null / undefined                        → []
+   *   • array of { position, reward } (canonical)
+   *   • array of primitives (e.g. ["100 SAR"])  → wraps to {position, reward}
+   *   • JSON-encoded string (cast not applied)  → parses then recurses
+   *   • single object                           → wraps in array
+   *
+   * Always returns an array of objects with `position` and `reward` fields.
+   */
+  readonly normalizedPrizes = computed<Array<{ position: number; reward: string }>>(() => {
+    const raw = this.tournament()?.prize_pool;
+    if (!raw) return [];
+
+    // JSON string → parse
+    let arr: any = raw;
+    if (typeof raw === 'string') {
+      try { arr = JSON.parse(raw); } catch { return []; }
+    }
+
+    // Single object → wrap
+    if (!Array.isArray(arr) && typeof arr === 'object') { arr = [arr]; }
+    if (!Array.isArray(arr)) return [];
+
+    return arr.map((item: any, idx: number) => {
+      if (typeof item === 'string' || typeof item === 'number') {
+        return { position: idx + 1, reward: String(item) };
+      }
+      return {
+        position: Number(item?.position ?? item?.place ?? idx + 1),
+        reward:   String(item?.reward ?? item?.prize ?? item?.value ?? ''),
+      };
+    }).filter((p: { position: number; reward: string }) => p.reward.trim().length > 0);
+  });
 
   // ── Sprint 2 modal state ─────────────────────────────────────────────
   readonly showScheduleEditor    = signal(false);
@@ -120,7 +217,7 @@ export class TournamentDetailComponent implements OnInit {
       map.get(key)!.push(m);
     }
     const MATCH_H = 88;
-    const GAP     = 12;
+    const GAP     = 20;   // MUST match $slot-gap in tournament-detail.component.scss
     const sorted = [...map.entries()].sort((a, b) => {
       const [secA, rA] = a[0].split('::');
       const [secB, rB] = b[0].split('::');
@@ -154,7 +251,11 @@ export class TournamentDetailComponent implements OnInit {
     return [...t.participants]
       .sort((a: any, b: any) => b.wins - a.wins || b.points - a.points || a.losses - b.losses)
       .map((p: any, i: number) => ({
-        rank: i + 1, name: p.name ?? '—', seed: p.seed,
+        rank: i + 1,
+        name: p.name ?? '—',
+        display_name: p.display_name ?? p.name ?? '—',
+        avatar_url: p.avatar_url ?? null,
+        seed: p.seed,
         wins: p.wins ?? 0, losses: p.losses ?? 0,
         points: p.points ?? 0, buchholz: p.buchholz ?? 0,
       }));
@@ -220,16 +321,47 @@ export class TournamentDetailComponent implements OnInit {
         return this.api.getTournament(p.get('id')!);
       })
     ).subscribe({
-      next: (res: any) => { this.tournament.set(res.data ?? res); this.loading.set(false); },
+      next: (res: any) => {
+        const t = res.data ?? res;
+        this.tournament.set(t);
+        this.loading.set(false);
+        // Apply the tournament's resolved brand to the page.
+        if (t?.brand) { this.brand.apply(t.brand); }
+      },
       error: (err: any) => { this.error.set(err?.error?.message ?? 'Failed to load tournament.'); this.loading.set(false); },
     });
+  }
+
+  ngOnDestroy(): void {
+    // Revert to platform defaults when leaving this page.
+    this.brand.reset();
   }
 
   // ── Registration / bracket ───────────────────────────────────────────
   register(): void {
     if (!this.auth.isLoggedIn()) { this.toast.info('Sign in to register.'); return; }
+    const t = this.tournament();
+    // If tournament has rules and the user hasn't accepted them, open modal.
+    if (t?.has_rules && !this.acceptedRules()) {
+      this.showRegisterModal.set(true);
+      return;
+    }
+    this.doRegister(this.acceptedRules());
+  }
+
+  /** User clicked Confirm & Register in the rules-acceptance modal. */
+  confirmRegisterWithRules(): void {
+    if (!this.acceptedRules()) {
+      this.toast.warning('You must accept the rules to register.');
+      return;
+    }
+    this.showRegisterModal.set(false);
+    this.doRegister(true);
+  }
+
+  private doRegister(acceptedRules: boolean): void {
     this.registering.set(true);
-    this.api.registerForTournament(this.tournament()?.id).subscribe({
+    this.api.registerForTournamentWithRules(this.tournament()?.id, acceptedRules).subscribe({
       next: () => { this.refresh(); this.registering.set(false); this.toast.success('Registered!'); },
       error: (err: any) => { this.toast.error(err.error?.message ?? 'Failed.'); this.registering.set(false); },
     });

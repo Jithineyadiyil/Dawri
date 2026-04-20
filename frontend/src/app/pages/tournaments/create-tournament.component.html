@@ -1,170 +1,252 @@
-<div class="modal-overlay" (click)="cancelled.emit()">
-  <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="ct-title">
+<div class="ct-page">
 
-    <div class="modal__header">
-      <h2 class="modal__title" id="ct-title">Create Tournament</h2>
-      <button class="modal__close" (click)="cancelled.emit()" aria-label="Close">✕</button>
-    </div>
+  <header class="ct-header">
+    <a routerLink="/tournaments" class="ct-back">← Back to Tournaments</a>
+    <h1 class="ct-title">Create Tournament</h1>
+    <p class="ct-sub">Fill the essentials below — sections stack vertically, scroll to any.</p>
+  </header>
 
-    <form [formGroup]="form" (ngSubmit)="submit()" class="ct-form" autocomplete="off" novalidate>
+  <form [formGroup]="form" (ngSubmit)="submit()" class="ct-form" novalidate>
 
-      <!-- Section: Basic info -->
-      <div class="ct-section">
-        <div class="ct-section__label">Basic Info</div>
-
-        <div class="form-group">
-          <label class="form-label" for="name">Tournament Name <span class="req">*</span></label>
-          <input id="name" class="input" formControlName="name"
-            placeholder="e.g. EA FC 25 Spring Cup" [class.input--error]="form.get('name')?.invalid && form.get('name')?.touched"/>
-          @if (form.get('name')?.errors?.['required'] && form.get('name')?.touched) {
-            <span class="form-error">Name is required.</span>
-          }
-          @if (form.get('name')?.errors?.['maxlength'] && form.get('name')?.touched) {
-            <span class="form-error">Max 150 characters.</span>
-          }
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="name_ar">Arabic Name (optional)</label>
-          <input id="name_ar" class="input input--rtl" formControlName="name_ar" dir="rtl" lang="ar"
-            placeholder="كأس EA FC 25"/>
+    <!-- ─── SECTION 1 · Basics ─────────────────────────────── -->
+    <section class="ct-section">
+      <div class="ct-section__head">
+        <span class="ct-section__num">1</span>
+        <div>
+          <h2 class="ct-section__title">Basics</h2>
+          <p class="ct-section__desc">Name, game, and tournament format.</p>
         </div>
       </div>
-
-      <!-- Section: Game & Format -->
-      <div class="ct-section">
-        <div class="ct-section__label">Game &amp; Format</div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="game">Game <span class="req">*</span></label>
-            <select id="game" class="input select" formControlName="game">
-              @for (g of games; track g.value) {
-                <option [value]="g.value">{{ g.label }}</option>
-              }
-            </select>
+      <div class="ct-section__body">
+        <div class="field-row">
+          <div class="field field--grow">
+            <label class="label">Tournament Name <span class="req">*</span></label>
+            <input class="input" formControlName="name" placeholder="Spring Showdown 2026" maxlength="150"/>
           </div>
-
-          <div class="form-group">
-            <label class="form-label" for="max_participants">Max Players <span class="req">*</span></label>
-            <select id="max_participants" class="input select" formControlName="max_participants">
-              <option [value]="4">4</option>
-              <option [value]="8">8</option>
-              <option [value]="16">16</option>
-              <option [value]="32">32</option>
-              <option [value]="64">64</option>
-              <option [value]="128">128</option>
-            </select>
+          <div class="field">
+            <label class="label">Arabic Name (optional)</label>
+            <input class="input" formControlName="name_ar" dir="rtl" placeholder="اسم البطولة" maxlength="150"/>
           </div>
         </div>
 
-        <div class="format-grid">
-          @for (f of formats; track f.value) {
-            <label class="format-card" [class.format-card--active]="form.value.format === f.value">
-              <input type="radio" formControlName="format" [value]="f.value" class="format-card__radio"/>
-              <span class="format-card__name">{{ f.label }}</span>
-              <span class="format-card__desc">{{ f.desc }}</span>
+        <div class="field">
+          <label class="label">Game <span class="req">*</span></label>
+          <div class="game-picker">
+            @for (g of games(); track g.value) {
+              <label class="game-opt" [class.game-opt--active]="form.value.game === g.value">
+                <input type="radio" formControlName="game" [value]="g.value"/>
+                <span class="game-opt__emoji">{{ g.emoji }}</span>
+                <span class="game-opt__label">{{ g.label }}</span>
+              </label>
+            }
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label">Format <span class="req">*</span></label>
+          <div class="format-picker">
+            @for (f of formats; track f.value) {
+              <label class="format-opt" [class.format-opt--active]="form.value.format === f.value">
+                <input type="radio" formControlName="format" [value]="f.value"/>
+                <span class="format-opt__name">{{ f.label }}</span>
+                <span class="format-opt__desc">{{ f.desc }}</span>
+              </label>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SECTION 2 · Schedule & Capacity ─────────────── -->
+    <section class="ct-section">
+      <div class="ct-section__head">
+        <span class="ct-section__num">2</span>
+        <div>
+          <h2 class="ct-section__title">Schedule & Capacity</h2>
+          <p class="ct-section__desc">When it opens, closes, and how many can join.</p>
+        </div>
+      </div>
+      <div class="ct-section__body">
+        <div class="field-row">
+          <div class="field">
+            <label class="label">Registration Closes <span class="req">*</span></label>
+            <input class="input" type="datetime-local" formControlName="registration_closes_at"/>
+          </div>
+          <div class="field">
+            <label class="label">Tournament Starts <span class="req">*</span></label>
+            <input class="input" type="datetime-local" formControlName="starts_at"/>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="label">Max Participants <span class="req">*</span></label>
+            <input class="input" type="number" min="2" max="512" formControlName="max_participants"/>
+          </div>
+          @if (isSwiss()) {
+            <div class="field">
+              <label class="label">Swiss Rounds</label>
+              <input class="input" type="number" min="1" max="15" formControlName="swiss_rounds"/>
+            </div>
+          }
+          <div class="field">
+            <label class="label">Entry Fee (SAR)</label>
+            <input class="input" type="number" min="0" formControlName="entry_fee_sar"/>
+            <small class="hint">Set 0 for free tournaments.</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SECTION 3 · Rules & Conditions ──────────────── -->
+    <section class="ct-section">
+      <div class="ct-section__head">
+        <span class="ct-section__num">3</span>
+        <div>
+          <h2 class="ct-section__title">Rules & Conditions</h2>
+          <p class="ct-section__desc">Players will see these before registering and must accept them.</p>
+        </div>
+      </div>
+      <div class="ct-section__body">
+        <div class="field">
+          <label class="label">Rules (optional)</label>
+          <textarea class="input input--textarea" formControlName="rules" rows="8" maxlength="10000"
+            placeholder="Example:
+1. Be respectful to opponents.
+2. Matches must be played within 48 hours of the scheduled time.
+3. Any form of cheating results in immediate disqualification.
+4. Screenshot evidence is required for all disputed results.
+5. The organizer's decision is final."></textarea>
+          <small class="hint">Plain text. Line breaks are preserved. Maximum 10,000 characters.</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SECTION 4 · Cover Image ─────────────────────── -->
+    <section class="ct-section">
+      <div class="ct-section__head">
+        <span class="ct-section__num">4</span>
+        <div>
+          <h2 class="ct-section__title">Cover Image</h2>
+          <p class="ct-section__desc">Optional. A good cover makes your tournament stand out.</p>
+        </div>
+      </div>
+      <div class="ct-section__body">
+        <div class="cover-uploader">
+          @if (coverPreview()) {
+            <div class="cover-preview">
+              <img [src]="coverPreview()" alt="Cover preview"/>
+              <button type="button" class="cover-preview__remove" (click)="removeCover()" aria-label="Remove">✕</button>
+            </div>
+          } @else {
+            <label class="cover-drop">
+              <input type="file" accept="image/jpeg,image/png,image/webp" (change)="onCoverSelected($event)"/>
+              <div class="cover-drop__inner">
+                <div class="cover-drop__icon">🖼</div>
+                <div class="cover-drop__prompt">Choose cover image</div>
+                <div class="cover-drop__hint">JPG/PNG/WEBP · 16:9 recommended · Max 5MB</div>
+              </div>
             </label>
           }
+          <p class="hint">If no cover is uploaded, a game-specific gradient will be used automatically.</p>
         </div>
+      </div>
+    </section>
 
-        @if (isSwiss) {
-          <div class="form-group">
-            <label class="form-label" for="swiss_rounds">Number of Swiss Rounds</label>
-            <input id="swiss_rounds" class="input" type="number" min="3" max="15" formControlName="swiss_rounds"/>
+    <!-- ─── SECTION 5 · Branding ────────────────────────── -->
+    <section class="ct-section" [class.ct-section--locked]="!canBrand()">
+      <div class="ct-section__head">
+        <span class="ct-section__num">5</span>
+        <div>
+          <h2 class="ct-section__title">Branding
+            @if (!canBrand()) { <span class="locked-badge">🔒 Pro / Enterprise</span> }
+          </h2>
+          <p class="ct-section__desc">
+            @if (canBrand()) { Override the default colors & fonts for this tournament. }
+            @else { White-label branding is available on Professional and Enterprise plans. }
+          </p>
+        </div>
+      </div>
+      <div class="ct-section__body">
+        @if (canBrand()) {
+          <label class="toggle">
+            <input type="checkbox" formControlName="brand_override"/>
+            <span class="toggle__slider"></span>
+            <span class="toggle__label">Use custom branding for this tournament</span>
+          </label>
+
+          @if (form.value.brand_override) {
+            <div class="brand-grid">
+              <div class="field">
+                <label class="label">Primary Color</label>
+                <input class="input input--color" type="color" formControlName="primary_color"/>
+              </div>
+              <div class="field">
+                <label class="label">Secondary Color</label>
+                <input class="input input--color" type="color" formControlName="secondary_color"/>
+              </div>
+              <div class="field field--grow">
+                <label class="label">Font Family</label>
+                <select class="input" formControlName="font_family">
+                  <option value="">-- Keep company/default --</option>
+                  @for (f of fontOptions; track f.value) {
+                    <option [value]="f.value">{{ f.label }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <div class="brand-preview" [style.--p]="form.value.primary_color || '#f0a500'"
+                                        [style.--s]="form.value.secondary_color || '#00e5ff'"
+                                        [style.--ff]="form.value.font_family || 'Bebas Neue, sans-serif'">
+              <div class="brand-preview__swatch" style="background: var(--p);">Primary</div>
+              <div class="brand-preview__swatch" style="background: var(--s); color:#0b1022;">Secondary</div>
+              <div class="brand-preview__type">The quick brown fox — Aa 1234</div>
+            </div>
+          }
+        } @else {
+          <div class="upsell">
+            <p>Upgrade to Professional or Enterprise to unlock:</p>
+            <ul>
+              <li>Company-wide brand defaults (colors, fonts, logo)</li>
+              <li>Per-tournament brand overrides</li>
+              <li>White-label player experience (no Dawri branding)</li>
+            </ul>
+            <a routerLink="/subscription/plans" class="btn btn--gold">View Plans →</a>
           </div>
         }
       </div>
+    </section>
 
-      <!-- Section: Schedule -->
-      <div class="ct-section">
-        <div class="ct-section__label">Schedule</div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="reg_close">Registration Closes <span class="req">*</span></label>
-            <input id="reg_close" class="input" type="datetime-local" formControlName="registration_closes_at"
-              [min]="minDatetime()" [class.input--error]="form.get('registration_closes_at')?.invalid && form.get('registration_closes_at')?.touched"/>
-            @if (form.get('registration_closes_at')?.invalid && form.get('registration_closes_at')?.touched) {
-              <span class="form-error">Required.</span>
-            }
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="starts_at">Tournament Start <span class="req">*</span></label>
-            <input id="starts_at" class="input" type="datetime-local" formControlName="starts_at"
-              [min]="minDatetime()" [class.input--error]="form.get('starts_at')?.invalid && form.get('starts_at')?.touched"/>
-            @if (form.get('starts_at')?.invalid && form.get('starts_at')?.touched) {
-              <span class="form-error">Required.</span>
-            }
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="timezone">Timezone</label>
-            <select id="timezone" class="input select" formControlName="timezone">
-              <option value="Asia/Riyadh">Riyadh (AST +3)</option>
-              <option value="Asia/Dubai">Dubai (GST +4)</option>
-              <option value="Asia/Kuwait">Kuwait (AST +3)</option>
-              <option value="Asia/Qatar">Qatar (AST +3)</option>
-              <option value="Africa/Cairo">Cairo (EET +2)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="entry_fee">Entry Fee (SAR)</label>
-            <input id="entry_fee" class="input" type="number" min="0" formControlName="entry_fee_sar"
-              placeholder="0 = Free"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section: Prize Pool -->
-      <div class="ct-section">
-        <div class="ct-section__label">Prize Pool <span class="ct-section__opt">(optional)</span></div>
-        <div class="prize-inputs">
-          <div class="form-group prize-group">
-            <label class="form-label prize-label">
-              <span class="prize-label__pos prize-label__pos--1">🥇 1st</span>
-            </label>
-            <input class="input" formControlName="prize_1" placeholder="e.g. PSN Card 200 SAR"/>
-          </div>
-          <div class="form-group prize-group">
-            <label class="form-label prize-label">
-              <span class="prize-label__pos prize-label__pos--2">🥈 2nd</span>
-            </label>
-            <input class="input" formControlName="prize_2" placeholder="e.g. PSN Card 100 SAR"/>
-          </div>
-          <div class="form-group prize-group">
-            <label class="form-label prize-label">
-              <span class="prize-label__pos prize-label__pos--3">🥉 3rd</span>
-            </label>
-            <input class="input" formControlName="prize_3" placeholder="e.g. PSN Card 50 SAR"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- Visibility -->
-      <div class="ct-section ct-section--row">
+    <!-- ─── SECTION 6 · Prizes ──────────────────────────── -->
+    <section class="ct-section">
+      <div class="ct-section__head">
+        <span class="ct-section__num">6</span>
         <div>
-          <div class="form-label">Public Tournament</div>
-          <div class="form-hint">Visible to all players on the platform.</div>
+          <h2 class="ct-section__title">Prizes</h2>
+          <p class="ct-section__desc">Optional. Describe up to three prize tiers.</p>
         </div>
-        <label class="toggle">
-          <input type="checkbox" formControlName="is_public" class="toggle__input"/>
-          <span class="toggle__track">
-            <span class="toggle__thumb"></span>
-          </span>
-        </label>
       </div>
-
-      <!-- Actions -->
-      <div class="ct-actions">
-        <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
-        <button type="submit" class="btn btn--gold" [disabled]="saving()">
-          @if (saving()) { Creating... }
-          @else { Create Tournament }
-        </button>
+      <div class="ct-section__body">
+        <div class="field">
+          <label class="label">🥇 1st Place</label>
+          <input class="input" formControlName="prize_1" placeholder="e.g. 500 SAR PSN voucher"/>
+        </div>
+        <div class="field">
+          <label class="label">🥈 2nd Place</label>
+          <input class="input" formControlName="prize_2" placeholder="e.g. 300 SAR"/>
+        </div>
+        <div class="field">
+          <label class="label">🥉 3rd Place</label>
+          <input class="input" formControlName="prize_3" placeholder="e.g. 150 SAR"/>
+        </div>
       </div>
+    </section>
 
-    </form>
-  </div>
+    <!-- ─── Actions ─────────────────────────────────────── -->
+    <div class="ct-actions">
+      <a routerLink="/tournaments" class="btn btn--ghost">Cancel</a>
+      <button type="submit" class="btn btn--gold btn--lg" [disabled]="form.invalid || saving()">
+        {{ saving() ? 'Creating…' : 'Create Tournament' }}
+      </button>
+    </div>
+  </form>
 </div>

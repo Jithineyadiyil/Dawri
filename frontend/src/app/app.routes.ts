@@ -24,6 +24,13 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/tournaments/tournaments.component').then(m => m.TournamentsComponent),
     title: 'Tournaments — Dawri',
   },
+  // Specific route MUST come before :id
+  {
+    path: 'tournaments/create',
+    loadComponent: () => import('./pages/tournaments/create-tournament.component').then(m => m.CreateTournamentComponent),
+    canActivate: [authGuard],
+    title: 'Create Tournament — Dawri',
+  },
   {
     path: 'tournaments/:id',
     loadComponent: () => import('./pages/tournaments/tournament-detail.component').then(m => m.TournamentDetailComponent),
@@ -44,16 +51,37 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/leaderboard/leaderboard.component').then(m => m.LeaderboardComponent),
     title: 'Leaderboard — Dawri',
   },
+  // Sprint 4: Company tournament calendar
+  {
+    path: 'calendar',
+    loadComponent: () => import('./pages/calendar/calendar.component').then(m => m.CalendarComponent),
+    canActivate: [authGuard],
+    title: 'Tournament Calendar — Dawri',
+  },
   {
     path: 'players/:id',
     loadComponent: () => import('./pages/profile/profile.component').then(m => m.ProfileComponent),
     title: 'Player Profile — Dawri',
+  },
+  // Sprint 4: Current user's own editable profile
+  {
+    path: 'profile',
+    loadComponent: () => import('./pages/profile/my-profile.component').then(m => m.MyProfileComponent),
+    canActivate: [authGuard],
+    title: 'My Profile — Dawri',
   },
   {
     path: 'subscription',
     loadComponent: () => import('./pages/subscription/subscription.component').then(m => m.SubscriptionComponent),
     canActivate: [authGuard],
     title: 'Subscription — Dawri',
+  },
+  // Sprint 3: Company branding settings
+  {
+    path: 'settings/company-branding',
+    loadComponent: () => import('./pages/settings/company-branding/company-branding.component').then(m => m.CompanyBrandingComponent),
+    canActivate: [authGuard],
+    title: 'Company Branding — Dawri',
   },
   {
     path: 'admin',

@@ -1,0 +1,145 @@
+<div class="cb-page">
+  <header class="cb-header">
+    <a routerLink="/dashboard" class="cb-back">← Back</a>
+    <h1 class="cb-title">Company Branding</h1>
+    <p class="cb-sub">Customize the look of every tournament your company runs. Changes preview live on the right.</p>
+  </header>
+
+  @if (loading()) {
+    <div class="loading">Loading…</div>
+  } @else if (error()) {
+    <div class="locked-panel">
+      <div class="locked-panel__icon">🔒</div>
+      <h2>Locked</h2>
+      <p>{{ error() }}</p>
+      <a routerLink="/subscription/plans" class="btn btn--gold">View Plans →</a>
+    </div>
+  } @else {
+    @if (company(); as c) {
+    <div class="cb-grid">
+
+      <!-- ── Form side ───────────────────────────────────────── -->
+      <form [formGroup]="form" (ngSubmit)="save()" class="cb-form">
+
+        <!-- Company info -->
+        <section class="card">
+          <h2 class="card__title">Company</h2>
+          <div class="company-info">
+            @if (c.logo_url) {
+              <img class="company-logo" [src]="c.logo_url" [alt]="c.name"/>
+            } @else {
+              <div class="company-logo company-logo--empty">{{ c.name.charAt(0).toUpperCase() }}</div>
+            }
+            <div>
+              <div class="company-name">{{ c.name }}</div>
+              <label class="logo-upload-trigger">
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" (change)="onLogoSelected($event)"/>
+                {{ uploading() ? 'Uploading…' : (c.logo_url ? 'Replace logo' : 'Upload logo') }}
+              </label>
+              <small class="hint">JPG/PNG/WEBP/SVG · Max 2MB</small>
+            </div>
+          </div>
+        </section>
+
+        <!-- Colors -->
+        <section class="card">
+          <h2 class="card__title">Colors</h2>
+          <div class="color-grid">
+            <div class="color-field">
+              <label class="label">Primary</label>
+              <div class="color-pick">
+                <input type="color" formControlName="primary_color"/>
+                <input type="text" class="color-hex" formControlName="primary_color" maxlength="7"/>
+              </div>
+              <small class="hint">Used for buttons, highlights.</small>
+            </div>
+            <div class="color-field">
+              <label class="label">Secondary</label>
+              <div class="color-pick">
+                <input type="color" formControlName="secondary_color"/>
+                <input type="text" class="color-hex" formControlName="secondary_color" maxlength="7"/>
+              </div>
+              <small class="hint">Used for accents, links.</small>
+            </div>
+            <div class="color-field">
+              <label class="label">Accent</label>
+              <div class="color-pick">
+                <input type="color" formControlName="accent_color"/>
+                <input type="text" class="color-hex" formControlName="accent_color" maxlength="7"/>
+              </div>
+              <small class="hint">Used for success states.</small>
+            </div>
+            <div class="color-field">
+              <label class="label">Background</label>
+              <div class="color-pick">
+                <input type="color" formControlName="background_color"/>
+                <input type="text" class="color-hex" formControlName="background_color" maxlength="7"/>
+              </div>
+              <small class="hint">Page background base.</small>
+            </div>
+          </div>
+        </section>
+
+        <!-- Typography -->
+        <section class="card">
+          <h2 class="card__title">Typography</h2>
+          <div class="field">
+            <label class="label">Font Family</label>
+            <select class="input" formControlName="font_family">
+              @for (f of fontOptions; track f.value) {
+                <option [value]="f.value">{{ f.label }}</option>
+              }
+            </select>
+          </div>
+        </section>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button type="button" class="btn btn--ghost" (click)="resetToDefaults()">Reset to Platform Defaults</button>
+          <button type="submit" class="btn btn--gold" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save Branding' }}
+          </button>
+        </div>
+      </form>
+
+      <!-- ── Live preview side ──────────────────────────────── -->
+      <aside class="cb-preview">
+        <div class="preview-head">
+          <span class="preview-dot"></span>
+          Live Preview
+        </div>
+
+        <!-- Mock tournament card -->
+        <div class="mock-card">
+          <div class="mock-card__cover" [style.background]="'linear-gradient(135deg, ' + form.value.primary_color + ' 0%, ' + form.value.secondary_color + ' 100%)'">
+            @if (c.logo_url) { <img class="mock-card__logo" [src]="c.logo_url" alt=""/> }
+            <span class="mock-card__badge">LIVE</span>
+          </div>
+          <div class="mock-card__body" [style.font-family]="form.value.font_family">
+            <h3>Sample Tournament</h3>
+            <p>This is how your tournament cards will look with the current brand settings.</p>
+            <div class="mock-card__stats">
+              <span>8/8 players</span>
+              <span class="mock-card__cta" [style.background]="form.value.primary_color" [style.color]="'#1a1208'">REGISTER</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Typography sample -->
+        <div class="mock-typography" [style.font-family]="form.value.font_family">
+          <div class="mock-h1" [style.color]="form.value.primary_color">The Quick Brown Fox</div>
+          <div class="mock-h2">Jumps over the lazy dog 1234567890</div>
+          <div class="mock-p">الطيور الذهبية تحلق فوق الجبال — Arabic sample text for RTL verification.</div>
+        </div>
+
+        <!-- Color chips -->
+        <div class="chip-list">
+          <div class="chip"><span class="chip__sw" [style.background]="form.value.primary_color"></span><span>Primary</span><span class="chip__hex">{{ form.value.primary_color }}</span></div>
+          <div class="chip"><span class="chip__sw" [style.background]="form.value.secondary_color"></span><span>Secondary</span><span class="chip__hex">{{ form.value.secondary_color }}</span></div>
+          <div class="chip"><span class="chip__sw" [style.background]="form.value.accent_color"></span><span>Accent</span><span class="chip__hex">{{ form.value.accent_color }}</span></div>
+        </div>
+      </aside>
+    </div>
+    }
+  }
+</div>

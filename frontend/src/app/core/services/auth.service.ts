@@ -7,9 +7,12 @@ import { environment } from '../../../environments/environment';
 export interface AuthUser {
   id: string;
   name: string;
+  nickname?: string | null;
+  display_name?: string;
   email: string;
   role?: string;
   avatar?: string;
+  avatar_url?: string | null;
   game_username?: string;
   subscription_plan?: string;
   phone_verified_at?: string;

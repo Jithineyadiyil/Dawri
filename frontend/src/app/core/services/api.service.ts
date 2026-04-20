@@ -119,6 +119,43 @@ export interface Tournament {
   bracket?: BracketData | null;
   created_at: string;
   updated_at: string;
+
+  // Sprint 3 additions
+  cover_image_url?: string | null;
+  logo_url?: string | null;
+  rules?: string | null;
+  has_rules?: boolean;
+  brand_override?: boolean;
+  brand?: BrandPayload;
+  company_id?: string | null;
+  company?: { id: string; name: string; logo_url: string | null } | null;
+  my_participant?: { id: string; rules_accepted_at: string | null } | null;
+  is_full?: boolean;
+}
+
+// ─── Sprint 3: Branding ───────────────────────────────────────────────────────
+
+export interface BrandPayload {
+  primary_color:    string;
+  secondary_color:  string;
+  accent_color:     string;
+  background_color: string;
+  font_family:      string;
+  logo_url:         string | null;
+  source:           'platform' | 'company' | 'tournament';
+}
+
+export interface CompanyBranding {
+  id:                string;
+  name:              string;
+  name_ar:           string | null;
+  logo_url:          string | null;
+  primary_color:     string | null;
+  secondary_color:   string | null;
+  accent_color:      string | null;
+  background_color:  string | null;
+  font_family:       string | null;
+  has_branding:      boolean;
 }
 
 export interface BracketData {
@@ -536,5 +573,60 @@ export class ApiService {
   }
   getInvoices(): Observable<PaginatedResponse<Invoice>> {
     return this.http.get<PaginatedResponse<Invoice>>(`${API_BASE}/subscription/invoices`);
+  }
+
+  // ── Sprint 3: Tournament cover / rules / branding ──────────────────────────
+
+  /** Register with rules acceptance flag (Sprint 3 extension). */
+  registerForTournamentWithRules(id: string, acceptRules: boolean):
+    Observable<{ message: string; participants_count: number; participant_id: string }> {
+    return this.http.post<{ message: string; participants_count: number; participant_id: string }>(
+      `${API_BASE}/tournaments/${id}/register`, { accept_rules: acceptRules },
+    );
+  }
+
+  uploadTournamentCover(id: string, file: File): Observable<{ message: string; cover_image_url: string }> {
+    const form = new FormData(); form.append('file', file);
+    return this.http.post<{ message: string; cover_image_url: string }>(
+      `${API_BASE}/tournaments/${id}/cover`, form,
+    );
+  }
+
+  deleteTournamentCover(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${API_BASE}/tournaments/${id}/cover`);
+  }
+
+  updateTournamentBranding(id: string, payload: Partial<{
+    brand_override: boolean;
+    primary_color: string | null;
+    secondary_color: string | null;
+    accent_color: string | null;
+    background_color: string | null;
+    font_family: string | null;
+    logo_url: string | null;
+  }>): Observable<{ message: string; brand: BrandPayload }> {
+    return this.http.patch<{ message: string; brand: BrandPayload }>(
+      `${API_BASE}/tournaments/${id}/brand`, payload,
+    );
+  }
+
+  // ── Sprint 3: Company branding ─────────────────────────────────────────────
+
+  getMyCompany(): Observable<{ data: CompanyBranding | null }> {
+    return this.http.get<{ data: CompanyBranding | null }>(`${API_BASE}/companies/mine`);
+  }
+
+  updateCompanyBranding(payload: Partial<CompanyBranding>):
+    Observable<{ message: string; data: CompanyBranding }> {
+    return this.http.patch<{ message: string; data: CompanyBranding }>(
+      `${API_BASE}/companies/mine/brand`, payload,
+    );
+  }
+
+  uploadCompanyLogo(file: File): Observable<{ message: string; logo_url: string }> {
+    const form = new FormData(); form.append('file', file);
+    return this.http.post<{ message: string; logo_url: string }>(
+      `${API_BASE}/companies/mine/logo`, form,
+    );
   }
 }
