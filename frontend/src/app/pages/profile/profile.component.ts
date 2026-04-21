@@ -147,7 +147,7 @@ import { PlayerProfile, MatchHistoryEntry, GAME_LABELS } from '../../core/models
     .avatar-circle {
       width: 80px; height: 80px; border-radius: 50%; background: #243048;
       display: flex; align-items: center; justify-content: center;
-      font-size: 2rem; color: var(--cyan, #00e5ff); font-weight: 700;
+      font-size: 2rem; color: var(--cyan, #fbbf24); font-weight: 700;
     }
     .avatar-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
     .profile-name { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: #fff; margin: 0; }
@@ -155,25 +155,25 @@ import { PlayerProfile, MatchHistoryEntry, GAME_LABELS } from '../../core/models
     .profile-bio { color: #dde1ee; margin: 0.5rem 0; max-width: 500px; }
     .profile-meta { display: flex; gap: 1.5rem; color: #8892a4; font-size: 0.85rem; margin: 0.5rem 0; }
     .profile-ids { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
-    .id-badge { padding: 0.2rem 0.6rem; border-radius: 4px; background: #1a2235; color: var(--cyan, #00e5ff); font-size: 0.8rem; font-family: 'Space Mono', monospace; }
+    .id-badge { padding: 0.2rem 0.6rem; border-radius: 4px; background: #1a2235; color: var(--cyan, #fbbf24); font-size: 0.8rem; font-family: 'Space Mono', monospace; }
 
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
     .stat-card { background: #1a2235; border: 1px solid #243048; border-radius: 8px; padding: 1rem; }
-    .stat-card__game { font-size: 0.8rem; text-transform: uppercase; color: var(--cyan, #00e5ff); letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+    .stat-card__game { font-size: 0.8rem; text-transform: uppercase; color: var(--cyan, #fbbf24); letter-spacing: 0.05em; margin-bottom: 0.75rem; }
     .stat-card__row { display: flex; gap: 1rem; flex-wrap: wrap; }
     .stat-item { text-align: center; flex: 1; min-width: 50px; }
     .stat-val { display: block; font-size: 1.3rem; font-weight: 700; color: #fff; }
-    .stat-val--gold { color: var(--gold, #f0a500); }
-    .stat-val--cyan { color: var(--cyan, #00e5ff); }
+    .stat-val--gold { color: var(--gold, #a855f7); }
+    .stat-val--cyan { color: var(--cyan, #fbbf24); }
     .stat-lbl { font-size: 0.7rem; text-transform: uppercase; color: #8892a4; letter-spacing: 0.04em; }
 
     .section { margin-bottom: 2rem; }
-    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; color: var(--gold, #f0a500); margin: 0 0 1rem; }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; color: var(--gold, #a855f7); margin: 0 0 1rem; }
 
     .rankings-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; }
     .rank-card { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: #1a2235; border: 1px solid #243048; border-radius: 8px; }
-    .rank-card__game { font-size: 0.8rem; color: var(--cyan, #00e5ff); text-transform: uppercase; }
-    .rank-card__pos { font-size: 1.2rem; font-weight: 700; color: var(--gold, #f0a500); }
+    .rank-card__game { font-size: 0.8rem; color: var(--cyan, #fbbf24); text-transform: uppercase; }
+    .rank-card__pos { font-size: 1.2rem; font-weight: 700; color: var(--gold, #a855f7); }
     .rank-card__pts { font-size: 0.85rem; color: #8892a4; }
 
     .match-list, .tourney-list { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -188,7 +188,7 @@ import { PlayerProfile, MatchHistoryEntry, GAME_LABELS } from '../../core/models
     .result--loss { color: #ff4757; }
     .result--pending { color: #8892a4; }
     .match-opponent { flex: 1; color: #fff; }
-    .match-score { font-family: 'Space Mono', monospace; color: var(--gold, #f0a500); }
+    .match-score { font-family: 'Space Mono', monospace; color: var(--gold, #a855f7); }
     .match-tourney { color: #8892a4; font-size: 0.8rem; }
     .match-round { color: #8892a4; font-size: 0.8rem; }
     .match-date { color: #8892a4; font-size: 0.8rem; }
@@ -196,14 +196,14 @@ import { PlayerProfile, MatchHistoryEntry, GAME_LABELS } from '../../core/models
     .match-row--loss { border-left: 3px solid #ff4757; }
 
     .tourney-name { flex: 1; color: #fff; }
-    .tourney-game { font-size: 0.75rem; text-transform: uppercase; color: var(--cyan, #00e5ff); }
+    .tourney-game { font-size: 0.75rem; text-transform: uppercase; color: var(--cyan, #fbbf24); }
     .tourney-record { font-size: 0.85rem; }
-    .tourney-pts { color: var(--gold, #f0a500); font-weight: 600; }
+    .tourney-pts { color: var(--gold, #a855f7); font-weight: 600; }
     .tourney-date { color: #8892a4; font-size: 0.8rem; }
 
     .empty-msg { color: #8892a4; font-style: italic; }
     .loading-state, .error-state { text-align: center; padding: 4rem; color: #8892a4; }
-    .lb-spinner { width: 32px; height: 32px; border: 3px solid #243048; border-top-color: var(--cyan, #00e5ff); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+    .lb-spinner { width: 32px; height: 32px; border: 3px solid #243048; border-top-color: var(--cyan, #fbbf24); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     @media (max-width: 600px) {

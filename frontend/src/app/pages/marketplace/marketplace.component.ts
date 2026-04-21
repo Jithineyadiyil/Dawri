@@ -105,7 +105,11 @@ export class MarketplaceComponent implements OnInit {
   readonly revealing     = signal<string | null>(null);
   readonly toast         = signal<{ msg: string; ok: boolean } | null>(null);
 
-  readonly categories = ['all', 'gaming', 'streaming', 'shopping', 'topup'] as const;
+  // Sprint 6: expanded to mirror Likecard's core Saudi catalog.
+  // 'topup' covers telecom recharge + in-game currency (existing chip meaning).
+  // 'food' and 'services' are new chips; both render via the same cat-chip loop,
+  // so no template change is needed — just adding the strings here.
+  readonly categories = ['all', 'gaming', 'streaming', 'shopping', 'topup', 'food', 'services'] as const;
 
   readonly payMethods: ReadonlyArray<{ id: PayMethod; label: string; icon: string }> = [
     { id: 'wallet',  label: 'Wallet',   icon: '👛' },

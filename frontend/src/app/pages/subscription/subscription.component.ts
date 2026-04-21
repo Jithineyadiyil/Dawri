@@ -301,20 +301,20 @@ import { catchError, of } from 'rxjs';
     .toast-err { background: #7f1d1d; color: #fca5a5; border: 1px solid #ef4444; }
     @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
     .page-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; }
-    .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; color: #f0a500; letter-spacing: 2px; margin: 0 0 4px; }
+    .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; color: #a855f7; letter-spacing: 2px; margin: 0 0 4px; }
     .page-sub { font-family: 'Rajdhani', sans-serif; color: #6b7280; font-size: .95rem; margin: 0; }
     .header-tabs { display: flex; gap: 4px; background: #111827; border-radius: 10px; padding: 4px; border: 1px solid #1f2937; }
     .tab-btn { font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: .9rem; padding: 8px 20px; border-radius: 8px; border: none; background: transparent; color: #6b7280; cursor: pointer; transition: all .2s; }
-    .tab-btn.active { background: #1e2a40; color: #f0a500; }
+    .tab-btn.active { background: #1e2a40; color: #a855f7; }
     .loading-state { display: flex; align-items: center; gap: 12px; padding: 60px 0; justify-content: center; color: #6b7280; font-family: 'Rajdhani', sans-serif; }
     .spinner,.btn-spinner { border-radius: 50%; animation: spin .8s linear infinite; }
-    .spinner { width: 24px; height: 24px; border: 3px solid #1f2937; border-top-color: #f0a500; }
+    .spinner { width: 24px; height: 24px; border: 3px solid #1f2937; border-top-color: #a855f7; }
     .btn-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .current-banner { background: linear-gradient(135deg,#111827,#1a2235); border: 1px solid #1f2937; border-left: 4px solid #f0a500; border-radius: 12px; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; }
+    .current-banner { background: linear-gradient(135deg,#111827,#1a2235); border: 1px solid #1f2937; border-left: 4px solid #a855f7; border-radius: 12px; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; }
     .current-banner-left { display: flex; align-items: center; gap: 1rem; }
     .current-icon { font-size: 2rem; }
-    .current-label { font-family: 'Bebas Neue', sans-serif; font-size: .75rem; letter-spacing: 2px; color: #f0a500; }
+    .current-label { font-family: 'Bebas Neue', sans-serif; font-size: .75rem; letter-spacing: 2px; color: #a855f7; }
     .current-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: #fff; letter-spacing: 1px; line-height: 1.1; }
     .current-meta { font-family: 'Rajdhani', sans-serif; font-size: .85rem; color: #6b7280; margin-top: 2px; }
     .current-banner-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
@@ -325,16 +325,16 @@ import { catchError, of } from 'rxjs';
     .plans-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
     .plan-card { background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 1.75rem 1.5rem; position: relative; transition: transform .2s,border-color .2s,box-shadow .2s; display: flex; flex-direction: column; gap: .75rem; }
     .plan-card:hover { transform: translateY(-4px); border-color: var(--plan-color,#1f2937); box-shadow: 0 12px 40px rgba(0,0,0,.4); }
-    .plan-card.highlight { border-color: #f0a500; background: linear-gradient(160deg,#1a2235,#111827); box-shadow: 0 0 30px rgba(240,165,0,.1); }
-    .plan-card.current { border-color: var(--plan-color,#f0a500); background: linear-gradient(160deg,#1a2235,#0f1623); }
+    .plan-card.highlight { border-color: #a855f7; background: linear-gradient(160deg,#1a2235,#111827); box-shadow: 0 0 30px rgba(168,85,247,.1); }
+    .plan-card.current { border-color: var(--plan-color,#a855f7); background: linear-gradient(160deg,#1a2235,#0f1623); }
     .popular-badge,.current-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-family: 'Bebas Neue', sans-serif; font-size: .72rem; letter-spacing: 1.5px; padding: 3px 14px; border-radius: 20px; white-space: nowrap; }
-    .popular-badge { background: #f0a500; color: #0b1022; }
-    .current-badge { background: var(--plan-color,#00e5ff); color: #0b1022; }
+    .popular-badge { background: #a855f7; color: #0b1022; }
+    .current-badge { background: var(--plan-color,#fbbf24); color: #0b1022; }
     .plan-icon { font-size: 1.8rem; }
     .plan-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: #fff; letter-spacing: 1px; line-height: 1; }
     .plan-price { display: flex; align-items: baseline; gap: 4px; margin: .25rem 0; }
     .price-free,.price-custom { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--plan-color,#6b7280); }
-    .price-amount { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; color: var(--plan-color,#f0a500); line-height: 1; }
+    .price-amount { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; color: var(--plan-color,#a855f7); line-height: 1; }
     .price-currency { font-family: 'Rajdhani', sans-serif; font-size: .9rem; color: #9ca3af; font-weight: 600; }
     .price-period { font-family: 'Rajdhani', sans-serif; font-size: .85rem; color: #6b7280; }
     .feature-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; flex: 1; border-top: 1px solid #1f2937; padding-top: .75rem; }
@@ -342,8 +342,8 @@ import { catchError, of } from 'rxjs';
     .feat-check { color: var(--plan-color,#10b981); font-weight: 700; flex-shrink: 0; }
     .plan-cta { margin-top: .5rem; }
     .btn-upgrade,.btn-current { width: 100%; padding: 12px; font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 1px; border-radius: 8px; cursor: pointer; transition: all .2s; }
-    .btn-upgrade { border: 2px solid var(--plan-color,#f0a500); background: transparent; color: var(--plan-color,#f0a500); }
-    .btn-upgrade:hover:not(:disabled) { background: var(--plan-color,#f0a500); color: #0b1022; }
+    .btn-upgrade { border: 2px solid var(--plan-color,#a855f7); background: transparent; color: var(--plan-color,#a855f7); }
+    .btn-upgrade:hover:not(:disabled) { background: var(--plan-color,#a855f7); color: #0b1022; }
     .btn-upgrade:disabled { opacity: .5; cursor: not-allowed; }
     .btn-current { border: 2px solid #1f2937; background: #1f2937; color: #6b7280; cursor: not-allowed; }
     .compare-note { font-family: 'Rajdhani', sans-serif; font-size: .88rem; color: #6b7280; text-align: center; padding: 1rem; }
@@ -358,7 +358,7 @@ import { catchError, of } from 'rxjs';
     .invoice-table tr:hover td { background: #111827; }
     .inv-status { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .72rem; font-weight: 700; background: #1f2937; color: #6b7280; }
     .inv-status.paid { background: rgba(16,185,129,.15); color: #10b981; }
-    .pdf-link { color: #00e5ff; text-decoration: none; font-size: .85rem; }
+    .pdf-link { color: #fbbf24; text-decoration: none; font-size: .85rem; }
     .no-pdf { color: #4b5563; }
 
     /* ── Payment Modal ── */
@@ -369,7 +369,7 @@ import { catchError, of } from 'rxjs';
     .order-summary { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
     .order-icon { font-size: 2.5rem; }
     .order-plan { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; color: #fff; letter-spacing: 1px; }
-    .order-amount { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: #f0a500; }
+    .order-amount { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: #a855f7; }
     .order-period { font-family: 'Rajdhani', sans-serif; font-size: .85rem; color: #6b7280; }
     .divider { height: 1px; background: #1f2937; margin: 0 0 1.5rem; }
     .payment-form { display: flex; flex-direction: column; gap: 1rem; }
@@ -402,11 +402,11 @@ import { catchError, of } from 'rxjs';
     .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .field-label { font-family: 'Rajdhani', sans-serif; font-size: .78rem; font-weight: 600; letter-spacing: 1px; color: #6b7280; }
     .field-input { background: #0b1022; border: 1px solid #1f2937; border-radius: 8px; padding: 12px 14px; color: #fff; font-family: 'Space Mono', monospace; font-size: .9rem; outline: none; transition: border-color .2s; width: 100%; box-sizing: border-box; }
-    .field-input:focus { border-color: #f0a500; }
+    .field-input:focus { border-color: #a855f7; }
     .field-input::placeholder { color: #374151; }
     .secure-note { font-family: 'Rajdhani', sans-serif; font-size: .8rem; color: #6b7280; text-align: center; background: rgba(16,185,129,.05); border: 1px solid rgba(16,185,129,.1); border-radius: 8px; padding: 10px; }
     .payment-error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 8px; padding: 10px 14px; color: #fca5a5; font-family: 'Rajdhani', sans-serif; font-size: .88rem; }
-    .btn-pay { width: 100%; padding: 14px; background: linear-gradient(90deg,#f0a500,#e09400); border: none; border-radius: 10px; color: #0b1022; font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 1.5px; cursor: pointer; transition: opacity .2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-pay { width: 100%; padding: 14px; background: linear-gradient(90deg,#a855f7,#e09400); border: none; border-radius: 10px; color: #0b1022; font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 1.5px; cursor: pointer; transition: opacity .2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn-pay:hover:not(:disabled) { opacity: .9; }
     .btn-pay:disabled { opacity: .5; cursor: not-allowed; }
     .accepted-cards { display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'Rajdhani', sans-serif; font-size: .8rem; color: #4b5563; }
@@ -420,7 +420,7 @@ import { catchError, of } from 'rxjs';
     @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     .success-title { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: #fff; letter-spacing: 1px; margin: 0; }
     .success-body { font-family: 'Rajdhani', sans-serif; color: #9ca3af; font-size: .95rem; line-height: 1.6; margin: 0; }
-    .success-body strong { color: #f0a500; }
+    .success-body strong { color: #a855f7; }
 
     /* Cancel Modal */
     .modal-box { background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 2rem; max-width: 440px; width: 100%; text-align: center; display: flex; flex-direction: column; gap: 1rem; }
@@ -473,8 +473,8 @@ export class SubscriptionComponent implements OnInit {
 
   readonly planMeta: Record<string, { color: string; icon: string; highlight: boolean }> = {
     free:         { color: '#6b7280', icon: '🎮', highlight: false },
-    starter:      { color: '#00e5ff', icon: '🚀', highlight: false },
-    professional: { color: '#f0a500', icon: '⚡', highlight: true  },
+    starter:      { color: '#fbbf24', icon: '🚀', highlight: false },
+    professional: { color: '#a855f7', icon: '⚡', highlight: true  },
     enterprise:   { color: '#a855f7', icon: '🏆', highlight: false },
   };
 

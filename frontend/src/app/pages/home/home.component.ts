@@ -19,7 +19,7 @@ export class HomeComponent implements AfterViewInit {
       name: 'EA FC 25',
       icon: '⚽',
       badge: 'All formats',
-      color: '#00e5ff',
+      color: '#fbbf24',
       img: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=600&q=80&fit=crop',
       desc: 'The world\'s biggest football game. Single Elimination, Double Elimination, Round Robin & Swiss.'
     },
@@ -27,7 +27,7 @@ export class HomeComponent implements AfterViewInit {
       name: 'PUBG Mobile',
       icon: '🔫',
       badge: 'SE · DE · Swiss',
-      color: '#f0a500',
+      color: '#a855f7',
       img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80&fit=crop',
       desc: 'Battle royale at its finest. Squad up and compete for the Chicken Dinner.'
     },

@@ -1,0 +1,145 @@
+<div class="contact-page">
+
+  <!-- ── Hero ────────────────────────────────────────────────────────────── -->
+  <header class="contact-hero">
+    <h1 class="contact-hero__title">
+      Get in touch
+      <span class="contact-hero__title-ar">تواصل معنا</span>
+    </h1>
+    <p class="contact-hero__sub">
+      Questions, feedback, or a B2B opportunity — we reply within one business day.
+    </p>
+  </header>
+
+  <!-- ── Body: form + sidebar ───────────────────────────────────────────── -->
+  <section class="contact-body">
+
+    <!-- Form card -->
+    <form class="contact-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <h2 class="contact-form__title">Send us a message</h2>
+
+      <div class="field-row">
+        <div class="field" [class.has-error]="invalid('name')">
+          <label for="c-name">Full name</label>
+          <input id="c-name" type="text" formControlName="name" placeholder="Your name" autocomplete="name" maxlength="80">
+          @if (invalid('name')) {
+            <small class="field__error">Please enter your name (2–80 characters).</small>
+          }
+        </div>
+
+        <div class="field" [class.has-error]="invalid('email')">
+          <label for="c-email">Email</label>
+          <input id="c-email" type="email" formControlName="email" placeholder="you@example.com" autocomplete="email" maxlength="120">
+          @if (invalid('email')) {
+            <small class="field__error">Please enter a valid email address.</small>
+          }
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="c-subject">What's it about?</label>
+        <select id="c-subject" formControlName="subject">
+          @for (s of subjects; track s.value) {
+            <option [value]="s.value">{{ s.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field" [class.has-error]="invalid('message')">
+        <label for="c-message">
+          Message
+          <span class="field__count">{{ charCount() }} / 1000</span>
+        </label>
+        <textarea id="c-message" formControlName="message" rows="6" maxlength="1000" placeholder="Tell us what's on your mind…"></textarea>
+        @if (invalid('message')) {
+          <small class="field__error">Message must be between 10 and 1000 characters.</small>
+        }
+      </div>
+
+      <button type="submit" class="contact-btn" [disabled]="submitting()">
+        @if (submitting()) {
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Sending…</span>
+        } @else {
+          <span>Send message</span>
+          <span class="contact-btn__arrow" aria-hidden="true">→</span>
+        }
+      </button>
+
+      <p class="contact-form__fine">
+        By sending this message you agree to our
+        <a routerLink="/privacy" class="inline-link">Privacy Policy</a>.
+      </p>
+    </form>
+
+    <!-- Sidebar with company info -->
+    <aside class="contact-side">
+      <div class="side-card">
+        <h3 class="side-card__title">Reach us directly</h3>
+
+        <div class="side-row">
+          <span class="side-row__icon" aria-hidden="true">✉️</span>
+          <div class="side-row__body">
+            <strong>General support</strong>
+            <a [href]="'mailto:' + company.email" class="side-row__link">{{ company.email }}</a>
+          </div>
+        </div>
+
+        <div class="side-row">
+          <span class="side-row__icon" aria-hidden="true">🤝</span>
+          <div class="side-row__body">
+            <strong>Enterprise & partnerships</strong>
+            <a [href]="'mailto:' + company.sales" class="side-row__link">{{ company.sales }}</a>
+          </div>
+        </div>
+
+        <div class="side-row">
+          <span class="side-row__icon" aria-hidden="true">📞</span>
+          <div class="side-row__body">
+            <strong>Phone</strong>
+            <a [href]="'tel:' + company.phone.replace(' ', '')" class="side-row__link">{{ company.phone }}</a>
+          </div>
+        </div>
+
+        <div class="side-row">
+          <span class="side-row__icon" aria-hidden="true">🏢</span>
+          <div class="side-row__body">
+            <strong>Head office</strong>
+            <span>{{ company.address }}</span>
+            <span class="side-row__ar">{{ company.addressAr }}</span>
+          </div>
+        </div>
+
+        <div class="side-row">
+          <span class="side-row__icon" aria-hidden="true">🕐</span>
+          <div class="side-row__body">
+            <strong>Working hours</strong>
+            <span>{{ company.hours }}</span>
+            <span class="side-row__ar">{{ company.hoursAr }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h3 class="side-card__title">Follow us</h3>
+        <div class="socials">
+          @for (s of company.socials; track s.label) {
+            <a [href]="s.href" target="_blank" rel="noopener noreferrer" class="social-chip" [attr.aria-label]="s.label">
+              <span class="social-chip__icon">{{ s.icon }}</span>
+              <span>{{ s.label }}</span>
+            </a>
+          }
+        </div>
+      </div>
+    </aside>
+
+  </section>
+
+  <!-- Toast -->
+  @if (toast(); as t) {
+    <div class="toast" [class.toast--ok]="t.ok" [class.toast--err]="!t.ok" role="status">
+      {{ t.msg }}
+    </div>
+  }
+
+</div>

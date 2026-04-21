@@ -75,13 +75,17 @@ final class MarketplaceController extends Controller
         $idempotencyKey = (string) ($request->input('idempotency_key') ?: Str::uuid());
         $items          = $request->normalisedItems();
 
-        // Idempotency: if an order already exists for this key, return it unchanged.
+        // Idempotency: if orders already exist for this key, return them unchanged.
+        // Batch orders are stored with line-suffixed keys (e.g. "xyz-0", "xyz-1"),
+        // so we look for ANY row whose idempotency_key starts with "{key}-".
         $existing = DigitalOrder::where('user_id', $user->id)
-            ->where('idempotency_key', $idempotencyKey)
-            ->first();
-        if ($existing !== null) {
+            ->where('idempotency_key', 'like', $idempotencyKey . '-%')
+            ->with(['product', 'code'])
+            ->orderBy('created_at')
+            ->get();
+        if ($existing->isNotEmpty()) {
             return response()->json([
-                'data'       => new DigitalOrderResource($existing->load(['product', 'code'])),
+                'data'       => DigitalOrderResource::collection($existing),
                 'idempotent' => true,
             ], Response::HTTP_OK);
         }

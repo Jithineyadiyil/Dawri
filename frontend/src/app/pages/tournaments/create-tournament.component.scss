@@ -1,6 +1,6 @@
 :host {
-  --gold:  #f0a500;
-  --cyan:  #00e5ff;
+  --gold:  #a855f7;
+  --cyan:  #fbbf24;
   --green: #22c55e;
   --red:   #ef4444;
   --bg:    #0b1022;
@@ -56,7 +56,7 @@
     align-items: center;
     padding: 18px 20px;
     border-bottom: 1px solid var(--br);
-    background: linear-gradient(90deg, rgba(240,165,0,.05), transparent 60%);
+    background: linear-gradient(90deg, rgba(168,85,247,.05), transparent 60%);
 
     h2 { font-family: var(--fh); font-size: 1.2rem; font-weight: 700; letter-spacing: 1.5px; margin: 0; }
     p  { font-size: .82rem; color: var(--mu); margin: 2px 0 0; }
@@ -66,13 +66,13 @@
     flex-shrink: 0;
     width: 34px; height: 34px;
     display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, var(--gold) 0%, rgba(240,165,0,.7) 100%);
+    background: linear-gradient(135deg, var(--gold) 0%, rgba(168,85,247,.7) 100%);
     color: #1a1208;
     font-family: var(--fh);
     font-weight: 900;
     font-size: 1.2rem;
     border-radius: 50%;
-    box-shadow: 0 4px 12px rgba(240,165,0,.3);
+    box-shadow: 0 4px 12px rgba(168,85,247,.3);
   }
 
   &__body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
@@ -118,7 +118,7 @@
   &:focus {
     outline: none;
     border-color: var(--cyan);
-    box-shadow: 0 0 0 3px rgba(0,229,255,.1);
+    box-shadow: 0 0 0 3px rgba(251,191,36,.1);
   }
 
   &--textarea { resize: vertical; line-height: 1.5; font-family: var(--fb); }
@@ -149,8 +149,8 @@
   &:hover { border-color: var(--br2); transform: translateY(-1px); }
   &--active {
     border-color: var(--gold);
-    background: linear-gradient(135deg, rgba(240,165,0,.1), transparent 70%);
-    box-shadow: 0 0 14px rgba(240,165,0,.2);
+    background: linear-gradient(135deg, rgba(168,85,247,.1), transparent 70%);
+    box-shadow: 0 0 14px rgba(168,85,247,.2);
   }
 }
 
@@ -172,7 +172,7 @@
   &:hover { border-color: var(--br2); }
   &--active {
     border-color: var(--cyan);
-    background: linear-gradient(135deg, rgba(0,229,255,.08), transparent 70%);
+    background: linear-gradient(135deg, rgba(251,191,36,.08), transparent 70%);
   }
 }
 
@@ -204,7 +204,7 @@
 
   &:hover {
     border-color: var(--cyan);
-    background: rgba(0,229,255,.04);
+    background: rgba(251,191,36,.04);
     .cover-drop__icon { opacity: 1; transform: scale(1.1); }
   }
 }
@@ -255,7 +255,7 @@
     }
   }
   input:checked + &__slider {
-    background: rgba(240,165,0,.2);
+    background: rgba(168,85,247,.2);
     border-color: var(--gold);
     &::after { left: 22px; background: var(--gold); }
   }

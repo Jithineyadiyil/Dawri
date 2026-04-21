@@ -1,0 +1,239 @@
+/* ───────────────────────────────────────────────────────────────────────────
+ *  Privacy Policy page — violet/amber palette v3
+ *  Layout: hero + two-column (sticky TOC left, long-form content right)
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+.privacy-page {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 48px 32px 96px;
+  color: var(--tx);
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────────── */
+
+.privacy-hero {
+  text-align: center;
+  margin-bottom: 56px;
+  padding-bottom: 36px;
+  border-bottom: 1px solid var(--br);
+
+  &__title {
+    font-family: var(--fh);
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    letter-spacing: 0.04em;
+    margin: 0 0 12px;
+    background: linear-gradient(120deg, var(--gold), var(--cyan));
+    -webkit-background-clip: text;
+            background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+
+    &-ar {
+      display: block;
+      font-family: var(--fa);
+      font-size: 1.1rem;
+      color: var(--mu);
+      margin-top: 8px;
+      -webkit-text-fill-color: initial;
+    }
+  }
+
+  &__sub {
+    color: var(--mu);
+    font-size: 1rem;
+    max-width: 580px;
+    margin: 0 auto 18px;
+  }
+
+  &__date {
+    color: var(--dim);
+    font-size: 0.82rem;
+    margin: 0;
+
+    strong { color: var(--cyan); }
+
+    &-ar {
+      display: inline-block;
+      font-family: var(--fa);
+      margin-left: 8px;
+      color: var(--mu);
+    }
+  }
+}
+
+/* ── Body grid ─────────────────────────────────────────────────────────── */
+
+.privacy-body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 48px;
+  align-items: flex-start;
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* ── Sticky Table of Contents ──────────────────────────────────────────── */
+
+.privacy-toc {
+  position: sticky;
+  top: 24px;
+  background: var(--bg2);
+  border: 1px solid var(--br);
+  border-radius: 14px;
+  padding: 20px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+
+  @media (max-width: 860px) {
+    position: static;
+    max-height: none;
+  }
+
+  &__title {
+    display: block;
+    font-family: var(--fh);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  button {
+    background: none;
+    border: none;
+    color: var(--mu);
+    text-align: left;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    width: 100%;
+    font-family: inherit;
+    transition: color 0.15s, background 0.15s;
+
+    &:hover {
+      color: var(--gold);
+      background: rgba(168, 85, 247, 0.08);
+    }
+  }
+}
+
+/* ── Content ───────────────────────────────────────────────────────────── */
+
+.privacy-content {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--tx);
+
+  section {
+    margin-bottom: 44px;
+    scroll-margin-top: 24px;
+
+    &:last-child { margin-bottom: 0; }
+  }
+
+  h2 {
+    font-family: var(--fh);
+    font-size: 1.4rem;
+    letter-spacing: 0.02em;
+    margin: 0 0 16px;
+    color: var(--gold);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--br);
+  }
+
+  h3 {
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin: 24px 0 10px;
+  }
+
+  p {
+    margin: 0 0 14px;
+    color: var(--mu);
+
+    strong { color: var(--tx); }
+  }
+
+  ul {
+    margin: 0 0 16px;
+    padding-left: 22px;
+
+    li {
+      margin-bottom: 8px;
+      color: var(--mu);
+      line-height: 1.65;
+
+      strong { color: var(--tx); }
+
+      &::marker { color: var(--gold); }
+    }
+  }
+
+  a { color: var(--cyan); }
+}
+
+/* ── DPO contact card ──────────────────────────────────────────────────── */
+
+.dpo-card {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(251, 191, 36, 0.04));
+  border: 1px solid var(--br);
+  border-left: 3px solid var(--gold);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.9rem;
+
+  strong {
+    display: inline-block;
+    min-width: 100px;
+    color: var(--gold);
+    font-weight: 600;
+  }
+}
+
+.back-to-contact {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--br);
+  color: var(--dim);
+  font-size: 0.9rem;
+}
+
+/* ── Shared inline link ────────────────────────────────────────────────── */
+
+.inline-link {
+  color: var(--cyan);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+
+  &:hover { color: var(--gold); }
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .privacy-toc button,
+  .inline-link { transition: none; }
+}

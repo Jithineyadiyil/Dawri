@@ -89,6 +89,24 @@ export const routes: Routes = [
     canActivate: [authGuard],
     title: 'Admin Panel — Dawri',
   },
+  // Sprint 7: public About Us page
+  {
+    path: 'about',
+    loadComponent: () => import('./pages/about/about.component').then(m => m.AboutComponent),
+    title: 'About — Dawri',
+  },
+  // Sprint 7: public Contact Us page
+  {
+    path: 'contact',
+    loadComponent: () => import('./pages/contact/contact.component').then(m => m.ContactComponent),
+    title: 'Contact — Dawri',
+  },
+  // Sprint 7: public Privacy Policy page
+  {
+    path: 'privacy',
+    loadComponent: () => import('./pages/privacy/privacy.component').then(m => m.PrivacyComponent),
+    title: 'Privacy Policy — Dawri',
+  },
   {
     path: '**',
     redirectTo: '',

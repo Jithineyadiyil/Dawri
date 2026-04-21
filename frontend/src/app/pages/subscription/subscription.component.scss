@@ -40,7 +40,7 @@
 .page-title {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 2.4rem;
-  color: #f0a500;
+  color: #a855f7;
   letter-spacing: 2px;
   margin: 0 0 4px;
 }
@@ -69,7 +69,7 @@
   color: #6b7280;
   cursor: pointer;
   transition: all .2s;
-  &.active { background: #1e2a40; color: #f0a500; }
+  &.active { background: #1e2a40; color: #a855f7; }
   &:hover:not(.active) { color: #9ca3af; }
 }
 
@@ -86,7 +86,7 @@
 .spinner {
   width: 24px; height: 24px;
   border: 3px solid #1f2937;
-  border-top-color: #f0a500;
+  border-top-color: #a855f7;
   border-radius: 50%;
   animation: spin .8s linear infinite;
 }
@@ -96,7 +96,7 @@
 .current-banner {
   background: linear-gradient(135deg, #111827 0%, #1a2235 100%);
   border: 1px solid #1f2937;
-  border-left: 4px solid #f0a500;
+  border-left: 4px solid #a855f7;
   border-radius: 12px;
   padding: 1.25rem 1.5rem;
   display: flex;
@@ -113,13 +113,13 @@
 }
 .current-icon {
   font-size: 2rem;
-  filter: drop-shadow(0 0 8px rgba(240,165,0,.4));
+  filter: drop-shadow(0 0 8px rgba(168,85,247,.4));
 }
 .current-label {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 0.75rem;
   letter-spacing: 2px;
-  color: #f0a500;
+  color: #a855f7;
 }
 .current-name {
   font-family: 'Bebas Neue', sans-serif;
@@ -187,12 +187,12 @@
     box-shadow: 0 12px 40px rgba(0,0,0,.4);
   }
   &.highlight {
-    border-color: #f0a500;
+    border-color: #a855f7;
     background: linear-gradient(160deg, #1a2235 0%, #111827 100%);
-    box-shadow: 0 0 30px rgba(240,165,0,.1);
+    box-shadow: 0 0 30px rgba(168,85,247,.1);
   }
   &.current {
-    border-color: var(--plan-color, #f0a500);
+    border-color: var(--plan-color, #a855f7);
     background: linear-gradient(160deg, #1a2235 0%, #0f1623 100%);
   }
 }
@@ -210,11 +210,11 @@
   white-space: nowrap;
 }
 .popular-badge {
-  background: #f0a500;
+  background: #a855f7;
   color: #0b1022;
 }
 .current-badge {
-  background: var(--plan-color, #00e5ff);
+  background: var(--plan-color, #fbbf24);
   color: #0b1022;
 }
 
@@ -254,7 +254,7 @@
 .price-amount {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 2.4rem;
-  color: var(--plan-color, #f0a500);
+  color: var(--plan-color, #a855f7);
   line-height: 1;
 }
 .price-currency {
@@ -304,9 +304,9 @@
 .btn-upgrade {
   width: 100%;
   padding: 12px;
-  border: 2px solid var(--plan-color, #f0a500);
+  border: 2px solid var(--plan-color, #a855f7);
   background: transparent;
-  color: var(--plan-color, #f0a500);
+  color: var(--plan-color, #a855f7);
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1rem;
   letter-spacing: 1px;
@@ -319,7 +319,7 @@
   gap: 8px;
 
   &:hover:not(:disabled) {
-    background: var(--plan-color, #f0a500);
+    background: var(--plan-color, #a855f7);
     color: #0b1022;
   }
   &:disabled { opacity: .5; cursor: not-allowed; }
@@ -353,7 +353,7 @@
   text-align: center;
   padding: 1rem;
 
-  a { color: #00e5ff; text-decoration: none; &:hover { text-decoration: underline; } }
+  a { color: #fbbf24; text-decoration: none; &:hover { text-decoration: underline; } }
 }
 
 // ── Invoices ───────────────────────────────────────────────────
@@ -414,7 +414,7 @@
   &.paid { background: rgba(16,185,129,.15); color: #10b981; }
 }
 .pdf-link {
-  color: #00e5ff;
+  color: #fbbf24;
   text-decoration: none;
   font-size: 0.85rem;
   &:hover { text-decoration: underline; }

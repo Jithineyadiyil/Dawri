@@ -1,0 +1,126 @@
+<div class="about-page">
+
+  <!-- ── Hero ────────────────────────────────────────────────────────────── -->
+  <header class="about-hero">
+    <div class="about-hero__badge">About Dawri</div>
+    <h1 class="about-hero__title">
+      The first Arabic-native esports platform for the GCC
+      <span class="about-hero__title-ar">أول منصة رياضات إلكترونية عربية في الخليج</span>
+    </h1>
+    <p class="about-hero__sub">
+      We build the infrastructure that turns casual gaming into organized, measurable, fair
+      competition — for players, for companies, and for the next generation of Saudi esports.
+    </p>
+  </header>
+
+  <!-- ── Mission ────────────────────────────────────────────────────────── -->
+  <section class="about-mission">
+    <div class="about-mission__col">
+      <h2 class="section-title">Our mission</h2>
+      <p>
+        Saudi Arabia has over 23 million active gamers. The Kingdom committed $38 billion to
+        the gaming and esports sector as part of Vision 2030 — the single largest national
+        investment in gaming anywhere in the world. Yet until recently, no Arabic-first
+        platform existed to channel that energy into structured, competitive play.
+      </p>
+      <p>
+        Dawri exists to close that gap. We give individual players a trusted home for
+        competition and give companies the tools to turn gaming into measurable employee
+        engagement — with all the cultural, linguistic, and regulatory fit that international
+        platforms lack.
+      </p>
+    </div>
+    <div class="about-mission__col about-mission__visual">
+      <div class="visual-stack">
+        <div class="visual-block visual-block--1">داوري</div>
+        <div class="visual-block visual-block--2">دوري</div>
+        <div class="visual-block visual-block--3">DAWRI</div>
+      </div>
+      <p class="visual-caption">
+        <strong>Dawri</strong> (داوري) means <em>"my league"</em> in Arabic — a place that belongs
+        to the player, their team, and their community.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── Stats strip ─────────────────────────────────────────────────────── -->
+  <section class="about-stats">
+    @for (s of stats; track s.label) {
+      <div class="stat-card">
+        <div class="stat-card__value">{{ s.value }}</div>
+        <div class="stat-card__label">{{ s.label }}</div>
+        <div class="stat-card__sub">{{ s.sub }}</div>
+      </div>
+    }
+  </section>
+
+  <!-- ── What we build ──────────────────────────────────────────────────── -->
+  <section class="about-pillars">
+    <h2 class="section-title section-title--center">What we build</h2>
+    <p class="section-sub">Three interlocking products, one platform.</p>
+
+    <div class="pillars-grid">
+      @for (p of pillars; track p.title) {
+        <article class="pillar-card">
+          <div class="pillar-card__icon" aria-hidden="true">{{ p.icon }}</div>
+          <h3 class="pillar-card__title">
+            {{ p.title }}
+            <span class="pillar-card__title-ar">{{ p.titleAr }}</span>
+          </h3>
+          <p class="pillar-card__body">{{ p.body }}</p>
+          <a [routerLink]="p.link" class="pillar-card__link">
+            {{ p.linkLabel }}
+            <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      }
+    </div>
+  </section>
+
+  <!-- ── Values ──────────────────────────────────────────────────────────── -->
+  <section class="about-values">
+    <h2 class="section-title section-title--center">What we stand for</h2>
+    <p class="section-sub">Principles we refuse to compromise on.</p>
+
+    <div class="values-grid">
+      @for (v of values; track v.title) {
+        <div class="value-card">
+          <div class="value-card__icon" aria-hidden="true">{{ v.icon }}</div>
+          <h3 class="value-card__title">{{ v.title }}</h3>
+          <p class="value-card__body">{{ v.body }}</p>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- ── Timeline / roadmap ──────────────────────────────────────────────── -->
+  <section class="about-timeline">
+    <h2 class="section-title section-title--center">Where we've been, where we're going</h2>
+    <p class="section-sub">Real milestones, not marketing fiction.</p>
+
+    <ol class="timeline">
+      @for (m of milestones; track m.title) {
+        <li class="timeline-item">
+          <div class="timeline-item__year">{{ m.year }}</div>
+          <div class="timeline-item__body">
+            <h3 class="timeline-item__title">{{ m.title }}</h3>
+            <p class="timeline-item__desc">{{ m.body }}</p>
+          </div>
+        </li>
+      }
+    </ol>
+  </section>
+
+  <!-- ── CTA ─────────────────────────────────────────────────────────────── -->
+  <section class="about-cta">
+    <h2 class="about-cta__title">Ready to compete?</h2>
+    <p class="about-cta__sub">
+      Browse open tournaments, claim a spot, or get in touch about running your company's first event.
+    </p>
+    <div class="about-cta__buttons">
+      <a routerLink="/tournaments" class="btn btn--primary">Browse tournaments</a>
+      <a routerLink="/contact"     class="btn btn--secondary">Talk to us</a>
+    </div>
+  </section>
+
+</div>
