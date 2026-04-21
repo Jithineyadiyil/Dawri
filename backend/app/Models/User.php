@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -18,10 +19,15 @@ use Laravel\Sanctum\HasApiTokens;
  *   • nickname (gamer tag, shown on tournament matches/leaderboards)
  *   • avatar_url accessor (handles both URL and stored-path forms)
  *   • display_name helper (returns nickname if set, otherwise name)
+ *
+ * Sprint 5 adds:
+ *   • HasFactory trait — enables User::factory() for PHPUnit tests
+ *     (fixes "Call to undefined method User::factory()" in PaymentServiceTest,
+ *     BrandingTest, MatchSchedulingTest, MarketplaceApiTest)
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, HasUuids, Notifiable;
+    use HasApiTokens, HasFactory, HasUuids, Notifiable;
 
     protected $fillable = [
         'name', 'nickname', 'email', 'password', 'phone', 'role',

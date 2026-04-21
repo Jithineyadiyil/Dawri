@@ -4,11 +4,21 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * DigitalProduct model.
+ *
+ * Sprint 5: HasFactory trait added so DigitalProduct::factory() works in
+ * MarketplaceApiTest. The factory itself lives in
+ * database/factories/DigitalProductFactory.php.
+ */
 class DigitalProduct extends Model
 {
+    use HasFactory;
+
     public $incrementing = false;
     protected $keyType   = 'string';
 
