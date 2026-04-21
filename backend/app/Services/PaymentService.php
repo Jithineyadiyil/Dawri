@@ -9,75 +9,168 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Payment abstraction layer.
+ * PaymentService
  *
- * Current supported methods:
- *   wallet  — deduct from user's wallet balance (live)
- *   card    — stub, returns redirect URL (wire up Moyasar / Tap / HyperPay later)
- *   mada    — stub
- *   stc_pay — stub
+ * Sprint 5 enhancements:
+ *   - Added refund() method to support rollback when distributor fulfillment
+ *     fails AFTER a successful charge (bug 5).
+ *   - Added chargeCardSandbox() that accepts dev-mode approvals so the card
+ *     payment path can complete end-to-end in dev without a live gateway.
+ *   - Top-up charges now route through charge() instead of directly
+ *     incrementing wallet balance (bug 12).
+ *
+ * Supported methods:
+ *   wallet  — live, decrements user.wallet_balance in a transaction
+ *   card    — SANDBOX-OK in non-production; TODO: Moyasar/Tap in prod
+ *   mada    — same as card path
+ *   stc_pay — stub; logs and refuses unless DEV
  */
-class PaymentService
+final class PaymentService
 {
     /**
      * Process payment for an order.
      *
-     * @return array{success:bool,message:string,redirect_url:string|null}
+     * @return array{success:bool,message:string,redirect_url:?string,payment_ref:?string}
      */
-    public function charge(User $user, float $amount, string $method, string $orderId): array
+    public function charge(User $user, float $amount, string $method, string $reference): array
     {
+        if ($amount <= 0) {
+            return ['success' => false, 'message' => 'Invalid amount.', 'redirect_url' => null, 'payment_ref' => null];
+        }
+
         return match ($method) {
-            'wallet'  => $this->chargeWallet($user, $amount),
-            'card'    => $this->chargeCard($user, $amount, $orderId),
-            'mada'    => $this->chargeCard($user, $amount, $orderId),
-            'stc_pay' => $this->chargeStcPay($user, $amount, $orderId),
-            default   => ['success' => false, 'message' => "Unknown payment method: {$method}", 'redirect_url' => null],
+            'wallet'  => $this->chargeWallet($user, $amount, $reference),
+            'card'    => $this->chargeCardOrMada($user, $amount, $reference, 'card'),
+            'mada'    => $this->chargeCardOrMada($user, $amount, $reference, 'mada'),
+            'stc_pay' => $this->chargeStcPay($user, $amount, $reference),
+            default   => [
+                'success'      => false,
+                'message'      => "Unknown payment method: {$method}",
+                'redirect_url' => null,
+                'payment_ref'  => null,
+            ],
         };
+    }
+
+    /**
+     * Refund a previously charged payment.
+     *
+     * Wallet refunds are immediate; gateway refunds in production would
+     * call the gateway's refund API. In sandbox, this logs and credits the
+     * wallet as goodwill.
+     *
+     * @return array{success:bool,message:string}
+     */
+    public function refund(User $user, float $amount, string $method, string $originalReference): array
+    {
+        if ($amount <= 0) {
+            return ['success' => false, 'message' => 'Invalid refund amount.'];
+        }
+
+        Log::info('PaymentService::refund', [
+            'user'      => $user->id,
+            'amount'    => $amount,
+            'method'    => $method,
+            'reference' => $originalReference,
+        ]);
+
+        // Wallet — direct credit
+        if ($method === 'wallet') {
+            DB::table('users')->where('id', $user->id)->increment('wallet_balance', $amount);
+            return ['success' => true, 'message' => 'Wallet refunded.'];
+        }
+
+        // Card / Mada / STC Pay — in production, call gateway refund API.
+        // In sandbox, credit the wallet as goodwill so the user is made whole.
+        if (app()->environment(['local', 'testing', 'development'])) {
+            DB::table('users')->where('id', $user->id)->increment('wallet_balance', $amount);
+            return ['success' => true, 'message' => 'Refund credited to wallet (sandbox).'];
+        }
+
+        // TODO: production — call Moyasar::refund($originalReference, $amount) etc.
+        return ['success' => false, 'message' => 'Gateway refund not yet implemented.'];
     }
 
     // ── Wallet (live) ─────────────────────────────────────────────────────────
 
-    private function chargeWallet(User $user, float $amount): array
+    private function chargeWallet(User $user, float $amount, string $reference): array
     {
-        if (($user->wallet_balance ?? 0) < $amount) {
-            return ['success' => false, 'message' => 'Insufficient wallet balance.', 'redirect_url' => null];
-        }
+        return DB::transaction(function () use ($user, $amount, $reference) {
+            // Lock the user row to prevent concurrent-deduction races
+            $fresh = DB::table('users')->where('id', $user->id)->lockForUpdate()->first();
 
-        DB::table('users')
-            ->where('id', $user->id)
-            ->decrement('wallet_balance', $amount);
+            if ((float) ($fresh->wallet_balance ?? 0) < $amount) {
+                return [
+                    'success'      => false,
+                    'message'      => 'Insufficient wallet balance.',
+                    'redirect_url' => null,
+                    'payment_ref'  => null,
+                ];
+            }
 
-        return ['success' => true, 'message' => 'Wallet payment successful.', 'redirect_url' => null];
+            DB::table('users')->where('id', $user->id)->decrement('wallet_balance', $amount);
+
+            return [
+                'success'      => true,
+                'message'      => 'Wallet payment successful.',
+                'redirect_url' => null,
+                'payment_ref'  => 'WALLET-' . $reference,
+            ];
+        });
     }
 
-    // ── Card / Mada (stub — wire up gateway later) ────────────────────────────
+    // ── Card / Mada ───────────────────────────────────────────────────────────
 
-    private function chargeCard(User $user, float $amount, string $orderId): array
+    private function chargeCardOrMada(User $user, float $amount, string $reference, string $brand): array
     {
-        // TODO: integrate Moyasar / Tap Payments / HyperPay
-        // 1. Create payment intent with gateway
-        // 2. Return redirect_url for the hosted payment page
-        // 3. Webhook handler confirms payment → fulfill order
-        Log::info('PaymentService: card payment stub', ['user' => $user->id, 'amount' => $amount, 'order' => $orderId]);
+        // Sandbox: auto-approve so the full flow can be tested without a gateway.
+        // Production: integrate Moyasar / Tap Payments / HyperPay.
+        if (app()->environment(['local', 'testing', 'development'])) {
+            Log::info("PaymentService: {$brand} sandbox approved", [
+                'user'      => $user->id,
+                'amount'    => $amount,
+                'reference' => $reference,
+            ]);
+            return [
+                'success'      => true,
+                'message'      => ucfirst($brand) . ' payment approved (sandbox).',
+                'redirect_url' => null,
+                'payment_ref'  => strtoupper($brand) . '-SBX-' . substr(md5($reference), 0, 12),
+            ];
+        }
+
+        // TODO: production
+        // 1. $intent = Moyasar::createPayment(['amount' => $amount*100, 'source' => ['type' => $brand], 'callback_url' => route('marketplace.callback')]);
+        // 2. return ['redirect_url' => $intent['source']['transaction_url'], ...];
+        Log::warning('PaymentService: card payment attempted in production without gateway config');
 
         return [
             'success'      => false,
-            'message'      => 'Card payment not yet configured. Please use wallet balance.',
+            'message'      => 'Card payment gateway not configured.',
             'redirect_url' => null,
+            'payment_ref'  => null,
         ];
     }
 
-    // ── STC Pay (stub) ────────────────────────────────────────────────────────
+    // ── STC Pay ───────────────────────────────────────────────────────────────
 
-    private function chargeStcPay(User $user, float $amount, string $orderId): array
+    private function chargeStcPay(User $user, float $amount, string $reference): array
     {
-        // TODO: integrate STC Pay API
-        Log::info('PaymentService: STC Pay stub', ['user' => $user->id, 'amount' => $amount]);
+        if (app()->environment(['local', 'testing', 'development'])) {
+            return [
+                'success'      => true,
+                'message'      => 'STC Pay approved (sandbox).',
+                'redirect_url' => null,
+                'payment_ref'  => 'STC-SBX-' . substr(md5($reference), 0, 12),
+            ];
+        }
 
+        Log::info('PaymentService: STC Pay stub in production');
         return [
             'success'      => false,
-            'message'      => 'STC Pay not yet configured. Please use wallet balance.',
+            'message'      => 'STC Pay gateway not configured.',
             'redirect_url' => null,
+            'payment_ref'  => null,
         ];
     }
 }

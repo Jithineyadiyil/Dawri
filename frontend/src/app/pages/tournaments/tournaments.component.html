@@ -1,155 +1,194 @@
-<div class="t-page">
+<div class="tournaments-page">
 
-  <!-- ── Header ─────────────────────────────────────────────────── -->
-  <section class="t-hero">
-    <div class="t-hero__text">
-      <h1 class="t-hero__title">Tournaments</h1>
-      <p class="t-hero__sub">Compete across EA FC 25, PUBG Mobile, and Call of Duty Mobile. Join free or paid brackets, win prizes, climb the rankings.</p>
-    </div>
-    <div class="t-hero__cta">
-      @if (!auth.isLoggedIn()) {
-        <a routerLink="/auth" class="btn btn--gold">Join Free →</a>
-      }
-      @if (canCreate()) {
-        <a routerLink="/tournaments/create" class="btn btn--cyan">
-          <span class="btn__plus">+</span> Create Tournament
-        </a>
-      }
-    </div>
-  </section>
+  <!-- Animated gradient backdrop -->
+  <div class="mesh-bg" aria-hidden="true"></div>
 
-  <!-- ── Filters ────────────────────────────────────────────────── -->
-  <section class="t-filters">
-    <input class="t-search" type="text" placeholder="🔍 Search tournaments…"
-           [ngModel]="search()" (ngModelChange)="search.set($event)"/>
+  <div class="tournaments-inner">
 
-    <div class="chip-row">
-      @for (g of games; track g.value) {
-        <button type="button" class="chip"
-          [class.chip--active]="filter.game() === g.value"
-          (click)="setFilter('game', g.value)">
-          <span class="chip__emoji">{{ g.emoji }}</span> {{ g.label }}
-        </button>
-      }
-    </div>
+    <!-- ── Hero ──────────────────────────────────────────────────── -->
+    <section class="hero">
+      <span class="hero__eyebrow">⚡ Dawri · داوري</span>
+      <h1 class="hero__title">Compete. Rise. Dominate.</h1>
+      <p class="hero__sub">
+        Join structured esports tournaments across EA FC 25, PUBG Mobile, and Call of Duty Mobile —
+        built for the Gulf, backed by sponsors, powered by players.
+      </p>
+      <div class="hero__cta-row">
+        @if (canCreate()) {
+          <a routerLink="/tournaments/create" class="btn btn--primary">+ New Tournament</a>
+        } @else if (!auth.isLoggedIn()) {
+          <a routerLink="/auth" class="btn btn--accent">Join Free</a>
+        }
+        <a routerLink="/leaderboard" class="btn btn--ghost">View Leaderboard →</a>
+      </div>
+    </section>
 
-    <div class="chip-row chip-row--small">
-      @for (f of formats; track f.value) {
-        <button type="button" class="chip chip--sm"
-          [class.chip--active]="filter.format() === f.value"
-          (click)="setFilter('format', f.value)">{{ f.label }}</button>
-      }
-      <span class="chip-divider"></span>
-      @for (s of statuses; track s.value) {
-        <button type="button" class="chip chip--sm"
-          [class.chip--active]="filter.status() === s.value"
-          (click)="setFilter('status', s.value)">{{ s.label }}</button>
-      }
-    </div>
-  </section>
-
-  <!-- ── Error ──────────────────────────────────────────────────── -->
-  @if (error()) { <div class="alert alert--error">{{ error() }}</div> }
-
-  <!-- ── Loading skeleton ───────────────────────────────────────── -->
-  @if (loading()) {
-    <div class="t-grid">
-      @for (i of [1,2,3,4,5,6,7,8]; track i) {
-        <div class="t-card t-card--skel">
-          <div class="t-card__img-skel"></div>
-          <div class="t-card__body">
-            <div class="skel-line skel-line--short"></div>
-            <div class="skel-line"></div>
-            <div class="skel-line skel-line--sm"></div>
-          </div>
+    <!-- ── Filter bar ───────────────────────────────────────────── -->
+    <section class="filters" role="search" aria-label="Tournament filters">
+      <div class="filters__row">
+        <div class="search-box">
+          <svg class="search-box__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.3-4.3"/>
+          </svg>
+          <input
+            class="search-box__input"
+            type="text"
+            placeholder="Search tournaments by name…"
+            [value]="search()"
+            (input)="search.set($any($event.target).value)"
+            aria-label="Search tournaments"/>
         </div>
-      }
-    </div>
-  }
+      </div>
 
-  <!-- ── Results ────────────────────────────────────────────────── -->
-  @if (!loading() && filtered().length > 0) {
-    <p class="t-count">{{ filtered().length }} tournament{{ filtered().length === 1 ? '' : 's' }}</p>
+      <div class="chips" role="group" aria-label="Filter by game">
+        @for (g of games; track g.value) {
+          <button type="button"
+            class="chip"
+            [class.chip--active]="filter.game() === g.value"
+            (click)="setFilter('game', g.value)">
+            <span>{{ g.emoji }}</span>
+            {{ g.label }}
+          </button>
+        }
+      </div>
 
-    <div class="t-grid">
-      @for (t of filtered(); track t.id; let i = $index) {
-        <a class="t-card" [routerLink]="['/tournaments', t.id]"
-           [style.--delay.ms]="i * 60">
+      <div class="chips" role="group" aria-label="Filter by status">
+        @for (s of statuses; track s.value) {
+          <button type="button"
+            class="chip"
+            [class.chip--active]="filter.status() === s.value"
+            (click)="setFilter('status', s.value)">
+            {{ s.label }}
+          </button>
+        }
+      </div>
+    </section>
 
-          <!-- Cover image or game-specific default gradient -->
-          <div class="t-card__cover" [class]="t.cover_image_url ? '' : defaultCoverClass(t.game)">
-            @if (t.cover_image_url) {
-              <img [src]="t.cover_image_url" [alt]="t.name" loading="lazy"/>
-            }
-            <!-- Game badge overlaid top-left -->
-            <span class="t-card__game-badge">{{ t.game_label }}</span>
-            <!-- Format badge overlaid top-right -->
-            <span class="t-card__format-badge">{{ t.format_label }}</span>
-            <!-- Live status dot -->
-            <span [class]="statusAccentClass(t.status)">
-              {{ t.status_label }}
-            </span>
-          </div>
+    <!-- ── Error ─────────────────────────────────────────────────── -->
+    @if (error()) {
+      <div class="error-box">{{ error() }}</div>
+    }
 
-          <div class="t-card__body">
-            <div class="t-card__title-row">
-              <h3 class="t-card__title">{{ t.name }}</h3>
-              @if (t.company?.logo_url) {
-                <img class="t-card__company-logo" [src]="t.company.logo_url" [alt]="t.company.name"/>
-              }
-            </div>
-            @if (t.name_ar) {
-              <p class="t-card__title-ar" dir="rtl" lang="ar">{{ t.name_ar }}</p>
-            }
+    <!-- ── Loading skeleton ──────────────────────────────────────── -->
+    @if (loading()) {
+      <div class="skeleton-grid">
+        @for (i of [1,2,3,4,5,6]; track i) {
+          <div class="skeleton"></div>
+        }
+      </div>
+    }
 
-            <div class="t-card__stats">
-              <div class="stat">
-                <span class="stat__val"
-                  [class.stat__val--full]="t.is_full">{{ t.participant_count }}<span class="stat__max">/{{ t.max_participants }}</span></span>
-                <span class="stat__label">Players</span>
-              </div>
-              <div class="stat">
-                <span class="stat__val">{{ t.entry_fee_sar === 0 ? 'Free' : (t.entry_fee_sar + ' SAR') }}</span>
-                <span class="stat__label">Entry</span>
-              </div>
-              @if (t.prize_pool?.length) {
-                <div class="stat stat--prize">
-                  <span class="stat__val">🏆</span>
-                  <span class="stat__label">Prizes</span>
-                </div>
-              }
-            </div>
+    <!-- ── Empty state ───────────────────────────────────────────── -->
+    @if (!loading() && !error() && filtered().length === 0) {
+      <div class="empty">
+        <!-- Trophy SVG illustration (violet + amber themed) -->
+        <svg class="empty__illust" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="trophyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%"   stop-color="#fbbf24"/>
+              <stop offset="100%" stop-color="#d97706"/>
+            </linearGradient>
+            <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="#a855f7" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="100" cy="100" r="90" fill="url(#glowGrad)"/>
+          <path d="M60 60 h80 v30 a40 40 0 0 1 -80 0 z"
+                fill="url(#trophyGrad)" stroke="#7e22ce" stroke-width="1.5"/>
+          <rect x="40" y="55" width="14" height="40" rx="7" fill="none" stroke="#a855f7" stroke-width="3"/>
+          <rect x="146" y="55" width="14" height="40" rx="7" fill="none" stroke="#a855f7" stroke-width="3"/>
+          <rect x="90" y="128" width="20" height="22" fill="#7e22ce"/>
+          <rect x="70" y="148" width="60" height="8" rx="3" fill="#a855f7"/>
+          <text x="100" y="92" text-anchor="middle" font-family="Bebas Neue, sans-serif" font-size="26" fill="#3a2d06" letter-spacing="2">1</text>
+        </svg>
+        <h3 class="empty__title">No tournaments match</h3>
+        <p class="empty__sub">Try adjusting your filters or search, or come back later — new tournaments go live weekly.</p>
+        <button type="button" class="btn btn--ghost" (click)="search.set(''); setFilter('game',''); setFilter('format',''); setFilter('status','')">
+          Clear all filters
+        </button>
+      </div>
+    }
 
-            <div class="t-card__foot">
-              <span class="t-card__date">
-                @if (t.starts_at) { 🗓 {{ t.starts_at | date:'d MMM · HH:mm' }} }
-              </span>
-              @if (t.is_registration_open) {
-                <span class="t-card__chip t-card__chip--open">Register →</span>
-              } @else if (t.status === 'in_progress') {
-                <span class="t-card__chip t-card__chip--live">Live →</span>
-              } @else if (t.status === 'completed') {
-                <span class="t-card__chip t-card__chip--done">View →</span>
+    <!-- ── Tournament grid ───────────────────────────────────────── -->
+    @if (!loading() && !error() && filtered().length > 0) {
+      <div class="grid">
+        @for (t of filtered(); track t.id) {
+          <a class="card" [routerLink]="['/tournaments', t.id]">
+
+            <!-- Cover with image slot + gradient fallback -->
+            <div class="card__cover">
+              @if (t.cover_image_url) {
+                <div class="card__art" [style.background-image]="'url(' + t.cover_image_url + ')'"></div>
               } @else {
-                <span class="t-card__chip">View →</span>
+                <div class="card__art" [class]="'card__art card__art--' + t.game"></div>
+              }
+              <div class="card__glow"></div>
+
+              <span class="card__game-badge">{{ t.game_label }}</span>
+
+              @switch (t.status) {
+                @case ('registration') { <span class="card__status card__status--open">Open</span> }
+                @case ('registration_open') { <span class="card__status card__status--open">Open</span> }
+                @case ('ongoing') { <span class="card__status card__status--live">Live</span> }
+                @case ('in_progress') { <span class="card__status card__status--live">Live</span> }
+                @case ('completed') { <span class="card__status card__status--completed">Completed</span> }
+                @default { <span class="card__status card__status--draft">{{ t.status_label || t.status }}</span> }
               }
             </div>
-          </div>
-        </a>
-      }
-    </div>
-  }
 
-  <!-- ── Empty state ────────────────────────────────────────────── -->
-  @if (!loading() && filtered().length === 0) {
-    <div class="empty-state">
-      <div class="empty-state__icon">🏆</div>
-      <h3>No tournaments match your filters</h3>
-      <p>Try clearing a filter or check back soon — new tournaments are added regularly.</p>
-      @if (canCreate()) {
-        <a routerLink="/tournaments/create" class="btn btn--gold">+ Create One</a>
-      }
-    </div>
-  }
+            <!-- Body -->
+            <div class="card__body">
+              <h2 class="card__title">{{ t.name }}</h2>
+              <span class="card__format">{{ t.format_label }}</span>
 
+              <div class="card__meta">
+                <span class="card__meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                  </svg>
+                  {{ t.participant_count || 0 }}<span style="color:var(--mu);">/{{ t.max_participants }}</span>
+                </span>
+
+                <span class="card__meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <rect width="18" height="18" x="3" y="4" rx="2"/>
+                    <path d="M16 2v4M8 2v4M3 10h18"/>
+                  </svg>
+                  {{ t.starts_at | date:'d MMM, HH:mm' }}
+                </span>
+
+                @if (t.prize_pool?.length) {
+                  <span class="card__meta-item card__meta-item--prize">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                      <path d="M4 22h16"/>
+                      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+                    </svg>
+                    Prize
+                  </span>
+                }
+              </div>
+            </div>
+
+            <!-- Footer CTA -->
+            <div class="card__footer">
+              <span class="card__participants">
+                {{ t.entry_fee_sar === 0 ? 'FREE' : t.entry_fee_sar + ' SAR' }}
+              </span>
+              <span class="card__cta">
+                View →
+              </span>
+            </div>
+          </a>
+        }
+      </div>
+    }
+  </div>
 </div>

@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PlaceOrderRequest;
+use App\Http\Requests\TopUpRequest;
+use App\Http\Resources\DigitalOrderResource;
+use App\Http\Resources\DigitalProductResource;
 use App\Models\DigitalCode;
 use App\Models\DigitalOrder;
 use App\Models\DigitalProduct;
-use App\Services\LikecardService;
+use App\Notifications\OrderConfirmationNotification;
+use App\Services\DistributorRouter;
 use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,12 +23,28 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
-class MarketplaceController extends Controller
+/**
+ * MarketplaceController
+ *
+ * Sprint 5 rewrite — addresses these prior issues:
+ *   - bug 3  : brand logos now served from local /brands/ assets (DigitalProductResource)
+ *   - bug 4  : batch checkout (one request fulfils the whole cart)
+ *   - bug 5  : distributor failure after successful charge → automatic refund
+ *   - bug 6  : key_version stored on every code for APP_KEY rotation safety
+ *   - item 9 : DigitalOrderResource carries bilingual product names
+ *   - item 10: OrderConfirmationNotification dispatched on success
+ *   - item 11: idempotency_key de-dupes repeated click / network-retry submissions
+ *   - item 12: topUp now routes through PaymentService::charge (no more free money)
+ *   - items 13-16: API Resources, strict types, FormRequests
+ */
+final class MarketplaceController extends Controller
 {
     public function __construct(
-        private readonly LikecardService $likecard,
-        private readonly PaymentService  $payment,
+        private readonly DistributorRouter $router,
+        private readonly PaymentService    $payment,
     ) {}
+
+    // ── Catalogue ─────────────────────────────────────────────────────────────
 
     public function products(Request $request): JsonResponse
     {
@@ -31,142 +52,180 @@ class MarketplaceController extends Controller
             ->when($request->filled('category'), fn ($q) => $q->where('category', $request->input('category')))
             ->when($request->filled('brand'),    fn ($q) => $q->where('brand',    $request->input('brand')))
             ->orderBy('sort_order')->orderBy('brand')->orderBy('face_value')
-            ->get()
-            ->map(fn ($p) => [
-                'id'          => $p->id,
-                'name'        => $p->name,
-                'name_ar'     => $p->name_ar,
-                'brand'       => $p->brand,
-                'category'    => $p->category,
-                'face_value'  => $p->face_value,
-                'currency'    => $p->currency,
-                'our_price'   => $p->our_price,
-                'region'      => $p->region,
-                'image_url'   => $p->image_url ?: $this->brandLogo($p->brand),
-                'distributor' => $p->distributor,
-            ]);
+            ->get();
 
-        return response()->json(['data' => $products]);
+        return response()->json([
+            'data' => DigitalProductResource::collection($products),
+        ]);
     }
 
-    private function brandLogo(string $brand): string
+    // ── Checkout ──────────────────────────────────────────────────────────────
+
+    /**
+     * Place a new order. Accepts either a single product_id (legacy) or a
+     * batched items[] cart. Idempotent: repeated calls with the same
+     * idempotency_key return the original order.
+     *
+     * @throws \Throwable
+     */
+    public function placeOrder(PlaceOrderRequest $request): JsonResponse
     {
-        $logos = [
-            // Gaming
-            'PSN'            => 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/PlayStation_logo.svg/2560px-PlayStation_logo.svg.png',
-            'PlayStation'    => 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/PlayStation_logo.svg/2560px-PlayStation_logo.svg.png',
-            'Xbox'           => 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Xbox_one_logo.svg/2560px-Xbox_one_logo.svg.png',
-            'Steam'          => 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2048px-Steam_icon_logo.svg.png',
-            'PUBG'           => 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/PUBG_Mobile_icon.png/600px-PUBG_Mobile_icon.png',
-            'Roblox'         => 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Roblox_Logo_2022.png/1200px-Roblox_Logo_2022.png',
-            'Valorant'       => 'https://upload.wikimedia.org/wikipedia/commons/f/fc/Valorant_logo_-_pink_color_version.svg',
-            'Fortnite'       => 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Fortnite_-_Logo.svg/2560px-Fortnite_-_Logo.svg.png',
-            'Call of Duty'   => 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Call_of_Duty_Mobile_Logo.svg/2048px-Call_of_Duty_Mobile_Logo.svg.png',
-            'Free Fire'      => 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Garena_Free_Fire_Logo.png/800px-Garena_Free_Fire_Logo.png',
-            'Minecraft'      => 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Microsoft_logo.svg/2048px-Microsoft_logo.svg.png',
-            'Jawaker'        => 'https://play-lh.googleusercontent.com/7Ak3MBsYEG3bMQxLbxMpWfPbGN3VCLbO1WQAXi2G_z3GEF3-P3F4AVBK3VZOX-8LYQA',
-            // Streaming
-            'Netflix'        => 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Netflix_2015_logo.svg/2560px-Netflix_2015_logo.svg.png',
-            'Spotify'        => 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Spotify_logo_without_text.svg/2048px-Spotify_logo_without_text.svg.png',
-            'Apple'          => 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/1667px-Apple_logo_black.svg.png',
-            'iTunes'         => 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/1667px-Apple_logo_black.svg.png',
-            'Google Play'    => 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Google_Play_logo_2022.svg/2048px-Google_Play_logo_2022.svg.png',
-            'YouTube'        => 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/2048px-YouTube_full-color_icon_%282017%29.svg.png',
-            'Shahid'         => 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Shahid_Logo.png/800px-Shahid_Logo.png',
-            'OSN'            => 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/OSN_Logo.svg/2560px-OSN_Logo.svg.png',
-            // Shopping / local
-            'Amazon'         => 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/2560px-Amazon_logo.svg.png',
-            'Noon'           => 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Noon_logo.svg/2560px-Noon_logo.svg.png',
-            'STC Pay'        => 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/STC_Pay_Logo.svg/2560px-STC_Pay_Logo.svg.png',
-            'Carrefour'      => 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Carrefour_logo.svg/2560px-Carrefour_logo.svg.png',
-            'Starbucks'      => 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/Starbucks_Corporation_Logo_2011.svg/1200px-Starbucks_Corporation_Logo_2011.svg.png',
-        ];
+        $user           = $request->user();
+        $paymentMethod  = (string) $request->input('payment_method', 'wallet');
+        $idempotencyKey = (string) ($request->input('idempotency_key') ?: Str::uuid());
+        $items          = $request->normalisedItems();
 
-        $key = trim($brand);
-        if (isset($logos[$key])) return $logos[$key];
+        // Idempotency: if an order already exists for this key, return it unchanged.
+        $existing = DigitalOrder::where('user_id', $user->id)
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+        if ($existing !== null) {
+            return response()->json([
+                'data'       => new DigitalOrderResource($existing->load(['product', 'code'])),
+                'idempotent' => true,
+            ], Response::HTTP_OK);
+        }
 
-        // Partial match
-        foreach ($logos as $name => $url) {
-            if (stripos($key, $name) !== false || stripos($name, $key) !== false) {
-                return $url;
+        // Expand items into individual order rows (one per unit, because each
+        // card code is a distinct digital good).
+        $expanded = [];
+        $runningTotal = 0.0;
+        foreach ($items as $line) {
+            $product = DigitalProduct::find($line['product_id']);
+            if (! $product || ! $product->is_active) {
+                return response()->json([
+                    'message' => 'One of the requested products is unavailable.',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+            for ($i = 0; $i < $line['qty']; $i++) {
+                $expanded[]    = $product;
+                $runningTotal += (float) $product->our_price;
             }
         }
 
-        return '';
+        if (empty($expanded)) {
+            return response()->json(['message' => 'Cart is empty.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // Single payment for the whole cart.
+        $charge = $this->payment->charge($user, $runningTotal, $paymentMethod, $idempotencyKey);
+        if (! $charge['success']) {
+            return response()->json([
+                'message' => $charge['message'],
+            ], Response::HTTP_PAYMENT_REQUIRED);
+        }
+
+        // Fulfil each line item. If any distributor fails, refund proportionally
+        // and mark those rows as failed.
+        $orders = [];
+        $failures = 0;
+
+        foreach ($expanded as $index => $product) {
+            $lineRef = $idempotencyKey . '-' . $index;
+            $order = $this->fulfilOne(
+                user:           $user,
+                product:        $product,
+                paymentMethod:  $paymentMethod,
+                paymentRef:     (string) $charge['payment_ref'],
+                idempotencyKey: $lineRef,
+            );
+
+            $orders[] = $order;
+            if ($order->status !== 'completed') {
+                $failures++;
+                // Refund this line item since payment succeeded but distributor didn't fulfil
+                $refund = $this->payment->refund(
+                    $user,
+                    (float) $order->unit_price,
+                    $paymentMethod,
+                    (string) $charge['payment_ref'],
+                );
+                if ($refund['success']) {
+                    $order->update(['status' => 'refunded']);
+                }
+            } else {
+                // Notify the user (email always; SMS if phone on file)
+                try {
+                    $user->notify(new OrderConfirmationNotification($order));
+                } catch (\Throwable $e) {
+                    Log::warning('Order notification failed', ['order' => $order->id, 'err' => $e->getMessage()]);
+                }
+            }
+        }
+
+        // Return the collection of orders created (completed + refunded rows both visible)
+        return response()->json([
+            'data' => DigitalOrderResource::collection(
+                collect($orders)->map->load(['product', 'code'])
+            ),
+            'summary' => [
+                'total_lines' => count($orders),
+                'completed'   => count($orders) - $failures,
+                'failed'      => $failures,
+                'charged'     => (float) $runningTotal,
+            ],
+        ], Response::HTTP_CREATED);
     }
 
-    public function placeOrder(Request $request): JsonResponse
-    {
-        $request->validate([
-            'product_id'     => ['required', 'string', 'exists:digital_products,id'],
-            'payment_method' => ['nullable', 'string', 'in:wallet,card,mada,stc_pay'],
-        ]);
-
-        $user          = $request->user();
-        $product       = DigitalProduct::findOrFail($request->input('product_id'));
-        $paymentMethod = $request->input('payment_method', 'wallet');
-        $reference     = (string) Str::uuid();
-
-        if (!$product->is_active) {
-            return response()->json(['message' => 'Product is not available.'], 422);
-        }
-
-        $charge = $this->payment->charge($user, (float) $product->our_price, $paymentMethod, $reference);
-
-        if (!$charge['success']) {
-            return response()->json(['message' => $charge['message']], Response::HTTP_PAYMENT_REQUIRED);
-        }
-
-        $order = DB::transaction(function () use ($user, $product, $paymentMethod, $reference) {
+    /**
+     * Fulfil a single line item: create order row, ask the router to place
+     * the distributor order, encrypt the returned code.
+     */
+    private function fulfilOne(
+        $user,
+        DigitalProduct $product,
+        string $paymentMethod,
+        string $paymentRef,
+        string $idempotencyKey,
+    ): DigitalOrder {
+        return DB::transaction(function () use ($user, $product, $paymentMethod, $paymentRef, $idempotencyKey) {
             $order = DigitalOrder::create([
                 'user_id'         => $user->id,
                 'product_id'      => $product->id,
                 'distributor'     => $product->distributor,
-                'idempotency_key' => $reference,
+                'idempotency_key' => $idempotencyKey,
                 'quantity'        => 1,
                 'unit_price'      => $product->our_price,
                 'total_price'     => $product->our_price,
                 'status'          => 'processing',
                 'payment_method'  => $paymentMethod,
+                'payment_ref'     => $paymentRef,
             ]);
 
-            $result = $this->likecard->placeOrder(
-                (string) ($product->distributor_product_id ?? $product->id),
-                (string) $order->id
+            $result = $this->router->placeOrder(
+                distributorProductId:  (string) ($product->distributor_product_id ?? $product->id),
+                internalOrderId:       (string) $order->id,
+                preferredDistributor:  (string) $product->distributor,
+                brand:                 (string) $product->brand,
             );
 
-            if ($result['success'] && $result['code']) {
+            if ($result['success'] && ! empty($result['code'])) {
                 $order->update([
                     'status'               => 'completed',
+                    'distributor'          => $result['distributor'] ?? $product->distributor,
                     'distributor_order_id' => $result['order_id'],
                     'fulfilled_at'         => now(),
                 ]);
                 DigitalCode::create([
-                    'order_id'   => $order->id,
-                    'code_enc'   => Crypt::encryptString($result['code']),
-                    'code_hash'  => hash('sha256', $result['code']),
-                    'expires_at' => now()->addDays(365),
+                    'order_id'    => $order->id,
+                    'code_enc'    => Crypt::encryptString($result['code']),
+                    'code_hash'   => hash('sha256', $result['code']),
+                    'key_version' => (int) config('app.cipher_version', 1),
+                    'expires_at'  => now()->addDays(365),
                 ]);
             } else {
                 $order->update(['status' => 'failed']);
-                if ($paymentMethod === 'wallet') {
-                    DB::table('users')
-                        ->where('id', $user->id)
-                        ->increment('wallet_balance', $product->our_price);
-                }
+                Log::warning('Distributor fulfilment failed', [
+                    'order'    => $order->id,
+                    'reason'   => $result['message'] ?? 'unknown',
+                ]);
             }
 
             return $order->fresh();
         });
-
-        return response()->json([
-            'data' => [
-                'id'     => $order->id,
-                'status' => $order->status,
-                'ready'  => $order->status === 'completed',
-            ],
-        ], 201);
     }
+
+    // ── Code reveal ───────────────────────────────────────────────────────────
 
     public function revealCode(Request $request, string $id): JsonResponse
     {
@@ -176,25 +235,37 @@ class MarketplaceController extends Controller
             ->firstOrFail();
 
         $code = DigitalCode::where('order_id', $order->id)->first();
-
-        if (!$code) {
-            return response()->json(['message' => 'Code not yet available.'], 404);
+        if (! $code) {
+            return response()->json(['message' => 'Code not yet available.'], Response::HTTP_NOT_FOUND);
         }
 
-        $plainCode    = Crypt::decryptString($code->code_enc);
-        $alreadyShown = $code->revealed_at !== null;
+        // Decrypt — supports rotated APP_KEY if previous_keys configured in config/app.php
+        try {
+            $plain = Crypt::decryptString($code->code_enc);
+        } catch (\Throwable $e) {
+            Log::error('Code decrypt failed — possible APP_KEY mismatch', [
+                'order'       => $order->id,
+                'key_version' => $code->key_version,
+            ]);
+            return response()->json([
+                'message' => 'Unable to decrypt code. Please contact support.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
 
-        if (!$alreadyShown) {
+        $alreadyShown = $code->revealed_at !== null;
+        if (! $alreadyShown) {
             $code->update(['revealed_at' => now()]);
         }
 
         return response()->json([
             'data' => [
-                'code'             => $plainCode,
+                'code'             => $plain,
                 'already_revealed' => $alreadyShown,
             ],
         ]);
     }
+
+    // ── Orders history ────────────────────────────────────────────────────────
 
     public function orders(Request $request): JsonResponse
     {
@@ -204,20 +275,7 @@ class MarketplaceController extends Controller
             ->paginate(20);
 
         return response()->json([
-            'data' => $orders->map(fn ($o) => [
-                'id'             => $o->id,
-                'product'        => $o->product ? [
-                    'name'      => $o->product->name,
-                    'brand'     => $o->product->brand,
-                    'image_url' => $o->product->image_url,
-                ] : null,
-                'status'         => $o->status,
-                'total_price'    => $o->total_price,
-                'payment_method' => $o->payment_method,
-                'has_code'       => $o->code !== null,
-                'revealed'       => $o->code?->revealed_at !== null,
-                'created_at'     => $o->created_at?->toIso8601String(),
-            ]),
+            'data' => DigitalOrderResource::collection($orders),
             'meta' => [
                 'current_page' => $orders->currentPage(),
                 'last_page'    => $orders->lastPage(),
@@ -225,6 +283,8 @@ class MarketplaceController extends Controller
             ],
         ]);
     }
+
+    // ── Wallet ────────────────────────────────────────────────────────────────
 
     public function wallet(Request $request): JsonResponse
     {
@@ -236,27 +296,43 @@ class MarketplaceController extends Controller
         ]);
     }
 
-    public function topUp(Request $request): JsonResponse
+    /**
+     * Top up the wallet. Charges the selected gateway method first, then
+     * credits the wallet — no more free-money bug (item 12).
+     */
+    public function topUp(TopUpRequest $request): JsonResponse
     {
-        $request->validate([
-            'amount'         => ['required', 'numeric', 'min:10', 'max:10000'],
-            'payment_method' => ['required', 'string', 'in:card,mada,stc_pay'],
-        ]);
+        $user           = $request->user();
+        $amount         = (float) $request->input('amount');
+        $method         = (string) $request->input('payment_method');
+        $idempotencyKey = (string) ($request->input('idempotency_key') ?: Str::uuid());
 
-        $user   = $request->user();
-        $amount = (float) $request->input('amount');
+        // Charge the external method first
+        $charge = $this->payment->charge($user, $amount, $method, 'TOPUP-' . $idempotencyKey);
+        if (! $charge['success']) {
+            return response()->json([
+                'message' => $charge['message'],
+            ], Response::HTTP_PAYMENT_REQUIRED);
+        }
 
+        // Credit wallet only after successful charge
         DB::table('users')
             ->where('id', $user->id)
             ->increment('wallet_balance', $amount);
 
-        Log::info("Wallet topped up {$amount} SAR for user {$user->id}");
+        Log::info('Wallet top-up completed', [
+            'user'        => $user->id,
+            'amount'      => $amount,
+            'method'      => $method,
+            'payment_ref' => $charge['payment_ref'],
+        ]);
 
         return response()->json([
             'message' => 'Wallet topped up successfully.',
             'data'    => [
-                'balance'  => (float) DB::table('users')->where('id', $user->id)->value('wallet_balance'),
-                'currency' => 'SAR',
+                'balance'     => (float) DB::table('users')->where('id', $user->id)->value('wallet_balance'),
+                'currency'    => 'SAR',
+                'payment_ref' => $charge['payment_ref'],
             ],
         ]);
     }

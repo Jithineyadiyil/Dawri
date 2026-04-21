@@ -104,7 +104,7 @@ import { AuthService } from '../../../core/services/auth.service';
     }
     .nav-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; margin-right: auto; }
     .logo-icon { font-size: 1.3rem; }
-    .logo-text { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.1em; color: var(--gold, #f0a500); }
+    .logo-text { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.1em; color: #a855f7; }
     .logo-ar { font-family: 'Noto Sans Arabic', sans-serif; font-size: 0.8rem; color: #8892a4; }
 
     .nav-links { display: flex; align-items: center; gap: 4px; }
@@ -113,14 +113,14 @@ import { AuthService } from '../../../core/services/auth.service';
       letter-spacing: 0.08em; color: #8892a4; text-transform: uppercase;
       text-decoration: none; padding: 6px 12px; border-radius: 6px; transition: all 0.15s;
     }
-    .nav-link:hover, .nav-link.active { color: var(--gold, #f0a500); }
-    .nav-link--dash { color: var(--cyan, #00e5ff); }
-    .nav-link--dash.active { color: var(--cyan, #00e5ff); background: rgba(0,229,255,0.08); }
-    .nav-link--cal { color: var(--gold, #f0a500); }
-    .nav-link--cal.active { color: var(--gold, #f0a500); background: rgba(240,165,0,0.08); }
+    .nav-link:hover, .nav-link.active { color: #a855f7; }
+    .nav-link--dash { color: #fbbf24; }
+    .nav-link--dash.active { color: #fbbf24; background: rgba(251,191,36,0.08); }
+    .nav-link--cal { color: #a855f7; }
+    .nav-link--cal.active { color: #a855f7; background: rgba(168,85,247,0.08); }
     .nav-link--admin { color: #a855f7; }
-    .nav-link--admin.active { color: #a855f7; background: rgba(168,85,247,0.08); }
-    .nav-link--sub { color: var(--gold, #f0a500); opacity: 0.7; }
+    .nav-link--admin.active { color: #a855f7; background: rgba(168,85,247,0.12); }
+    .nav-link--sub { color: #fbbf24; opacity: 0.7; }
 
     .nav-actions { display: flex; align-items: center; gap: 8px; }
 
@@ -128,14 +128,14 @@ import { AuthService } from '../../../core/services/auth.service';
     .nav-avatar {
       width: 34px; height: 34px; border-radius: 50%;
       overflow: hidden;
-      background: linear-gradient(135deg, var(--gold, #f0a500), rgba(240,165,0,.6));
-      color: #060810; font-weight: 700; font-size: 0.85rem;
+      background: linear-gradient(135deg, #a855f7, #7e22ce);
+      color: #fff; font-weight: 700; font-size: 0.85rem;
       display: flex; align-items: center; justify-content: center; text-decoration: none;
       border: 2px solid transparent;
-      transition: border-color .15s, transform .15s;
+      transition: border-color .15s, transform .15s, box-shadow .2s;
       flex-shrink: 0;
     }
-    .nav-avatar:hover { border-color: var(--cyan, #00e5ff); transform: scale(1.05); }
+    .nav-avatar:hover { border-color: #fbbf24; transform: scale(1.05); box-shadow: 0 0 16px rgba(168,85,247,0.4); }
     .nav-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .nav-avatar__letter {
       font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 0;
@@ -147,17 +147,17 @@ import { AuthService } from '../../../core/services/auth.service';
       padding: 7px 16px; border: 1px solid #1e2a3a; border-radius: 6px;
       text-decoration: none; cursor: pointer; background: transparent; transition: all 0.15s;
     }
-    .btn-nav-ghost:hover { border-color: var(--gold, #f0a500); color: var(--gold, #f0a500); }
+    .btn-nav-ghost:hover { border-color: #a855f7; color: #a855f7; }
     .btn-nav-gold {
       font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.78rem;
       letter-spacing: 0.08em; text-transform: uppercase;
       padding: 7px 16px; border-radius: 6px; text-decoration: none;
-      background: var(--gold, #f0a500); color: #060810; border: 1px solid var(--gold, #f0a500);
+      background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%); color: #fff; border: 1px solid #a855f7;
     }
-    .btn-nav-gold:hover { opacity: 0.85; }
+    .btn-nav-gold:hover { opacity: 0.9; box-shadow: 0 4px 16px rgba(168,85,247,0.4); }
 
     .nav-burger {
-      display: none; background: none; border: none; color: var(--gold, #f0a500);
+      display: none; background: none; border: none; color: #a855f7;
       font-size: 1.4rem; cursor: pointer;
     }
 
@@ -173,15 +173,15 @@ import { AuthService } from '../../../core/services/auth.service';
       background: none; border-left: none; border-right: none; border-top: none;
       cursor: pointer; text-align: left; width: 100%; display: flex; align-items: center; gap: 10px;
     }
-    .drawer-link:hover { color: var(--gold, #f0a500); }
+    .drawer-link:hover { color: #a855f7; }
     .drawer-link--admin { color: #a855f7; }
-    .drawer-link--profile { color: var(--gold, #f0a500); }
+    .drawer-link--profile { color: #fbbf24; }
 
     .drawer-avatar {
       display: inline-flex; align-items: center; justify-content: center;
       width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
-      background: linear-gradient(135deg, var(--gold, #f0a500), rgba(240,165,0,.6));
-      color: #060810; font-family: 'Bebas Neue', sans-serif; font-size: 0.85rem;
+      background: linear-gradient(135deg, #a855f7, #7e22ce);
+      color: #fff; font-family: 'Bebas Neue', sans-serif; font-size: 0.85rem;
       flex-shrink: 0;
     }
     .drawer-avatar img { width: 100%; height: 100%; object-fit: cover; }

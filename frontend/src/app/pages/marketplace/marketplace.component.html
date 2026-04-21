@@ -1,392 +1,403 @@
 <div class="mp-page">
 
-  <!-- Toast -->
-  <div class="mp-toast" [class.show]="!!toast()" [class.ok]="toast()?.ok">{{ toast()?.msg }}</div>
+  <!-- Animated mesh backdrop -->
+  <div class="mesh-bg" aria-hidden="true"></div>
 
-  <!-- Header -->
-  <div class="mp-header">
-    <div>
-      <div class="mp-eyebrow">🛍️ Digital Store</div>
-      <h1 class="mp-title">Marketplace <span class="mp-ar">المتجر</span></h1>
-      <p class="mp-sub">Instant digital gift cards — gaming, streaming and shopping.</p>
-    </div>
-    <div class="mp-header-right">
-      <div class="mp-wallet-card">
-        <div class="mp-wallet-lbl">Wallet Balance</div>
-        <div class="mp-wallet-val">{{ walletBalance() | number:'1.0-0' }} <span>SAR</span></div>
-        <button class="btn-topup" (click)="openTopUp()">+ Top Up</button>
+  <div class="mp-inner">
+
+    <!-- Hero + tabs + cart -->
+    <header class="mp-hero">
+      <div class="mp-hero__text">
+        <span class="mp-eyebrow">⚡ Marketplace · المتجر</span>
+        <h1 class="mp-title">Digital Goods</h1>
+        <p class="mp-sub">Gaming cards, streaming subscriptions, and top-ups — delivered instantly.</p>
       </div>
-      <button class="cart-btn" (click)="openCart()">
-        🛒
-        @if (cartCount() > 0) { <span class="cart-count">{{ cartCount() }}</span> }
-        <span class="cart-total-pill">{{ cartTotal() | number:'1.0-0' }} SAR</span>
-      </button>
-    </div>
-  </div>
 
-  <!-- Tabs -->
-  <div class="mp-tabs">
-    <button class="mp-tab" [class.active]="activeTab()==='store'"  (click)="switchTab('store')">Store</button>
-    <button class="mp-tab" [class.active]="activeTab()==='orders'" (click)="switchTab('orders')">
-      My Orders
-      @if (orders().length) { <span class="tab-badge">{{ orders().length }}</span> }
-    </button>
-  </div>
-
-  <!-- ══ STORE ══ -->
-  @if (activeTab()==='store') {
-    <div class="mp-toolbar">
-      <div class="mp-search-wrap">
-        <span>⌕</span>
-        <input type="text" placeholder="Search cards…" (input)="setSearch($event)" />
-      </div>
-      <div class="mp-cats">
-        @for (cat of categories; track cat) {
-          <button class="mp-cat" [class.active]="activeCategory()===cat" (click)="activeCategory.set(cat)">
-            {{ cat | titlecase }}
+      <div class="mp-hero__actions">
+        @if (auth.isLoggedIn()) {
+          <button type="button" class="wallet-badge" (click)="openTopUp()">
+            <span class="wallet-icon">👛</span>
+            <span class="wallet-val">{{ walletBalance() | number:'1.2-2' }} SAR</span>
+            <span class="wallet-plus">＋</span>
           </button>
         }
+        <button type="button" class="cart-btn" (click)="openCart()" [disabled]="!cartCount()">
+          🛒 Cart
+          @if (cartCount()) { <span class="cart-count">{{ cartCount() }}</span> }
+        </button>
       </div>
-    </div>
+    </header>
 
-    @if (loading()) {
-      <div class="mp-grid">@for (i of [1,2,3,4,5,6,7,8]; track i) { <div class="skel"></div> }</div>
-    }
+    <!-- Tabs -->
+    <nav class="mp-tabs" role="tablist">
+      <button type="button" role="tab"
+              [class.active]="activeTab() === 'store'"
+              (click)="switchTab('store')">Store</button>
+      <button type="button" role="tab"
+              [class.active]="activeTab() === 'orders'"
+              (click)="switchTab('orders')">My Orders</button>
+    </nav>
 
-    @if (!loading()) {
-      @for (brand of brandKeys(); track brand) {
-        <div class="brand-section">
-          <div class="brand-hdr">
-            <h2 class="brand-name">{{ brand }}</h2>
-            <span class="brand-count">{{ grouped()[brand].length }} options</span>
-          </div>
-          <div class="mp-grid">
-            @for (p of grouped()[brand]; track p.id) {
-              <div class="product-card">
-                <div class="card-img" [class.has-logo]="p.image_url">
-                  @if (p.image_url) {
-                    <div class="card-logo-wrap">
-                      <img [src]="p.image_url" [alt]="p.name" class="brand-logo" />
-                    </div>
-                  } @else {
-                    <div class="card-emoji">{{ p.category==='gaming' ? '🎮' : p.category==='streaming' ? '📺' : p.category==='topup' ? '📱' : '🛍️' }}</div>
-                  }
-                  <span class="card-region">{{ p.region }}</span>
-                </div>
-                <div class="card-body">
-                  <div class="card-brand">{{ p.brand }}</div>
-                  <div class="card-name">{{ p.name }}</div>
-                  @if (p.name_ar) { <div class="card-name-ar" dir="rtl">{{ p.name_ar }}</div> }
-                  <div class="card-face">{{ p.face_value | number:'1.0-0' }} {{ p.currency }}</div>
-                </div>
-                <div class="card-footer">
-                  <span class="card-price">{{ p.our_price | number:'1.0-0' }} SAR</span>
-                  @if (cartQty(p.id) === 0) {
-                    <button class="btn-add-cart" (click)="addToCart(p, $event)">+ Add to Cart</button>
-                  } @else {
-                    <div class="qty-control">
-                      <button class="qty-btn" (click)="updateQty(p.id, -1)">−</button>
-                      <span class="qty-val">{{ cartQty(p.id) }}</span>
-                      <button class="qty-btn" (click)="updateQty(p.id, 1)">+</button>
-                    </div>
-                  }
-                </div>
-              </div>
-            }
-          </div>
+    <!-- ═════════════════════════════════ STORE TAB ═════════════════════════ -->
+    @if (activeTab() === 'store') {
+
+      <div class="mp-filters">
+        <div class="search-box">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <input type="text"
+                 class="search-input"
+                 placeholder="Search brand, name, or name_ar…"
+                 [value]="searchQuery()"
+                 (input)="setSearch($event)"/>
         </div>
-      }
-      @if (filtered().length===0) {
-        <div class="mp-empty"><span>🛍️</span><p>No products found.</p></div>
-      }
-    }
-  }
 
-  <!-- ══ ORDERS ══ -->
-  @if (activeTab()==='orders') {
-    @if (ordersLoading()) { <div class="mp-empty">Loading orders…</div> }
-    @if (!ordersLoading() && orders().length===0) { <div class="mp-empty"><span>📦</span><p>No orders yet.</p></div> }
-    @if (!ordersLoading()) {
-      <div class="orders-list">
-        @for (o of orders(); track o.id) {
-          <div class="order-card">
-            <div class="order-top">
-              <div>
-                <div class="order-brand">{{ o.product?.brand }}</div>
-                <div class="order-name">{{ o.product?.name }}</div>
-              </div>
-              <div class="order-right">
-                <span class="order-price">{{ o.total_price | number:'1.0-0' }} SAR</span>
-                <span class="order-status" [class]="statusClass(o.status)">{{ statusLabel(o.status) }}</span>
-              </div>
-            </div>
-            <div class="order-meta">
-              <span>{{ o.created_at | date:'d MMM y' }}</span>
-              <span class="pay-tag">{{ o.payment_method === 'wallet' ? '👛 Wallet' : '💳 Card' }}</span>
-            </div>
-            @if (o.status==='completed') {
-              <div class="order-code">
-                @if (revealedCodes()[o.id]) {
-                  <div class="code-box">
-                    <code>{{ revealedCodes()[o.id] }}</code>
-                    <button class="btn-copy" (click)="copyCode(revealedCodes()[o.id])">Copy</button>
-                  </div>
-                } @else {
-                  <button class="btn-reveal" [disabled]="revealing()===o.id" (click)="revealCode(o.id)">
-                    {{ revealing()===o.id ? '…' : '🔓 Reveal Code' }}
-                  </button>
-                }
-              </div>
-            }
-          </div>
-        }
-      </div>
-    }
-  }
-</div>
-
-<!-- ══ CART DRAWER ══ -->
-@if (showCart()) {
-  <div class="cart-overlay" (click)="closeCart()"></div>
-  <div class="cart-drawer">
-    <div class="cart-drawer__header">
-      <h2 class="cart-drawer__title">🛒 Your Cart</h2>
-      <button class="cart-drawer__close" (click)="closeCart()">✕</button>
-    </div>
-
-    @if (cart().length === 0) {
-      <div class="cart-empty">
-        <span>🛍️</span><p>Your cart is empty.</p>
-        <button class="btn-browse" (click)="closeCart()">Browse Products</button>
-      </div>
-    } @else {
-      <div class="cart-items">
-        @for (item of cart(); track item.product.id) {
-          <div class="cart-item">
-            <div class="cart-item__emoji">{{ item.product.category==='gaming' ? '🎮' : item.product.category==='streaming' ? '📺' : '🛍️' }}</div>
-            <div class="cart-item__info">
-              <div class="cart-item__brand">{{ item.product.brand }}</div>
-              <div class="cart-item__name">{{ item.product.name }}</div>
-              <div class="cart-item__unit">{{ item.product.our_price | number:'1.0-0' }} SAR each</div>
-            </div>
-            <div class="cart-item__right">
-              <div class="qty-control">
-                <button class="qty-btn" (click)="updateQty(item.product.id, -1)">−</button>
-                <span class="qty-val">{{ item.qty }}</span>
-                <button class="qty-btn" (click)="updateQty(item.product.id, 1)">+</button>
-              </div>
-              <div class="cart-item__subtotal">{{ item.product.our_price * item.qty | number:'1.0-0' }} SAR</div>
-              <button class="cart-item__remove" (click)="removeFromCart(item.product.id)">🗑</button>
-            </div>
-          </div>
-        }
-      </div>
-
-      <!-- Payment Method -->
-      <div class="pay-method-section">
-        <div class="pay-method-label">Payment Method</div>
-        <div class="pay-method-grid">
-          @for (m of payMethods; track m.id) {
-            <button class="pay-method-btn"
-                    [class.active]="paymentMethod() === m.id"
-                    (click)="paymentMethod.set(m.id)">
-              <span>{{ m.icon }}</span>
-              <span>{{ m.label }}</span>
+        <div class="cat-chips">
+          @for (cat of categories; track cat) {
+            <button type="button"
+                    class="cat-chip"
+                    [class.active]="activeCategory() === cat"
+                    (click)="activeCategory.set(cat)">
+              {{ cat | titlecase }}
             </button>
           }
         </div>
       </div>
 
-      <div class="cart-summary">
-        <div class="cart-summary__row">
-          <span>Items ({{ cartCount() }})</span>
-          <span>{{ cartTotal() | number:'1.0-0' }} SAR</span>
+      @if (loading()) {
+        <div class="mp-skeleton">
+          @for (i of [1,2,3,4,5,6,7,8]; track i) { <div class="skel-card"></div> }
         </div>
-        @if (paymentMethod() === 'wallet') {
-          <div class="cart-summary__row cart-summary__row--wallet">
-            <span>👛 Wallet Balance</span>
-            <span [class.balance-low]="!canAfford()">{{ walletBalance() | number:'1.0-0' }} SAR</span>
-          </div>
-        }
-        <div class="cart-summary__divider"></div>
-        <div class="cart-summary__row cart-summary__total">
-          <span>Total</span>
-          <span>{{ cartTotal() | number:'1.0-0' }} SAR</span>
-        </div>
-
-        @if (paymentMethod() === 'wallet' && !canAfford()) {
-          <div class="cart-warn">
-            ⚠ You need {{ shortfall() | number:'1.0-0' }} SAR more.
-            <button class="btn-topup-inline" (click)="closeCart(); openTopUp()">Top up wallet</button>
-          </div>
-        }
-
-        <div class="cart-actions">
-          <button class="btn-clear" (click)="clearCart()">Clear</button>
-          <button class="btn-checkout"
-                  [disabled]="purchasing() || (paymentMethod()==='wallet' && !canAfford())"
-                  (click)="checkout()">
-            @if (purchasing()) { Processing… }
-            @else if (paymentMethod() !== 'wallet') { Pay · {{ cartTotal() | number:'1.0-0' }} SAR }
-            @else { Checkout · {{ cartTotal() | number:'1.0-0' }} SAR }
-          </button>
-        </div>
-      </div>
-    }
-  </div>
-}
-
-<!-- ══ CARD PAYMENT MODAL (Checkout) ══ -->
-@if (showPaymentModal()) {
-  <div class="modal-overlay" (click)="showPaymentModal.set(false)">
-    <div class="payment-modal" (click)="$event.stopPropagation()">
-      <button class="modal-close" (click)="showPaymentModal.set(false)">✕</button>
-      <div class="modal-order-summary">
-        <div class="modal-order-icon">🛍️</div>
-        <div>
-          <div class="modal-order-title">Cart Checkout</div>
-          <div class="modal-order-amount">{{ cartTotal() | number:'1.0-0' }} <span class="modal-order-cur">SAR</span></div>
-        </div>
-      </div>
-      <div class="modal-divider"></div>
-      <div class="payment-form">
-        <div class="form-label">CARD INFORMATION</div>
-        <div class="card-preview" [class.flipped]="showCvv">
-          <div class="card-front">
-            <div class="card-chip">⬛</div>
-            <div class="card-number-preview">{{ cardDisplay() }}</div>
-            <div class="card-bottom">
-              <div><div class="card-field-label">CARD HOLDER</div><div class="card-field-val">{{ cardName || 'YOUR NAME' }}</div></div>
-              <div><div class="card-field-label">EXPIRES</div><div class="card-field-val">{{ cardExpiry || 'MM/YY' }}</div></div>
-            </div>
-            <div class="card-logo">
-              @if (cardBrand()==='visa') { <span class="brand-visa">VISA</span> }
-              @else if (cardBrand()==='mc') { <span class="brand-mc">◉◉</span> }
-              @else { <span>💳</span> }
-            </div>
-          </div>
-          <div class="card-back">
-            <div class="card-strip"></div>
-            <div class="card-cvv-row"><div class="card-cvv-label">CVV</div><div class="card-cvv-box">{{ cardCvv || '•••' }}</div></div>
-          </div>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Card Number</label>
-          <input class="field-input" type="text" inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456"
-                 [value]="cardNumber" (input)="onCardNumber($event, 'checkout')" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Cardholder Name</label>
-          <input class="field-input" type="text" placeholder="Name on card" [(ngModel)]="cardName" />
-        </div>
-        <div class="field-row">
-          <div class="field-group">
-            <label class="field-label">Expiry</label>
-            <input class="field-input" type="text" maxlength="5" placeholder="MM/YY"
-                   [value]="cardExpiry" (input)="onExpiry($event, 'checkout')" />
-          </div>
-          <div class="field-group">
-            <label class="field-label">CVV</label>
-            <input class="field-input" type="password" maxlength="4" placeholder="•••"
-                   [(ngModel)]="cardCvv" (focus)="showCvv=true" (blur)="showCvv=false" />
-          </div>
-        </div>
-        <div class="secure-note">🔒 Secured by 256-bit SSL. Card details not stored.</div>
-        @if (paymentError()) { <div class="payment-error">{{ paymentError() }}</div> }
-        <button class="btn-pay" [disabled]="paying()" (click)="processPayment()">
-          @if (paying()) { <span class="btn-spinner"></span> Processing… }
-          @else { Pay {{ cartTotal() | number:'1.0-0' }} SAR }
-        </button>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- ══ WALLET TOP-UP MODAL ══ -->
-@if (showTopUp()) {
-  <div class="modal-overlay" (click)="showTopUp.set(false)">
-    <div class="payment-modal" (click)="$event.stopPropagation()">
-      <button class="modal-close" (click)="showTopUp.set(false)">✕</button>
-
-      @if (topUpSuccess()) {
-        <div class="topup-success">
-          <div class="success-anim">✓</div>
-          <div class="success-title">Wallet Topped Up!</div>
-          <div class="success-body">{{ topUpAmount() | number:'1.0-0' }} SAR added to your wallet.</div>
-          <div class="new-balance">New Balance: <strong>{{ walletBalance() | number:'1.0-0' }} SAR</strong></div>
-          <button class="btn-pay" (click)="showTopUp.set(false)">Done</button>
+      } @else if (filtered().length === 0) {
+        <div class="mp-empty">
+          <span class="empty-icon">🎁</span>
+          <h3>No products match your search</h3>
+          <p>Try a different category or clear the filters.</p>
         </div>
       } @else {
-        <div class="modal-order-summary">
-          <div class="modal-order-icon">👛</div>
-          <div>
-            <div class="modal-order-title">Top Up Wallet</div>
-            <div class="modal-order-amount">{{ topUpAmount() | number:'1.0-0' }} <span class="modal-order-cur">SAR</span></div>
-          </div>
-        </div>
-        <div class="modal-divider"></div>
 
-        <!-- Quick amounts -->
-        <div class="topup-section">
-          <div class="form-label">SELECT AMOUNT</div>
-          <div class="topup-amounts">
-            @for (amt of topUpAmounts; track amt) {
-              <button class="topup-amt-btn" [class.active]="topUpAmount()===amt" (click)="topUpAmount.set(amt)">
-                {{ amt }} SAR
+        @for (brand of brandKeys(); track brand) {
+          <section class="brand-section">
+            <header class="brand-head">
+              <img class="brand-logo"
+                   [src]="grouped()[brand][0].image_url || '/brands/generic.svg'"
+                   [alt]="brand"
+                   loading="lazy"/>
+              <h2 class="brand-name">{{ brand }}</h2>
+              <span class="brand-count">{{ grouped()[brand].length }} {{ grouped()[brand].length === 1 ? 'item' : 'items' }}</span>
+            </header>
+
+            <div class="product-grid">
+              @for (p of grouped()[brand]; track p.id) {
+                <article class="product-card">
+                  <div class="product-card__art">
+                    <img [src]="p.image_url || '/brands/generic.svg'" [alt]="p.brand" loading="lazy"/>
+                  </div>
+
+                  <div class="product-card__body">
+                    <h3 class="product-card__name">{{ p.name }}</h3>
+                    @if (p.name_ar) {
+                      <p class="product-card__name-ar" dir="rtl" lang="ar">{{ p.name_ar }}</p>
+                    }
+                    <div class="product-card__price">
+                      <span class="price-num">{{ p.our_price | number:'1.0-2' }}</span>
+                      <span class="price-ccy">SAR</span>
+                    </div>
+                  </div>
+
+                  <button type="button"
+                          class="product-card__cta"
+                          (click)="addToCart(p, $event)"
+                          [attr.aria-label]="'Add ' + p.name + ' to cart'">
+                    @if (cartQty(p.id)) {
+                      <span class="added">✓ {{ cartQty(p.id) }} in cart</span>
+                    } @else {
+                      Add to cart
+                    }
+                  </button>
+                </article>
+              }
+            </div>
+          </section>
+        }
+      }
+    }
+
+    <!-- ═════════════════════════════════ ORDERS TAB ═════════════════════════ -->
+    @if (activeTab() === 'orders') {
+
+      @if (ordersLoading()) {
+        <div class="mp-skeleton">
+          @for (i of [1,2,3,4]; track i) { <div class="skel-row"></div> }
+        </div>
+      } @else if (orders().length === 0) {
+        <div class="mp-empty">
+          <span class="empty-icon">📦</span>
+          <h3>No orders yet</h3>
+          <p>Your purchase history will appear here after checkout.</p>
+        </div>
+      } @else {
+        <div class="orders-list">
+          @for (o of orders(); track o.id) {
+            <article class="order-row">
+              <img class="order-logo"
+                   [src]="o.product?.image_url || '/brands/generic.svg'"
+                   [alt]="o.product?.brand || 'Product'"/>
+
+              <div class="order-main">
+                <div class="order-names">
+                  <p class="order-name">{{ o.product?.name || 'Product' }}</p>
+                  @if (o.product?.name_ar) {
+                    <p class="order-name-ar" dir="rtl" lang="ar">{{ o.product?.name_ar }}</p>
+                  }
+                </div>
+                <p class="order-meta">
+                  {{ o.created_at | date:'d MMM yyyy, HH:mm' }}
+                  <span class="dot"></span>
+                  {{ o.total_price | number:'1.2-2' }} SAR
+                  <span class="dot"></span>
+                  {{ o.payment_method | titlecase }}
+                </p>
+              </div>
+
+              <div class="order-right">
+                <span class="order-status" [class]="statusClass(o.status)">
+                  {{ statusLabel(o.status) }}
+                </span>
+
+                @if (o.status === 'completed' && o.has_code) {
+                  @if (revealedCodes()[o.id]) {
+                    <div class="code-block">
+                      <code>{{ revealedCodes()[o.id] }}</code>
+                      <button type="button" class="code-copy"
+                              (click)="copyCode(revealedCodes()[o.id])">Copy</button>
+                    </div>
+                  } @else {
+                    <button type="button"
+                            class="reveal-btn"
+                            [disabled]="revealing() === o.id"
+                            (click)="revealCode(o.id)">
+                      {{ revealing() === o.id ? 'Revealing…' : (o.revealed ? 'Show again' : 'Reveal code') }}
+                    </button>
+                  }
+                }
+              </div>
+            </article>
+          }
+        </div>
+      }
+    }
+  </div>
+
+  <!-- ═════════════════════════════════════ CART DRAWER ═════════════════════════ -->
+  @if (showCart()) {
+    <div class="modal-back" (click)="closeCart()"></div>
+    <aside class="cart-drawer" role="dialog" aria-label="Cart">
+      <header class="cart-head">
+        <h3>Your cart</h3>
+        <button type="button" class="cart-close" (click)="closeCart()" aria-label="Close">✕</button>
+      </header>
+
+      @if (cart().length === 0) {
+        <div class="cart-empty">
+          <p>Your cart is empty.</p>
+        </div>
+      } @else {
+        <div class="cart-items">
+          @for (item of cart(); track item.product.id) {
+            <div class="cart-item">
+              <img class="cart-item__img"
+                   [src]="item.product.image_url || '/brands/generic.svg'"
+                   [alt]="item.product.brand"/>
+              <div class="cart-item__info">
+                <p class="cart-item__name">{{ item.product.name }}</p>
+                @if (item.product.name_ar) {
+                  <p class="cart-item__name-ar" dir="rtl" lang="ar">{{ item.product.name_ar }}</p>
+                }
+                <p class="cart-item__price">{{ item.product.our_price | number:'1.0-2' }} SAR each</p>
+              </div>
+              <div class="cart-item__qty">
+                <button type="button" (click)="updateQty(item.product.id, -1)">−</button>
+                <span>{{ item.qty }}</span>
+                <button type="button" (click)="updateQty(item.product.id, +1)">+</button>
+              </div>
+              <button type="button" class="cart-item__rm" (click)="removeFromCart(item.product.id)" aria-label="Remove">🗑</button>
+            </div>
+          }
+        </div>
+
+        <div class="cart-foot">
+          <div class="cart-total">
+            <span>Total</span>
+            <strong>{{ cartTotal() | number:'1.2-2' }} SAR</strong>
+          </div>
+
+          <div class="pay-chips">
+            @for (m of payMethods; track m.id) {
+              <button type="button"
+                      class="pay-chip"
+                      [class.active]="paymentMethod() === m.id"
+                      (click)="paymentMethod.set(m.id)">
+                {{ m.icon }} {{ m.label }}
               </button>
             }
           </div>
-          <div class="field-group" style="margin-top:12px">
-            <label class="field-label">Or enter custom amount</label>
-            <input class="field-input" type="number" min="10" max="10000" placeholder="Enter amount in SAR"
-                   [ngModel]="topUpAmount()" (ngModelChange)="topUpAmount.set($event)" />
-          </div>
-        </div>
 
-        <!-- Payment method -->
-        <div class="topup-section">
-          <div class="form-label">PAYMENT METHOD</div>
-          <div class="pay-method-grid">
-            @for (m of payMethods.slice(1); track m.id) {
-              <button class="pay-method-btn" [class.active]="topUpMethod()===m.id" (click)="topUpMethod.set(m.id)">
-                <span>{{ m.icon }}</span><span>{{ m.label }}</span>
-              </button>
-            }
-          </div>
-        </div>
+          @if (paymentMethod() === 'wallet' && !canAfford()) {
+            <p class="cart-warn">
+              Insufficient wallet balance — short by {{ shortfall() | number:'1.2-2' }} SAR.
+              <button type="button" class="topup-link" (click)="openTopUp()">Top up</button>
+            </p>
+          }
 
-        <!-- Card form -->
-        <div class="payment-form">
-          <div class="form-label">CARD INFORMATION</div>
-          <div class="field-group">
-            <label class="field-label">Card Number</label>
-            <input class="field-input" type="text" inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456"
-                   [value]="tuCardNumber" (input)="onCardNumber($event, 'topup')" />
-          </div>
-          <div class="field-group">
-            <label class="field-label">Cardholder Name</label>
-            <input class="field-input" type="text" placeholder="Name on card" [(ngModel)]="tuCardName" />
-          </div>
-          <div class="field-row">
-            <div class="field-group">
-              <label class="field-label">Expiry</label>
-              <input class="field-input" type="text" maxlength="5" placeholder="MM/YY"
-                     [value]="tuCardExpiry" (input)="onExpiry($event, 'topup')" />
-            </div>
-            <div class="field-group">
-              <label class="field-label">CVV</label>
-              <input class="field-input" type="password" maxlength="4" placeholder="•••"
-                     [(ngModel)]="tuCardCvv" (focus)="tuShowCvv=true" (blur)="tuShowCvv=false" />
-            </div>
-          </div>
-          <div class="secure-note">🔒 Secured by 256-bit SSL. Card details not stored.</div>
-          @if (topUpError()) { <div class="payment-error">{{ topUpError() }}</div> }
-          <button class="btn-pay" [disabled]="topUpPaying()" (click)="processTopUp()">
-            @if (topUpPaying()) { <span class="btn-spinner"></span> Processing… }
-            @else { Add {{ topUpAmount() | number:'1.0-0' }} SAR to Wallet }
+          <button type="button"
+                  class="btn-checkout"
+                  [disabled]="purchasing() || !canAfford()"
+                  (click)="checkout()">
+            {{ purchasing() ? 'Processing…' : 'Checkout · ' + (cartTotal() | number:'1.2-2') + ' SAR' }}
           </button>
         </div>
       }
+    </aside>
+  }
+
+  <!-- ═════════════════════════════════════ CARD PAYMENT MODAL ═════════════════════ -->
+  @if (showPaymentModal()) {
+    <div class="modal-back" (click)="showPaymentModal.set(false)"></div>
+    <div class="modal" role="dialog" aria-label="Card payment">
+      <header class="modal-head">
+        <h3>{{ paymentMethod() === 'mada' ? 'Mada' : paymentMethod() === 'stc_pay' ? 'STC Pay' : 'Card' }} payment</h3>
+        <button type="button" class="modal-close" (click)="showPaymentModal.set(false)" aria-label="Close">✕</button>
+      </header>
+      <div class="modal-body">
+        <div class="card-visual" [attr.data-brand]="cardBrand()">
+          <div class="card-visual__chip"></div>
+          <p class="card-visual__num">{{ cardDisplay() }}</p>
+          <div class="card-visual__row">
+            <div>
+              <span>NAME</span>
+              <p>{{ cardName || 'CARDHOLDER' }}</p>
+            </div>
+            <div>
+              <span>EXPIRES</span>
+              <p>{{ cardExpiry || 'MM/YY' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <label class="form-field">
+            <span>Card number</span>
+            <input type="text" inputmode="numeric" maxlength="19" (input)="onCardNumber($event)" placeholder="1234 5678 9012 3456"/>
+          </label>
+          <label class="form-field">
+            <span>Cardholder name</span>
+            <input type="text" [(ngModel)]="cardName" placeholder="As shown on card"/>
+          </label>
+          <label class="form-field form-field--half">
+            <span>Expiry</span>
+            <input type="text" inputmode="numeric" maxlength="5" (input)="onExpiry($event)" placeholder="MM/YY"/>
+          </label>
+          <label class="form-field form-field--half">
+            <span>CVV</span>
+            <input [type]="showCvv ? 'text' : 'password'" inputmode="numeric" maxlength="4" [(ngModel)]="cardCvv" placeholder="•••"/>
+          </label>
+        </div>
+
+        @if (paymentError()) { <p class="form-error">{{ paymentError() }}</p> }
+      </div>
+      <footer class="modal-foot">
+        <button type="button" class="btn-ghost" (click)="showPaymentModal.set(false)" [disabled]="paying()">Cancel</button>
+        <button type="button" class="btn-primary" (click)="processPayment()" [disabled]="paying()">
+          {{ paying() ? 'Processing…' : 'Pay ' + (cartTotal() | number:'1.2-2') + ' SAR' }}
+        </button>
+      </footer>
     </div>
-  </div>
-}
+  }
+
+  <!-- ═════════════════════════════════════ TOP-UP MODAL ═════════════════════════ -->
+  @if (showTopUp()) {
+    <div class="modal-back" (click)="showTopUp.set(false)"></div>
+    <div class="modal" role="dialog" aria-label="Top up wallet">
+      <header class="modal-head">
+        <h3>Top up wallet</h3>
+        <button type="button" class="modal-close" (click)="showTopUp.set(false)" aria-label="Close">✕</button>
+      </header>
+
+      @if (topUpSuccess()) {
+        <div class="topup-success">
+          <span class="big-check">✓</span>
+          <h4>Top-up successful</h4>
+          <p>New balance: {{ walletBalance() | number:'1.2-2' }} SAR</p>
+          <button type="button" class="btn-primary" (click)="showTopUp.set(false)">Done</button>
+        </div>
+      } @else {
+        <div class="modal-body">
+          <div class="amt-chips">
+            @for (a of topUpAmounts; track a) {
+              <button type="button"
+                      class="amt-chip"
+                      [class.active]="topUpAmount() === a"
+                      (click)="topUpAmount.set(a)">
+                {{ a }} SAR
+              </button>
+            }
+          </div>
+
+          <label class="form-field">
+            <span>Or enter amount (SAR)</span>
+            <input type="number" min="10" max="10000" [ngModel]="topUpAmount()" (ngModelChange)="topUpAmount.set($event)"/>
+          </label>
+
+          <div class="pay-chips">
+            @for (m of payMethods; track m.id) {
+              @if (m.id !== 'wallet') {
+                <button type="button"
+                        class="pay-chip"
+                        [class.active]="topUpMethod() === m.id"
+                        (click)="topUpMethod.set(m.id)">
+                  {{ m.icon }} {{ m.label }}
+                </button>
+              }
+            }
+          </div>
+
+          <div class="form-grid">
+            <label class="form-field">
+              <span>Card number</span>
+              <input type="text" inputmode="numeric" maxlength="19" (input)="onCardNumber($event, 'topup')" placeholder="1234 5678 9012 3456"/>
+            </label>
+            <label class="form-field">
+              <span>Cardholder name</span>
+              <input type="text" [(ngModel)]="tuCardName" placeholder="As shown on card"/>
+            </label>
+            <label class="form-field form-field--half">
+              <span>Expiry</span>
+              <input type="text" inputmode="numeric" maxlength="5" (input)="onExpiry($event, 'topup')" placeholder="MM/YY"/>
+            </label>
+            <label class="form-field form-field--half">
+              <span>CVV</span>
+              <input [type]="tuShowCvv ? 'text' : 'password'" inputmode="numeric" maxlength="4" [(ngModel)]="tuCardCvv" placeholder="•••"/>
+            </label>
+          </div>
+
+          @if (topUpError()) { <p class="form-error">{{ topUpError() }}</p> }
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn-ghost" (click)="showTopUp.set(false)" [disabled]="topUpPaying()">Cancel</button>
+          <button type="button" class="btn-primary" (click)="processTopUp()" [disabled]="topUpPaying()">
+            {{ topUpPaying() ? 'Processing…' : 'Top up ' + topUpAmount() + ' SAR' }}
+          </button>
+        </footer>
+      }
+    </div>
+  }
+
+  <!-- Toast -->
+  @if (toast(); as t) {
+    <div class="toast" [class.toast--ok]="t.ok" [class.toast--err]="!t.ok" role="status">
+      <span>{{ t.ok ? '✓' : '⚠' }}</span> {{ t.msg }}
+    </div>
+  }
+</div>

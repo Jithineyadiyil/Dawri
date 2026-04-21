@@ -1,42 +1,112 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap');
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Palette v3 — Electric violet + amber
+   Sprint 5: --gold and --cyan variable NAMES are preserved for backwards
+   compatibility with every component .scss that references them, but the
+   VALUES now point to the new palette. This lets us ship the sweep without
+   touching ~20 component files.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 :root {
-  --gold:#f0a500; --gg:rgba(240,165,0,.12); --gold-border:rgba(240,165,0,.3);
-  --cyan:#00e5ff; --gc:rgba(0,229,255,.1);
-  --bg:#0b1022; --bg2:#111827; --bg3:#1a2235; --bg4:#1e2a40;
-  --br:rgba(255,255,255,0.1); --br2:rgba(255,255,255,0.16);
-  --text:#dde1ee; --mu:#8892a4; --dim:#4a5568;
-  --green:#22c55e; --red:#ef4444; --purple:#a78bfa;
-  --fh:'Bebas Neue',sans-serif;
-  --fb:'Rajdhani',sans-serif;
-  --fa:'Noto Sans Arabic',sans-serif;
-  --fm:'Space Mono',monospace;
-  --r:8px; --e:.15s;
+  /* Primary (was gold) → electric violet */
+  --gold:           #a855f7;
+  --gold-soft:      #c084fc;
+  --gold-dark:      #7e22ce;
+  --gg:             rgba(168, 85, 247, 0.14);
+  --gold-border:    rgba(168, 85, 247, 0.35);
+
+  /* Accent (was cyan) → amber */
+  --cyan:           #fbbf24;
+  --cyan-soft:      #fcd34d;
+  --cyan-dark:      #d97706;
+  --gc:             rgba(251, 191, 36, 0.10);
+
+  /* Backgrounds — slightly darker + violet-undertoned */
+  --bg:             #0a0a14;
+  --bg2:            #13132a;
+  --bg3:            #1d1d3a;
+  --bg4:            #2a2a4d;
+
+  /* Borders */
+  --br:             rgba(255, 255, 255, 0.10);
+  --br2:            rgba(255, 255, 255, 0.18);
+
+  /* Text */
+  --text:           #e8e6f5;
+  --mu:             #8b88aa;
+  --dim:            #4a4566;
+
+  /* Status colours */
+  --green:          #22c55e;
+  --red:            #ef4444;
+  --purple:         #c084fc;
+  --amber:          #fbbf24;
+
+  /* Semantic aliases for newer components (tournaments listing, marketplace) */
+  --primary:        var(--gold);
+  --primary-soft:   var(--gold-soft);
+  --primary-dark:   var(--gold-dark);
+  --accent:         var(--cyan);
+  --accent-soft:    var(--cyan-soft);
+  --accent-dark:    var(--cyan-dark);
+
+  /* Typography */
+  --fh: 'Bebas Neue', sans-serif;
+  --fb: 'Rajdhani', sans-serif;
+  --fa: 'Noto Sans Arabic', sans-serif;
+  --fm: 'Space Mono', monospace;
+
+  /* Layout tokens */
+  --r: 8px;
+  --e: 0.15s;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
-body { font-family: var(--fb); background: #0b1022; color: var(--text); font-size: 16px; line-height: 1.7; font-weight: 500; }
+body {
+  font-family: var(--fb);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.7;
+  font-weight: 500;
+}
 
 /* Form globals */
 .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
 .form-label { font-size: .72rem; color: var(--mu); letter-spacing: 1px; text-transform: uppercase; }
 .input {
-  background: var(--bg3); border: 1px solid var(--br2); border-radius: var(--r);
-  padding: 10px 14px; color: var(--text); font-family: var(--fb); font-size: .95rem; outline: none;
+  background: var(--bg3);
+  border: 1px solid var(--br2);
+  border-radius: var(--r);
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--fb);
+  font-size: .95rem;
+  outline: none;
   transition: border-color var(--e);
+
   &::placeholder { color: var(--dim); }
-  &:focus { border-color: rgba(0,229,255,.4); }
+  &:focus        { border-color: rgba(168, 85, 247, 0.45); box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1); }
 }
 select.input option { background: var(--bg3); }
-.error-msg { color: #f87171; font-size: .82rem; }
-.input-error { border-color: rgba(239,68,68,.4) !important; }
+.error-msg    { color: #f87171; font-size: .82rem; }
+.input-error  { border-color: rgba(239, 68, 68, 0.4) !important; }
 
 /* Spinner */
-.spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(0,0,0,.3); border-top-color: #000; border-radius: 50%; animation: spin .7s linear infinite; }
+.spinner {
+  display: inline-block;
+  width: 20px; height: 20px;
+  border: 2px solid rgba(168, 85, 247, 0.25);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #0b1022; }
-::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: var(--bg); }
+::-webkit-scrollbar-thumb  { background: var(--bg4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }

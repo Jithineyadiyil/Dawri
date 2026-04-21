@@ -70,11 +70,14 @@ export interface LeaderboardEntry {
   rank: number;
   user_id: string;
   name: string;
+  nickname?: string | null;
+  display_name?: string;
   avatar_url: string | null;
   points: number;
   wins: number;
   losses: number;
   game: string;
+  is_current?: boolean;
 }
 
 // ─── Games ───────────────────────────────────────────────────────────────────
@@ -119,43 +122,6 @@ export interface Tournament {
   bracket?: BracketData | null;
   created_at: string;
   updated_at: string;
-
-  // Sprint 3 additions
-  cover_image_url?: string | null;
-  logo_url?: string | null;
-  rules?: string | null;
-  has_rules?: boolean;
-  brand_override?: boolean;
-  brand?: BrandPayload;
-  company_id?: string | null;
-  company?: { id: string; name: string; logo_url: string | null } | null;
-  my_participant?: { id: string; rules_accepted_at: string | null } | null;
-  is_full?: boolean;
-}
-
-// ─── Sprint 3: Branding ───────────────────────────────────────────────────────
-
-export interface BrandPayload {
-  primary_color:    string;
-  secondary_color:  string;
-  accent_color:     string;
-  background_color: string;
-  font_family:      string;
-  logo_url:         string | null;
-  source:           'platform' | 'company' | 'tournament';
-}
-
-export interface CompanyBranding {
-  id:                string;
-  name:              string;
-  name_ar:           string | null;
-  logo_url:          string | null;
-  primary_color:     string | null;
-  secondary_color:   string | null;
-  accent_color:      string | null;
-  background_color:  string | null;
-  font_family:       string | null;
-  has_branding:      boolean;
 }
 
 export interface BracketData {
@@ -399,6 +365,25 @@ export class ApiService {
     );
   }
 
+  /**
+   * Sprint 3: Register for a tournament with explicit rules acceptance.
+   *
+   * @param id             Tournament UUID
+   * @param acceptedRules  True if the user checked "I accept the rules"
+   *                       in the registration modal. Backend stamps
+   *                       tournament_participants.rules_accepted_at
+   *                       with the current time when this is true.
+   */
+  registerForTournamentWithRules(
+    id: string,
+    acceptedRules: boolean
+  ): Observable<{ message: string; participants_count: number }> {
+    return this.http.post<{ message: string; participants_count: number }>(
+      `${API_BASE}/tournaments/${id}/register`,
+      { accept_rules: acceptedRules }
+    );
+  }
+
   // ── Matches (Sprint 1) ─────────────────────────────────────────────────────
   /**
    * Submit match result.
@@ -532,6 +517,27 @@ export class ApiService {
   purchaseProduct(productId: string, quantity = 1): Observable<{ data: Order }> {
     return this.http.post<{ data: Order }>(`${API_BASE}/marketplace/orders`, { product_id: productId, quantity });
   }
+
+  /**
+   * Sprint 5: batched checkout — single API call fulfils the whole cart.
+   * Server uses `idempotency_key` to de-duplicate retries of the same attempt.
+   */
+  placeOrderBatch(payload: {
+    items: Array<{ product_id: string; qty: number }>;
+    payment_method: 'wallet' | 'card' | 'mada' | 'stc_pay';
+    idempotency_key: string;
+  }): Observable<{
+    data: unknown[];
+    summary: { total_lines: number; completed: number; failed: number; charged: number };
+    idempotent?: boolean;
+  }> {
+    return this.http.post<{
+      data: unknown[];
+      summary: { total_lines: number; completed: number; failed: number; charged: number };
+      idempotent?: boolean;
+    }>(`${API_BASE}/marketplace/orders`, payload);
+  }
+
   getOrders(): Observable<PaginatedResponse<Order>> {
     return this.http.get<PaginatedResponse<Order>>(`${API_BASE}/marketplace/orders`);
   }
@@ -544,9 +550,14 @@ export class ApiService {
   getWallet(): Observable<{ data: Wallet }> {
     return this.http.get<{ data: Wallet }>(`${API_BASE}/wallet`);
   }
-  topUpWallet(amount: number, paymentMethod: string): Observable<{ message: string; redirect_url?: string }> {
-    return this.http.post<{ message: string; redirect_url?: string }>(
-      `${API_BASE}/wallet/topup`, { amount, payment_method: paymentMethod }
+  topUpWallet(
+    amount: number,
+    paymentMethod: string,
+    idempotencyKey?: string,
+  ): Observable<{ message: string; redirect_url?: string; data?: { balance: number; currency: string; payment_ref?: string } }> {
+    return this.http.post<{ message: string; redirect_url?: string; data?: { balance: number; currency: string; payment_ref?: string } }>(
+      `${API_BASE}/wallet/topup`,
+      { amount, payment_method: paymentMethod, idempotency_key: idempotencyKey }
     );
   }
 
@@ -573,60 +584,5 @@ export class ApiService {
   }
   getInvoices(): Observable<PaginatedResponse<Invoice>> {
     return this.http.get<PaginatedResponse<Invoice>>(`${API_BASE}/subscription/invoices`);
-  }
-
-  // ── Sprint 3: Tournament cover / rules / branding ──────────────────────────
-
-  /** Register with rules acceptance flag (Sprint 3 extension). */
-  registerForTournamentWithRules(id: string, acceptRules: boolean):
-    Observable<{ message: string; participants_count: number; participant_id: string }> {
-    return this.http.post<{ message: string; participants_count: number; participant_id: string }>(
-      `${API_BASE}/tournaments/${id}/register`, { accept_rules: acceptRules },
-    );
-  }
-
-  uploadTournamentCover(id: string, file: File): Observable<{ message: string; cover_image_url: string }> {
-    const form = new FormData(); form.append('file', file);
-    return this.http.post<{ message: string; cover_image_url: string }>(
-      `${API_BASE}/tournaments/${id}/cover`, form,
-    );
-  }
-
-  deleteTournamentCover(id: string): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${API_BASE}/tournaments/${id}/cover`);
-  }
-
-  updateTournamentBranding(id: string, payload: Partial<{
-    brand_override: boolean;
-    primary_color: string | null;
-    secondary_color: string | null;
-    accent_color: string | null;
-    background_color: string | null;
-    font_family: string | null;
-    logo_url: string | null;
-  }>): Observable<{ message: string; brand: BrandPayload }> {
-    return this.http.patch<{ message: string; brand: BrandPayload }>(
-      `${API_BASE}/tournaments/${id}/brand`, payload,
-    );
-  }
-
-  // ── Sprint 3: Company branding ─────────────────────────────────────────────
-
-  getMyCompany(): Observable<{ data: CompanyBranding | null }> {
-    return this.http.get<{ data: CompanyBranding | null }>(`${API_BASE}/companies/mine`);
-  }
-
-  updateCompanyBranding(payload: Partial<CompanyBranding>):
-    Observable<{ message: string; data: CompanyBranding }> {
-    return this.http.patch<{ message: string; data: CompanyBranding }>(
-      `${API_BASE}/companies/mine/brand`, payload,
-    );
-  }
-
-  uploadCompanyLogo(file: File): Observable<{ message: string; logo_url: string }> {
-    const form = new FormData(); form.append('file', file);
-    return this.http.post<{ message: string; logo_url: string }>(
-      `${API_BASE}/companies/mine/logo`, form,
-    );
   }
 }

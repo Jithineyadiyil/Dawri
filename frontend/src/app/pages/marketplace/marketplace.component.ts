@@ -1,23 +1,56 @@
 import {
   ChangeDetectionStrategy, Component, OnInit,
-  inject, signal, computed
+  inject, signal, computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { catchError, of } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
-import { catchError, of } from 'rxjs';
+
+/**
+ * MarketplaceComponent
+ *
+ * Sprint 5 rewrite — addresses these prior issues:
+ *   - bug 4 : checkout now sends a single batched `items[]` request (not N sequential)
+ *   - item 9: cart and orders views render bilingual names (name_ar when present)
+ *   - item 11: stable idempotency_key per checkout attempt prevents double-orders
+ *   - item 13: `Product` interface now includes `distributor`
+ *   - item 14: `statusLabel` moved to readonly map
+ *   - item 15: `revealCode` response properly typed
+ */
 
 interface Product {
-  id: string; name: string; name_ar: string | null;
-  brand: string; category: string;
-  face_value: number; currency: string; our_price: number;
-  region: string; image_url: string | null;
+  id: string;
+  name: string;
+  name_ar: string | null;
+  brand: string;
+  category: string;
+  face_value: number;
+  currency: string;
+  our_price: number;
+  region: string;
+  image_url: string | null;
+  distributor: string;
 }
 
 interface CartItem { product: Product; qty: number; }
 
 type PayMethod = 'wallet' | 'card' | 'mada' | 'stc_pay';
+
+interface OrderRow {
+  id: string;
+  product: { id: string; name: string; name_ar: string | null; brand: string; image_url: string | null } | null;
+  status: string;
+  total_price: number;
+  payment_method: string;
+  has_code: boolean;
+  revealed: boolean;
+  refunded: boolean;
+  created_at: string;
+}
+
+interface RevealResponse { data: { code: string; already_revealed: boolean }; }
 
 @Component({
   selector: 'app-marketplace',
@@ -28,82 +61,105 @@ type PayMethod = 'wallet' | 'card' | 'mada' | 'stc_pay';
   styleUrls: ['./marketplace.component.scss'],
 })
 export class MarketplaceComponent implements OnInit {
-  private api   = inject(ApiService);
-  readonly auth = inject(AuthService);
+  private readonly api  = inject(ApiService);
+  readonly auth         = inject(AuthService);
 
-  products      = signal<Product[]>([]);
-  orders        = signal<any[]>([]);
-  walletBalance = signal(0);
-  loading       = signal(true);
-  ordersLoading = signal(false);
-  activeCategory = signal('all');
-  activeTab     = signal<'store' | 'orders'>('store');
-  searchQuery   = signal('');
+  readonly products       = signal<Product[]>([]);
+  readonly orders         = signal<OrderRow[]>([]);
+  readonly walletBalance  = signal(0);
+  readonly loading        = signal(true);
+  readonly ordersLoading  = signal(false);
+  readonly activeCategory = signal('all');
+  readonly activeTab      = signal<'store' | 'orders'>('store');
+  readonly searchQuery    = signal('');
 
   // Cart
-  cart         = signal<CartItem[]>([]);
-  showCart     = signal(false);
-  paymentMethod = signal<PayMethod>('card');
-  purchasing   = signal(false);
+  readonly cart          = signal<CartItem[]>([]);
+  readonly showCart      = signal(false);
+  readonly paymentMethod = signal<PayMethod>('card');
+  readonly purchasing    = signal(false);
 
-  // Payment modal
-  showPaymentModal = signal(false);
-  paymentError     = signal<string | null>(null);
-  paying           = signal(false);
+  // Stable idempotency key for the CURRENT checkout attempt. Reset after
+  // either success or a user-triggered close; preserved across network
+  // retries so the server can de-duplicate.
+  private currentIdempotencyKey: string | null = null;
+
+  // Card payment modal
+  readonly showPaymentModal = signal(false);
+  readonly paymentError     = signal<string | null>(null);
+  readonly paying           = signal(false);
   cardNumber = ''; cardName = ''; cardExpiry = ''; cardCvv = '';
   showCvv    = false;
 
   // Wallet top-up modal
-  showTopUp     = signal(false);
-  topUpAmount   = signal(100);
-  topUpMethod   = signal<PayMethod>('card');
-  topUpPaying   = signal(false);
-  topUpError    = signal<string | null>(null);
-  topUpSuccess  = signal(false);
+  readonly showTopUp    = signal(false);
+  readonly topUpAmount  = signal(100);
+  readonly topUpMethod  = signal<PayMethod>('card');
+  readonly topUpPaying  = signal(false);
+  readonly topUpError   = signal<string | null>(null);
+  readonly topUpSuccess = signal(false);
   tuCardNumber = ''; tuCardName = ''; tuCardExpiry = ''; tuCardCvv = '';
   tuShowCvv    = false;
 
-  revealedCodes = signal<Record<string, string>>({});
-  revealing     = signal<string | null>(null);
-  toast         = signal<{ msg: string; ok: boolean } | null>(null);
+  readonly revealedCodes = signal<Record<string, string>>({});
+  readonly revealing     = signal<string | null>(null);
+  readonly toast         = signal<{ msg: string; ok: boolean } | null>(null);
 
-  readonly categories = ['all', 'gaming', 'streaming', 'shopping', 'topup'];
-  readonly payMethods: { id: PayMethod; label: string; icon: string }[] = [
+  readonly categories = ['all', 'gaming', 'streaming', 'shopping', 'topup'] as const;
+
+  readonly payMethods: ReadonlyArray<{ id: PayMethod; label: string; icon: string }> = [
     { id: 'wallet',  label: 'Wallet',   icon: '👛' },
     { id: 'card',    label: 'Card',     icon: '💳' },
     { id: 'mada',    label: 'Mada',     icon: '🏧' },
     { id: 'stc_pay', label: 'STC Pay',  icon: '📱' },
   ];
-  readonly topUpAmounts = [50, 100, 200, 500, 1000];
+  readonly topUpAmounts = [50, 100, 200, 500, 1000] as const;
 
-  filtered = computed(() => {
+  // Mapping for status labels (moved from inline object allocation per call)
+  private readonly STATUS_LABELS: Readonly<Record<string, string>> = {
+    pending:    'Pending',
+    processing: 'Processing',
+    completed:  'Completed',
+    failed:     'Failed',
+    refunded:   'Refunded',
+  };
+
+  readonly filtered = computed(() => {
     const q = this.searchQuery().toLowerCase();
     return this.products().filter(p => {
       const matchCat = this.activeCategory() === 'all' || p.category === this.activeCategory();
-      const matchQ   = !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
+      const matchQ   = !q
+        || p.name.toLowerCase().includes(q)
+        || (p.name_ar ?? '').toLowerCase().includes(q)
+        || p.brand.toLowerCase().includes(q);
       return matchCat && matchQ;
     });
   });
 
-  grouped = computed(() => {
+  readonly grouped = computed(() => {
     const map: Record<string, Product[]> = {};
     for (const p of this.filtered()) (map[p.brand] ??= []).push(p);
     return map;
   });
 
   brandKeys(): string[] { return Object.keys(this.grouped()); }
-  cartCount  = computed(() => this.cart().reduce((s, i) => s + i.qty, 0));
-  cartTotal  = computed(() => this.cart().reduce((s, i) => s + i.product.our_price * i.qty, 0));
-  canAfford  = computed(() => this.paymentMethod() !== 'wallet' || this.walletBalance() >= this.cartTotal());
-  shortfall  = computed(() => Math.max(0, this.cartTotal() - this.walletBalance()));
-  cartQty(productId: string): number { return this.cart().find(i => i.product.id === productId)?.qty ?? 0; }
 
-  // Card display helpers
+  readonly cartCount = computed(() => this.cart().reduce((s, i) => s + i.qty, 0));
+  readonly cartTotal = computed(() => this.cart().reduce((s, i) => s + i.product.our_price * i.qty, 0));
+  readonly canAfford = computed(() => this.paymentMethod() !== 'wallet' || this.walletBalance() >= this.cartTotal());
+  readonly shortfall = computed(() => Math.max(0, this.cartTotal() - this.walletBalance()));
+
+  cartQty(productId: string): number {
+    return this.cart().find(i => i.product.id === productId)?.qty ?? 0;
+  }
+
+  // ── Card UI helpers ─────────────────────────────────────────────────────────
+
   cardDisplay(): string {
     const n = this.cardNumber.replace(/\s/g, '');
     return (n.padEnd(16, '•')).match(/.{1,4}/g)?.join(' ') ?? '•••• •••• •••• ••••';
   }
-  cardBrand(): string {
+  cardBrand(): 'visa' | 'mc' | 'generic' {
     const n = this.cardNumber.replace(/\s/g, '');
     if (n.startsWith('4')) return 'visa';
     if (n.startsWith('5') || n.startsWith('2')) return 'mc';
@@ -124,6 +180,8 @@ export class MarketplaceComponent implements OnInit {
     (e.target as HTMLInputElement).value = val;
   }
 
+  // ── Lifecycle ────────────────────────────────────────────────────────────────
+
   ngOnInit(): void {
     this.loadProducts();
     if (this.auth.isLoggedIn()) this.loadWallet();
@@ -131,25 +189,24 @@ export class MarketplaceComponent implements OnInit {
 
   loadProducts(): void {
     this.loading.set(true);
-    this.api.getProducts().pipe(catchError(() => of({ data: [] as any[], meta: null as any, links: null as any })))
-      .subscribe(r => { this.products.set(r.data); this.loading.set(false); });
+    this.api.getProducts().pipe(catchError(() => of({ data: [] as Product[], meta: null, links: null })))
+      .subscribe(r => { this.products.set((r.data as Product[]) ?? []); this.loading.set(false); });
   }
-
   loadWallet(): void {
     this.api.getWallet().pipe(catchError(() => of({ data: { balance: 0, currency: 'SAR', transactions: [] } })))
       .subscribe(r => this.walletBalance.set(r.data?.balance ?? 0));
   }
-
   loadOrders(): void {
     this.ordersLoading.set(true);
-    this.api.getOrders().pipe(catchError(() => of({ data: [] as any[], meta: null as any, links: null as any })))
-      .subscribe(r => { this.orders.set(r.data); this.ordersLoading.set(false); });
+    this.api.getOrders().pipe(catchError(() => of({ data: [] as OrderRow[], meta: null, links: null })))
+      .subscribe(r => { this.orders.set((r.data as OrderRow[]) ?? []); this.ordersLoading.set(false); });
   }
-
   switchTab(tab: 'store' | 'orders'): void {
     this.activeTab.set(tab);
     if (tab === 'orders' && this.orders().length === 0) this.loadOrders();
   }
+
+  // ── Cart ─────────────────────────────────────────────────────────────────────
 
   addToCart(p: Product, e?: Event): void {
     e?.stopPropagation();
@@ -161,10 +218,14 @@ export class MarketplaceComponent implements OnInit {
     });
     this.notify(`${p.name} added to cart`, true);
   }
-
-  removeFromCart(productId: string): void { this.cart.update(items => items.filter(i => i.product.id !== productId)); }
+  removeFromCart(productId: string): void {
+    this.cart.update(items => items.filter(i => i.product.id !== productId));
+  }
   updateQty(productId: string, delta: number): void {
-    this.cart.update(items => items.map(i => i.product.id === productId ? { ...i, qty: i.qty + delta } : i).filter(i => i.qty > 0));
+    this.cart.update(items =>
+      items.map(i => i.product.id === productId ? { ...i, qty: i.qty + delta } : i)
+        .filter(i => i.qty > 0)
+    );
   }
   clearCart(): void { this.cart.set([]); }
   openCart(): void {
@@ -173,60 +234,86 @@ export class MarketplaceComponent implements OnInit {
   }
   closeCart(): void { this.showCart.set(false); }
 
-  // ── Checkout ──────────────────────────────────────────────────────────────
+  // ── Checkout ─────────────────────────────────────────────────────────────────
+
   checkout(): void {
     if (this.cart().length === 0) return;
     if (this.paymentMethod() === 'wallet' && !this.canAfford()) {
-      this.notify('Insufficient wallet balance.', false); return;
+      this.notify('Insufficient wallet balance.', false);
+      return;
     }
+
+    // Generate a stable idempotency key for THIS checkout attempt so retries dedupe
+    this.currentIdempotencyKey = this.generateIdempotencyKey();
+
     if (this.paymentMethod() !== 'wallet') {
       this.showPaymentModal.set(true);
       this.paymentError.set(null);
       this.cardNumber = ''; this.cardName = ''; this.cardExpiry = ''; this.cardCvv = '';
       return;
     }
+
     this.processCheckout();
   }
 
   processPayment(): void {
     const rawNum = this.cardNumber.replace(/\s/g, '');
-    if (rawNum.length < 13) { this.paymentError.set('Please enter a valid card number.'); return; }
-    if (!this.cardName.trim()) { this.paymentError.set('Please enter the cardholder name.'); return; }
-    if (this.cardExpiry.length < 5) { this.paymentError.set('Please enter a valid expiry date.'); return; }
-    if (this.cardCvv.length < 3) { this.paymentError.set('Please enter a valid CVV.'); return; }
+    if (rawNum.length < 13)              { this.paymentError.set('Please enter a valid card number.'); return; }
+    if (!this.cardName.trim())           { this.paymentError.set('Please enter the cardholder name.'); return; }
+    if (this.cardExpiry.length < 5)      { this.paymentError.set('Please enter a valid expiry date.'); return; }
+    if (this.cardCvv.length < 3)         { this.paymentError.set('Please enter a valid CVV.'); return; }
     this.paymentError.set(null);
     this.paying.set(true);
-    setTimeout(() => { this.paying.set(false); this.showPaymentModal.set(false); this.processCheckout(); }, 2000);
+    setTimeout(() => {
+      this.paying.set(false);
+      this.showPaymentModal.set(false);
+      this.processCheckout();
+    }, 1200);
   }
 
+  /**
+   * BATCHED checkout — single API call fulfils the whole cart.
+   * Fixes the previous N-sequential-request pattern.
+   */
   private processCheckout(): void {
     this.purchasing.set(true);
-    const items = this.cart();
-    let completed = 0, failed = 0;
-    const purchaseNext = (index: number) => {
-      if (index >= items.length) {
-        this.purchasing.set(false);
-        this.loadWallet();
-        if (failed === 0) {
-          this.notify(`${completed} item(s) purchased!`, true);
-          this.clearCart(); this.closeCart(); this.switchTab('orders');
-        } else {
-          this.notify(`${completed} purchased, ${failed} failed.`, false);
-        }
-        return;
-      }
-      const item = items[index];
-      const purchaseQty = (qtyLeft: number) => {
-        if (qtyLeft === 0) { purchaseNext(index + 1); return; }
-        this.api.purchaseProduct(item.product.id).pipe(catchError(() => { failed++; return of(null); }))
-          .subscribe(res => { if (res) completed++; purchaseQty(qtyLeft - 1); });
-      };
-      purchaseQty(item.qty);
+
+    const items = this.cart().map(i => ({ product_id: i.product.id, qty: i.qty }));
+    const payload = {
+      items,
+      payment_method:  this.paymentMethod(),
+      idempotency_key: this.currentIdempotencyKey!,
     };
-    purchaseNext(0);
+
+    this.api.placeOrderBatch(payload).pipe(
+      catchError(err => {
+        this.notify(err?.error?.message ?? 'Checkout failed.', false);
+        return of(null);
+      })
+    ).subscribe(res => {
+      this.purchasing.set(false);
+      if (!res) return;
+
+      const summary = (res as any).summary ?? { completed: items.length, failed: 0 };
+      this.loadWallet();
+      this.clearCart();
+      this.closeCart();
+      this.switchTab('orders');
+      this.loadOrders();
+
+      // Key consumed — reset for next attempt
+      this.currentIdempotencyKey = null;
+
+      if (summary.failed === 0) {
+        this.notify(`${summary.completed} item(s) purchased!`, true);
+      } else {
+        this.notify(`${summary.completed} purchased, ${summary.failed} refunded.`, false);
+      }
+    });
   }
 
-  // ── Wallet Top-Up ─────────────────────────────────────────────────────────
+  // ── Wallet top-up ────────────────────────────────────────────────────────────
+
   openTopUp(): void {
     if (!this.auth.isLoggedIn()) { this.notify('Please sign in first.', false); return; }
     this.showTopUp.set(true);
@@ -237,41 +324,76 @@ export class MarketplaceComponent implements OnInit {
 
   processTopUp(): void {
     if (this.topUpAmount() < 10) { this.topUpError.set('Minimum top-up is 10 SAR.'); return; }
-    if (this.topUpMethod() !== 'wallet') {
-      const rawNum = this.tuCardNumber.replace(/\s/g, '');
-      if (rawNum.length < 13) { this.topUpError.set('Please enter a valid card number.'); return; }
-      if (!this.tuCardName.trim()) { this.topUpError.set('Please enter the cardholder name.'); return; }
-      if (this.tuCardExpiry.length < 5) { this.topUpError.set('Please enter a valid expiry date.'); return; }
-      if (this.tuCardCvv.length < 3) { this.topUpError.set('Please enter a valid CVV.'); return; }
-    }
+    const rawNum = this.tuCardNumber.replace(/\s/g, '');
+    if (rawNum.length < 13)           { this.topUpError.set('Please enter a valid card number.'); return; }
+    if (!this.tuCardName.trim())      { this.topUpError.set('Please enter the cardholder name.'); return; }
+    if (this.tuCardExpiry.length < 5) { this.topUpError.set('Please enter a valid expiry date.'); return; }
+    if (this.tuCardCvv.length < 3)    { this.topUpError.set('Please enter a valid CVV.'); return; }
+
     this.topUpError.set(null);
     this.topUpPaying.set(true);
+
+    const key = this.generateIdempotencyKey();
     setTimeout(() => {
-      this.api.topUpWallet(this.topUpAmount(), this.topUpMethod()).pipe(
-        catchError(err => { this.topUpError.set(err?.error?.message ?? 'Top-up failed.'); this.topUpPaying.set(false); return of(null); })
+      this.api.topUpWallet(this.topUpAmount(), this.topUpMethod(), key).pipe(
+        catchError(err => {
+          this.topUpError.set(err?.error?.message ?? 'Top-up failed.');
+          this.topUpPaying.set(false);
+          return of(null);
+        })
       ).subscribe(res => {
         this.topUpPaying.set(false);
         if (res) { this.topUpSuccess.set(true); this.loadWallet(); }
       });
-    }, 2000);
+    }, 1200);
   }
 
-  // ── Code reveal ──────────────────────────────────────────────────────────
+  // ── Code reveal ──────────────────────────────────────────────────────────────
+
   revealCode(orderId: string): void {
     this.revealing.set(orderId);
     this.api.revealCode(orderId).pipe(
-      catchError(err => { this.notify(err?.error?.message ?? 'Could not reveal.', false); this.revealing.set(null); return of(null); })
-    ).subscribe(res => {
+      catchError(err => {
+        this.notify(err?.error?.message ?? 'Could not reveal.', false);
+        this.revealing.set(null);
+        return of(null);
+      })
+    ).subscribe((res: unknown) => {
       if (!res) return;
-      this.revealedCodes.update(c => ({ ...c, [orderId]: (res as any).data?.code }));
+      const typed = res as RevealResponse;
+      this.revealedCodes.update(c => ({ ...c, [orderId]: typed.data.code }));
       this.revealing.set(null);
     });
   }
 
-  copyCode(code: string): void { navigator.clipboard.writeText(code).then(() => this.notify('Copied!', true)); }
-  setSearch(e: Event): void { this.searchQuery.set((e.target as HTMLInputElement).value); }
-  statusClass(s: string): string { return s === 'completed' ? 'status-ok' : s === 'failed' ? 'status-err' : 'status-pend'; }
-  statusLabel(s: string): string { return ({ pending:'Pending', processing:'Processing', completed:'Completed', failed:'Failed', refunded:'Refunded' })[s] ?? s; }
+  copyCode(code: string): void {
+    navigator.clipboard.writeText(code).then(() => this.notify('Copied!', true));
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  setSearch(e: Event): void {
+    this.searchQuery.set((e.target as HTMLInputElement).value);
+  }
+
+  statusClass(s: string): string {
+    return s === 'completed' ? 'status-ok'
+         : s === 'failed'    ? 'status-err'
+         : s === 'refunded'  ? 'status-ref'
+         : 'status-pend';
+  }
+
+  statusLabel(s: string): string {
+    return this.STATUS_LABELS[s] ?? s;
+  }
+
+  private generateIdempotencyKey(): string {
+    // crypto-safe UUID v4 when available; fall back to timestamp+random
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 'k-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
 
   private notify(msg: string, ok: boolean): void {
     this.toast.set({ msg, ok });

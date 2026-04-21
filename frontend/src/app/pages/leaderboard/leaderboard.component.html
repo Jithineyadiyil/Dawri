@@ -61,13 +61,13 @@
 
           <!-- Avatar -->
           <div class="podium-avatar">
-            <img *ngIf="p.avatar_url" [src]="p.avatar_url" [alt]="p.name" />
-            <span *ngIf="!p.avatar_url" class="avatar-initial">{{ p.name[0] | uppercase }}</span>
+            <img *ngIf="p.avatar_url" [src]="p.avatar_url" [alt]="p.display_name || p.name" />
+            <span *ngIf="!p.avatar_url" class="avatar-initial">{{ (p.display_name || p.name)[0] | uppercase }}</span>
             <span class="podium-rank-badge">{{ p.rank }}</span>
           </div>
 
           <!-- Name -->
-          <p class="podium-name">{{ p.name }}</p>
+          <p class="podium-name">{{ p.display_name || p.name }}</p>
 
           <!-- Points pill -->
           <div class="podium-points">
@@ -112,10 +112,10 @@
             <td class="col-player">
               <div class="player-cell">
                 <div class="row-avatar">
-                  <img *ngIf="e.avatar_url" [src]="e.avatar_url" [alt]="e.name" />
-                  <span *ngIf="!e.avatar_url">{{ e.name[0] | uppercase }}</span>
+                  <img *ngIf="e.avatar_url" [src]="e.avatar_url" [alt]="e.display_name || e.name" />
+                  <span *ngIf="!e.avatar_url">{{ (e.display_name || e.name)[0] | uppercase }}</span>
                 </div>
-                <span class="player-name">{{ e.name }}</span>
+                <span class="player-name">{{ e.display_name || e.name }}</span>
               </div>
             </td>
 
