@@ -1,0 +1,244 @@
+<div class="as-page">
+
+  <header class="as-hero">
+    <h1>
+      Sponsors
+      <span class="as-hero__ar">الرُعاة</span>
+    </h1>
+    <p>Manage brand partners and their tournament deals.</p>
+  </header>
+
+  <!-- Tabs -->
+  <div class="as-tabs" role="tablist">
+    <button type="button" role="tab"
+            [class.active]="activeTab() === 'sponsors'"
+            (click)="activeTab.set('sponsors')">
+      Sponsors ({{ sponsors().length }})
+    </button>
+    <button type="button" role="tab"
+            [class.active]="activeTab() === 'deals'"
+            (click)="activeTab.set('deals')">
+      Deals ({{ sponsorships().length }})
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Tab 1: Sponsors
+       ═══════════════════════════════════════════════════════════════ -->
+  @if (activeTab() === 'sponsors') {
+    <section class="as-section">
+      <div class="as-section-header">
+        <h2>Brand partners</h2>
+        <button type="button" class="btn btn--primary" (click)="showNewSponsor.set(!showNewSponsor())">
+          @if (showNewSponsor()) { Cancel } @else { + New sponsor }
+        </button>
+      </div>
+
+      @if (showNewSponsor()) {
+        <div class="as-form-card">
+          <h3>New sponsor</h3>
+          <div class="form-grid">
+            <label>Name * <input type="text" [(ngModel)]="newSponsor.name" maxlength="120"></label>
+            <label>Arabic name <input type="text" [(ngModel)]="newSponsor.name_ar" maxlength="120"></label>
+            <label class="span-2">Tagline <input type="text" [(ngModel)]="newSponsor.tagline" maxlength="500"></label>
+            <label>Logo URL <input type="url" [(ngModel)]="newSponsor.logo_url" placeholder="/brands/…"></label>
+            <label>Website <input type="url" [(ngModel)]="newSponsor.website_url"></label>
+            <label>Contact name <input type="text" [(ngModel)]="newSponsor.contact_name"></label>
+            <label>Contact email <input type="email" [(ngModel)]="newSponsor.contact_email"></label>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn--primary" (click)="saveSponsor()">Save sponsor</button>
+          </div>
+        </div>
+      }
+
+      @if (loading()) {
+        <div class="as-empty">Loading…</div>
+      } @else if (sponsors().length === 0) {
+        <div class="as-empty">No sponsors yet. Click "New sponsor" to add one.</div>
+      } @else {
+        <table class="as-table">
+          <thead>
+            <tr>
+              <th>Logo</th>
+              <th>Name</th>
+              <th>Website</th>
+              <th>Contact</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of sponsors(); track s.id) {
+              <tr>
+                <td class="logo-cell">
+                  @if (s.logo_url) { <img [src]="s.logo_url" [alt]="s.name"> }
+                </td>
+                <td>
+                  <strong>{{ s.name }}</strong>
+                  @if (s.name_ar) { <div class="ar-sub">{{ s.name_ar }}</div> }
+                </td>
+                <td>
+                  @if (s.website_url) {
+                    <a [href]="s.website_url" target="_blank" rel="noopener noreferrer">{{ s.website_url }}</a>
+                  } @else { <span class="muted">—</span> }
+                </td>
+                <td>
+                  @if (s.contact_email) {
+                    <a [href]="'mailto:' + s.contact_email">{{ s.contact_email }}</a>
+                  } @else { <span class="muted">—</span> }
+                </td>
+                <td>
+                  <span class="badge" [class.badge--ok]="s.is_active" [class.badge--muted]="!s.is_active">
+                    {{ s.is_active ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td>
+                  <button type="button" class="btn-link" (click)="toggleSponsorActive(s)">
+                    {{ s.is_active ? 'Deactivate' : 'Activate' }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Tab 2: Deals
+       ═══════════════════════════════════════════════════════════════ -->
+  @if (activeTab() === 'deals') {
+    <section class="as-section">
+      <div class="as-section-header">
+        <h2>Tournament deals</h2>
+        <button type="button" class="btn btn--primary" (click)="showNewDeal.set(!showNewDeal())">
+          @if (showNewDeal()) { Cancel } @else { + New deal }
+        </button>
+      </div>
+
+      @if (showNewDeal()) {
+        <div class="as-form-card">
+          <h3>New sponsorship deal</h3>
+          <div class="form-grid">
+            <label>Tournament *
+              <select [(ngModel)]="newDeal.tournament_id">
+                <option value="">Select a tournament</option>
+                @for (t of tournaments(); track t.id) {
+                  <option [value]="t.id">{{ t.name }}</option>
+                }
+              </select>
+            </label>
+
+            <label>Sponsor *
+              <select [(ngModel)]="newDeal.sponsor_id">
+                <option value="">Select a sponsor</option>
+                @for (s of activeSponsors(); track s.id) {
+                  <option [value]="s.id">{{ s.name }}</option>
+                }
+              </select>
+            </label>
+
+            <label>Placement
+              <select [(ngModel)]="newDeal.placement_type">
+                <option value="title">Title — "Brand X Dawri Cup"</option>
+                <option value="presenting">Presenting — "Presented by Brand X"</option>
+                <option value="supporting">Supporting — logo in sidebar grid</option>
+              </select>
+            </label>
+
+            <label>Contribution
+              <select [(ngModel)]="newDeal.contribution_type">
+                <option value="cash">Cash (SAR)</option>
+                <option value="in_kind">In-kind goods</option>
+                <option value="logo">Logo only (no money)</option>
+              </select>
+            </label>
+
+            @if (newDeal.contribution_type === 'cash') {
+              <label class="span-2">Cash amount (SAR)
+                <input type="number" min="1" [(ngModel)]="newDeal.cash_amount_sar">
+              </label>
+            }
+
+            @if (newDeal.contribution_type === 'in_kind') {
+              <label class="span-2">In-kind description (English)
+                <input type="text" [(ngModel)]="newDeal.in_kind_description"
+                       placeholder="e.g. 10 Logitech G Pro Keyboards">
+              </label>
+              <label>Estimated value (SAR)
+                <input type="number" min="0" [(ngModel)]="newDeal.in_kind_value_sar">
+              </label>
+            }
+
+            <label class="span-2">Internal notes
+              <textarea rows="3" [(ngModel)]="newDeal.notes"></textarea>
+            </label>
+          </div>
+          <p class="form-hint">Deal will be saved as <strong>draft</strong>. Activate it to make it public on the tournament page.</p>
+          <div class="form-actions">
+            <button type="button" class="btn btn--primary" (click)="saveDeal()">Save deal</button>
+          </div>
+        </div>
+      }
+
+      @if (sponsorships().length === 0) {
+        <div class="as-empty">No deals yet.</div>
+      } @else {
+        <table class="as-table">
+          <thead>
+            <tr>
+              <th>Sponsor</th>
+              <th>Tournament</th>
+              <th>Placement</th>
+              <th>Contribution</th>
+              <th>Value</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of sponsorships(); track d.id) {
+              <tr>
+                <td>{{ d.sponsor?.name ?? '—' }}</td>
+                <td>{{ tournamentName(d.tournament_id) }}</td>
+                <td><span class="tier-pill tier-{{ d.placement_type }}">{{ d.placement_type }}</span></td>
+                <td>{{ d.contribution_type }}</td>
+                <td>
+                  @if (d.contribution_type === 'cash') {
+                    {{ d.cash_amount_sar | number }} SAR
+                  } @else if (d.contribution_type === 'in_kind') {
+                    {{ d.in_kind_description }}
+                  } @else {
+                    <span class="muted">Logo only</span>
+                  }
+                </td>
+                <td>
+                  <span class="badge" [class]="statusClass(d.contract_status)">{{ d.contract_status }}</span>
+                </td>
+                <td class="actions-cell">
+                  @if (d.contract_status === 'draft' || d.contract_status === 'pending') {
+                    <button class="btn-link btn-link--ok" (click)="transitionDeal(d, 'activate')">Activate</button>
+                  }
+                  @if (d.contract_status === 'active') {
+                    <button class="btn-link btn-link--ok" (click)="transitionDeal(d, 'fulfill')">Fulfill</button>
+                  }
+                  @if (d.contract_status !== 'cancelled' && d.contract_status !== 'fulfilled') {
+                    <button class="btn-link btn-link--danger" (click)="transitionDeal(d, 'cancel')">Cancel</button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+  }
+
+  <!-- Toast -->
+  @if (toast(); as t) {
+    <div class="toast" [class.toast--ok]="t.ok" [class.toast--err]="!t.ok">{{ t.msg }}</div>
+  }
+
+</div>

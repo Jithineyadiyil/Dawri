@@ -83,6 +83,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
     title: 'Company Branding — Dawri',
   },
+  // Sprint 8: Sponsor admin page — MUST come before /admin so the more
+  // specific path matches first
+  {
+    path: 'admin/sponsors',
+    loadComponent: () => import('./pages/admin/admin-sponsors.component').then(m => m.AdminSponsorsComponent),
+    canActivate: [authGuard],
+    title: 'Sponsors — Admin — Dawri',
+  },
   {
     path: 'admin',
     loadComponent: () => import('./pages/admin/admin.component').then(m => m.AdminComponent),

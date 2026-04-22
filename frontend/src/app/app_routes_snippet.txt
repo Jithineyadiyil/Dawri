@@ -1,0 +1,17 @@
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  Sprint 8 — app.routes.ts additions
+ *
+ *  Paste this route definition into the existing routes array in
+ *  D:\xamp new\htdocs\Dawri\frontend\src\app\app.routes.ts
+ *  Put it alongside the /admin route (it's admin-only).
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+// Sprint 8: Sponsor management (admin-only)
+{
+  path: 'admin/sponsors',
+  loadComponent: () => import('./pages/admin/admin-sponsors.component').then(m => m.AdminSponsorsComponent),
+  canActivate: [authGuard],
+  title: 'Sponsors — Admin — Dawri',
+},

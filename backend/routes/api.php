@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\SponsorController;
+use App\Http\Controllers\Api\SponsorshipController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TournamentController;
 use App\Http\Controllers\Api\WalletController;
@@ -41,6 +43,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/players/{user}',            [PlayerController::class, 'show']);
     Route::get('/players/{user}/matches',    [PlayerController::class, 'matches']);
     Route::get('/invoices/{id}/download',    [InvoiceController::class, 'download']);
+
+    // Sprint 8: public sponsors display on tournament detail page
+    Route::get('/tournaments/{tournament}/sponsorships', [SponsorshipController::class, 'forTournament']);
 
     // ── Authenticated ──────────────────────────────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
@@ -122,6 +127,13 @@ Route::prefix('v1')->group(function () {
             Route::get ('/plans',                  [AdminController::class, 'plans']);
             Route::put ('/plans/{key}',            [AdminController::class, 'updatePlan']);
             Route::get ('/distributor-health',     [AdminController::class, 'distributorHealth']);
+
+            // Sprint 8: Sponsorship system
+            Route::apiResource('sponsors',      SponsorController::class);
+            Route::apiResource('sponsorships',  SponsorshipController::class);
+            Route::post('sponsorships/{sponsorship}/activate', [SponsorshipController::class, 'activate']);
+            Route::post('sponsorships/{sponsorship}/fulfill',  [SponsorshipController::class, 'fulfill']);
+            Route::post('sponsorships/{sponsorship}/cancel',   [SponsorshipController::class, 'cancel']);
         });
     });
 });

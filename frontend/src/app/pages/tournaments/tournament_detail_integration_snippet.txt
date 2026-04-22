@@ -1,0 +1,35 @@
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  Sprint 8 — Embed sponsors widget in tournament detail page
+ *
+ *  TournamentSponsorsComponent is a self-contained widget that fetches its
+ *  own data. To show sponsors on a tournament's detail page, do two things:
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+// ── Step 1: Import the component in tournament-detail.component.ts ─────────
+
+// Add to imports at top:
+import { TournamentSponsorsComponent } from '../../shared/tournament-sponsors/tournament-sponsors.component';
+
+// Add to the @Component decorator's imports array:
+@Component({
+  selector: 'app-tournament-detail',
+  standalone: true,
+  imports: [
+    /* ... existing imports ... */
+    TournamentSponsorsComponent,  // <-- add
+  ],
+  // ...
+})
+
+// ── Step 2: Render it in tournament-detail.component.html ──────────────────
+
+// Place this wherever you want sponsors to show. Common locations:
+//   - Below the hero, above bracket
+//   - In a sidebar
+//   - At the bottom of the overview tab
+
+// Widget is self-hiding: renders nothing if the tournament has no sponsors.
+
+<app-tournament-sponsors [tournamentId]="tournament.id" />

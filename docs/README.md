@@ -1,90 +1,150 @@
-# Sprint 7 — Contact & Privacy Pages
+# Sprint 8 — Sponsorship System
+
+Shape A: sponsored prize pools, admin-managed, supporting cash + in-kind + logo-only contributions.
 
 ## What's in this delivery
 
-- **ContactComponent** — `/contact` route, public
-- **PrivacyComponent** — `/privacy` route, public
-- **Updated footer** — 3 `href="#"` placeholders replaced with real `routerLink` bindings; also added Leaderboard link to the Platform column
-- **Updated app.routes.ts** — two new lazy-loaded routes registered
+**Backend (14 files):**
+- Migration: `sponsors` + `sponsorships` tables
+- Models: `Sponsor`, `Sponsorship` (with relationships + scopes)
+- Service: `SponsorshipService` — domain logic with business-rule guards
+- FormRequests: `StoreSponsorRequest`, `StoreSponsorshipRequest`
+- Resources: `SponsorResource`, `SponsorshipResource` (admin-only field gating)
+- Controllers: `SponsorController` (CRUD), `SponsorshipController` (CRUD + lifecycle + public summary)
+- Seeder: 8 real brand sponsors (Red Bull, Logitech, Razer, HyperX, STC, Mobily, Zain, AlUla)
+- Factory: `SponsorFactory` for tests
+- 13 PHPUnit tests covering every business rule
+- Route snippet file to paste
 
-8 files total. Zero backend changes, zero schema changes, no package.json updates. All files follow your existing standalone Angular 17 + `OnPush` + ReactiveFormsModule + palette-v3 patterns.
-
-## Why these pages
-
-Your footer was referencing `Contact` and `Privacy` with `href="#"` — which means clicking them reloaded the homepage with a `#` fragment. Not broken exactly, but not right. For a platform operating in Saudi Arabia (PDPL-regulated), the Privacy page is a compliance requirement before you can launch publicly.
+**Frontend (8 files):**
+- `TournamentSponsorsComponent` — drop-in widget for tournament detail pages (TS + HTML + SCSS)
+- `AdminSponsorsComponent` — /admin/sponsors page with Sponsors tab + Deals tab (TS + HTML + SCSS)
+- Routes snippet + integration snippet files
 
 ## File map
 
-| File you save | Destination |
+| File in ZIP | Destination |
 |---|---|
-| `frontend/src/app/pages/contact/contact.component.ts` | `D:\xamp new\htdocs\Dawri\frontend\src\app\pages\contact\contact.component.ts` (NEW) |
-| `frontend/src/app/pages/contact/contact.component.html` | `D:\xamp new\htdocs\Dawri\frontend\src\app\pages\contact\contact.component.html` (NEW) |
-| `frontend/src/app/pages/contact/contact.component.scss` | `D:\xamp new\htdocs\Dawri\frontend\src\app\pages\contact\contact.component.scss` (NEW) |
-| `frontend/src/app/pages/privacy/privacy.component.ts` | `D:\xamp new\htdocs\Dawri\frontend\src\app\pages\privacy\privacy.component.ts` (NEW) |
-| `frontend/src/app/pages/privacy/privacy.component.html` | `D:\xamp new\htdocs\Dawri\frontend\src\app\pages\privacy\privacy.component.html` (NEW) |
-| `frontend/src/app/pages/privacy/privacy.component.scss` | `D:\xamp new\htdocs\Dawri\frontend\src\app\pages\privacy\privacy.component.scss` (NEW) |
-| `frontend/src/app/shared/components/footer/footer.component.html` | `D:\xamp new\htdocs\Dawri\frontend\src\app\shared\components\footer\footer.component.html` (REPLACE) |
-| `frontend/src/app/app.routes.ts` | `D:\xamp new\htdocs\Dawri\frontend\src\app\app.routes.ts` (REPLACE) |
+| `backend/database/migrations/2026_04_22_000001_*.php` | `D:\xamp new\htdocs\Dawri\backend\database\migrations\` (NEW) |
+| `backend/app/Models/Sponsor.php` | `D:\xamp new\htdocs\Dawri\backend\app\Models\Sponsor.php` (NEW) |
+| `backend/app/Models/Sponsorship.php` | `D:\xamp new\htdocs\Dawri\backend\app\Models\Sponsorship.php` (NEW) |
+| `backend/app/Services/SponsorshipService.php` | `...\backend\app\Services\SponsorshipService.php` (NEW) |
+| `backend/app/Http/Requests/StoreSponsorRequest.php` | `...\backend\app\Http\Requests\` (NEW) |
+| `backend/app/Http/Requests/StoreSponsorshipRequest.php` | `...\backend\app\Http\Requests\` (NEW) |
+| `backend/app/Http/Resources/SponsorResource.php` | `...\backend\app\Http\Resources\` (NEW) |
+| `backend/app/Http/Resources/SponsorshipResource.php` | `...\backend\app\Http\Resources\` (NEW) |
+| `backend/app/Http/Controllers/Api/SponsorController.php` | `...\backend\app\Http\Controllers\Api\` (NEW) |
+| `backend/app/Http/Controllers/Api/SponsorshipController.php` | `...\backend\app\Http\Controllers\Api\` (NEW) |
+| `backend/database/seeders/SponsorSeeder.php` | `...\backend\database\seeders\SponsorSeeder.php` (NEW) |
+| `backend/database/factories/SponsorFactory.php` | `...\backend\database\factories\SponsorFactory.php` (NEW) |
+| `backend/tests/Unit/SponsorshipServiceTest.php` | `...\backend\tests\Unit\SponsorshipServiceTest.php` (NEW) |
+| `frontend/src/app/shared/tournament-sponsors/*` | `...\frontend\src\app\shared\tournament-sponsors\` (NEW directory) |
+| `frontend/src/app/pages/admin/admin-sponsors.component.*` | `...\frontend\src\app\pages\admin\` (3 NEW files) |
 
-You need to create `pages/contact/` and `pages/privacy/` directories first — they don't exist yet.
+**Instructions in (need manual edits, NOT straight drops):**
+- `backend/routes/sprint8_routes_snippet.php` — paste routes into `api.php`
+- `frontend/src/app/app_routes_snippet.txt` — paste route into `app.routes.ts`
+- `frontend/src/app/pages/tournaments/tournament_detail_integration_snippet.txt` — embed widget
 
 ## Install
 
-```cmd
-cd /D "D:\xamp new\htdocs\Dawri\frontend\src\app\pages"
-mkdir contact
-mkdir privacy
-```
-
-Then drop the files into their destinations. No build-time change needed — the routes are lazy-loaded, Angular picks them up from the updated `app.routes.ts` automatically.
+### 1. Drop the files
+Extract the ZIP, copy files per the map above. Create the two new directories first:
 
 ```cmd
-REM If ng serve is running, it will hot-reload.
-REM If not:
-cd /D "D:\xamp new\htdocs\Dawri\frontend"
-ng serve --port=4300
+cd /D "D:\xamp new\htdocs\Dawri\frontend\src\app"
+mkdir shared\tournament-sponsors
 ```
 
-## What to verify in the browser
+### 2. Wire up backend routes
+Open `D:\xamp new\htdocs\Dawri\backend\routes\api.php`. Add the imports and paste the route definitions per the comments in `sprint8_routes_snippet.php`. Then:
 
-Navigate to:
-- `/contact` — hero with gradient title, form on the left, contact info on the right
-- `/privacy` — hero, sticky TOC on the left, 12 sections of content on the right
-- Any page's footer — Contact and Privacy links now navigate properly (no more `#`)
+```cmd
+cd /D "D:\xamp new\htdocs\Dawri\backend"
+composer dump-autoload
+```
 
-## Contact page features
+### 3. Run the migration
+```cmd
+php artisan migrate
+```
 
-- **Reactive form** with 4 fields: name, email, subject (7 options), message (10–1000 chars)
-- **Live character counter** on the message textarea
-- **Client-side validation** — errors show in red on touch/dirty
-- **Simulated submit** — 700ms delay, then success toast and form reset
-- **Sidebar info card** with bilingual contact details (email, phone, address, hours)
-- **Social chips** — Twitter, Instagram, LinkedIn, Discord
-- **Links to Privacy** in the form's fine-print
+Expected: two new tables `sponsors` + `sponsorships` created.
 
-The backend endpoint (`POST /api/v1/contact`) is not yet implemented. There's a TODO comment in `onSubmit()` marking the Sprint 8 replacement. For now the form is UX-complete but messages aren't persisted.
+### 4. Seed sample data
+```cmd
+php artisan db:seed --class=SponsorSeeder
+```
 
-## Privacy page features
+Expected: `Seeded 8 sponsors.`
 
-- **Sticky Table of Contents** — 12 sections, click to smooth-scroll
-- **PDPL-aware content** — covers all 7 Saudi Personal Data Protection Law rights
-- **Bilingual title + last-updated date** (English + Arabic)
-- **DPO contact card** with mailto, physical address, and SDAIA complaint pathway
-- **Honest scope notes** — Dawri's actual data flows (tournaments, wallet, HR integrations, payment gateways) referenced correctly
+### 5. Wire up frontend route
+Open `D:\xamp new\htdocs\Dawri\frontend\src\app\app.routes.ts`. Paste the route from `app_routes_snippet.txt` into the routes array, near the existing `/admin` route.
 
-## Caveats
+### 6. Embed the widget in tournament detail
+Follow the snippet in `tournament_detail_integration_snippet.txt`. Two changes:
+- Import `TournamentSponsorsComponent` in `tournament-detail.component.ts`
+- Add `<app-tournament-sponsors [tournamentId]="tournament.id" />` to the HTML
 
-- **Privacy content is a reasonable baseline, not legal advice.** Have counsel review before production launch.
-- **All contact details are placeholders** — `+966 55 000 0000`, `support@dawri.gg`, `King Fahd Road, Al Olaya, Riyadh 12211`. Update to real coordinates when known. Edit `contact.component.ts` → `company` object.
-- **Social URLs are placeholders** — `twitter.com/dawri_gg`, etc. Replace with real handles.
-- **About page still placeholder** (`href="#"` in footer). Scope was Contact + Privacy only; let me know if you want About too.
-- **No i18n switcher yet.** Pages are English-primary with Arabic accents. If/when you add a proper `@ngx-translate/core` or `@angular/localize` setup, this page will need refactoring.
+The widget auto-hides if a tournament has no sponsors, so it's safe to add unconditionally.
+
+### 7. Run tests
+```cmd
+cd /D "D:\xamp new\htdocs\Dawri\backend"
+php artisan test --filter=SponsorshipServiceTest
+```
+
+Expected: 13 passing tests covering create, activate, fulfill, cancel, summarize + all business rule guards.
+
+## Try it end-to-end
+
+1. Navigate to `http://localhost:4300/admin/sponsors`
+2. **Sponsors tab** — you'll see 8 seeded brands
+3. Click **Deals tab** → **+ New deal**
+4. Pick a tournament + a sponsor, set placement to "Title", contribution to "Cash", amount 50000
+5. Click **Save deal** — it creates as draft
+6. Click **Activate** on the row — status flips to active
+7. Navigate to that tournament's detail page — sponsor logo + 50,000 SAR prize pool render
+8. Back to admin, click **Fulfill** → state transitions to fulfilled
+
+## Architecture decisions — why this is what it is
+
+**Two tables, not one**
+A sponsor is a reusable brand; a sponsorship is the deal. Red Bull may sponsor 10 tournaments in a year — one sponsor row, ten sponsorship rows.
+
+**Placement + Contribution are orthogonal**
+`placement_type` (title/presenting/supporting) controls where the brand appears. `contribution_type` (cash/in_kind/logo) controls what they gave. A sponsor can hold the title slot with pure logo-only exposure (no money) — still valid, just no prize pool impact.
+
+**State machine**: `draft → active → fulfilled`
+- Draft: internal only, not visible to players
+- Active: public on tournament page, counts toward prize pool
+- Fulfilled: payment received, goods delivered, archived
+- Cancelled: terminal sad state, kept for audit
+
+Only active sponsorships contribute to `total_pool_sar`. This matters because a sponsor promising 50K SAR that you haven't activated yet shouldn't show as part of the advertised prize pool.
+
+**Admin-only authZ at every write endpoint**
+FormRequest `authorize()` methods check `$this->user()?->role === 'admin'`. No self-serve sponsor signup in Sprint 8. That's Sprint 9+.
+
+**UUIDs everywhere**
+Matches the rest of Dawri's schema. Both models use `HasUuids` trait.
+
+**Companies FK is conditional**
+The migration only adds `sponsors.company_id → companies.id` if the `companies` table exists. Keeps migration safe on fresh environments that haven't run the white-label migration yet.
+
+## Gaps / things explicitly out of scope
+
+- **Sponsor self-signup portal** — Sprint 9 candidate if/when demand warrants it
+- **Payment collection** — the cash_amount_sar field is recorded, not charged. Actual transfer of funds happens out of band (invoice → wire transfer → manual reconciliation). If you want to auto-invoice sponsors, wire it into the existing `Invoice` model next sprint.
+- **Prize pool distribution to winners** — the sponsorship creates the advertised pool, but actual winner payouts still go through the existing wallet/tournament-completion flow. Not my concern in Sprint 8.
+- **Public sponsor directory** — e.g. `/sponsors` listing page. Not built; could add in 30 min if you want it.
+- **Sponsor branding takeover on tournament pages** — e.g. "Red Bull Dawri Cup" with full Red Bull color palette overriding Dawri's. Deliberately excluded. Brand takeovers require asset approvals and are a Phase 2 feature.
 
 ## Commit
 
 ```cmd
 cd /D "D:\xamp new\htdocs\Dawri"
 git add -A
-git commit -m "feat(sprint7): add /contact and /privacy pages; fix footer links"
+git commit -m "feat(sprint8): sponsorship system (sponsored prize pools, admin-managed)"
 git push
 ```

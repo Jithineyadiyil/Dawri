@@ -1,0 +1,81 @@
+@if (loading()) {
+  <div class="ts-skeleton">
+    <div class="ts-skeleton-bar"></div>
+    <div class="ts-skeleton-bar ts-skeleton-bar--short"></div>
+  </div>
+} @else if (!hasAnySponsor()) {
+  <!-- No sponsors — render nothing at all -->
+} @else {
+  <section class="ts-root" [attr.aria-label]="'Tournament sponsors'">
+    <!-- Prize pool hero strip -->
+    @if (prizePoolLabel(); as pool) {
+      <div class="ts-pool">
+        <span class="ts-pool__label">Total Prize Pool</span>
+        <span class="ts-pool__value">{{ pool }}</span>
+      </div>
+    }
+
+    <!-- Title sponsor (single, large) -->
+    @if (summary()?.title_sponsor; as title) {
+      <div class="ts-tier ts-tier--title">
+        <div class="ts-tier__label">Title Sponsor</div>
+        <a class="ts-title-card"
+           [href]="title.website_url ?? null"
+           [attr.target]="title.website_url ? '_blank' : null"
+           [attr.rel]="title.website_url ? 'noopener noreferrer' : null">
+          @if (title.logo_url) {
+            <img class="ts-title-card__logo" [src]="title.logo_url" [alt]="title.name">
+          }
+          <div class="ts-title-card__text">
+            <div class="ts-title-card__name">{{ title.name }}</div>
+            @if (title.name_ar) {
+              <div class="ts-title-card__name-ar">{{ title.name_ar }}</div>
+            }
+          </div>
+        </a>
+      </div>
+    }
+
+    <!-- Presenting sponsors (medium) -->
+    @if ((summary()?.presenting_sponsors ?? []).length > 0) {
+      <div class="ts-tier ts-tier--presenting">
+        <div class="ts-tier__label">Presented By</div>
+        <div class="ts-presenting-row">
+          @for (s of summary()?.presenting_sponsors ?? []; track s.id) {
+            <a class="ts-presenting-card"
+               [href]="s.website_url ?? null"
+               [attr.target]="s.website_url ? '_blank' : null"
+               [attr.rel]="s.website_url ? 'noopener noreferrer' : null">
+              @if (s.logo_url) {
+                <img class="ts-presenting-card__logo" [src]="s.logo_url" [alt]="s.name">
+              }
+              <div class="ts-presenting-card__name">{{ s.name }}</div>
+            </a>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Supporting sponsors (small grid) -->
+    @if ((summary()?.supporting_sponsors ?? []).length > 0) {
+      <div class="ts-tier ts-tier--supporting">
+        <div class="ts-tier__label">Supported By</div>
+        <div class="ts-supporting-grid">
+          @for (s of summary()?.supporting_sponsors ?? []; track s.id) {
+            <a class="ts-supporting-chip"
+               [href]="s.website_url ?? null"
+               [attr.target]="s.website_url ? '_blank' : null"
+               [attr.rel]="s.website_url ? 'noopener noreferrer' : null"
+               [title]="s.name">
+              @if (s.logo_url) {
+                <img [src]="s.logo_url" [alt]="s.name">
+              } @else {
+                <span>{{ s.name }}</span>
+              }
+            </a>
+          }
+        </div>
+      </div>
+    }
+  </section>
+}
