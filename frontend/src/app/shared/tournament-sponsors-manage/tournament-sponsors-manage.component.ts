@@ -79,6 +79,8 @@ export class TournamentSponsorsManageComponent implements OnChanges {
   readonly uploadingLogo     = signal(false);
   readonly logoFile          = signal<File | null>(null);
   readonly logoPreviewUrl    = signal<string | null>(null);
+  /** Validation + server errors for the create modal. Null = no error showing. */
+  readonly createError       = signal<{ message: string; fields: Record<string, string> } | null>(null);
   newSponsor = this.emptySponsor();
 
   /* ── Form model ─────────────────────────────────────────────────── */
@@ -219,6 +221,7 @@ export class TournamentSponsorsManageComponent implements OnChanges {
     this.newSponsor = this.emptySponsor();
     this.logoFile.set(null);
     this.logoPreviewUrl.set(null);
+    this.createError.set(null);
     this.showCreateSponsor.set(true);
   }
 
@@ -255,8 +258,17 @@ export class TournamentSponsorsManageComponent implements OnChanges {
    * refresh the catalog and auto-select the new entry in the deal form.
    */
   saveNewSponsor(): void {
+    this.createError.set(null);
+
     if (!this.newSponsor.name.trim()) {
-      this.flash('Sponsor name is required', false); return;
+      this.createError.set({ message: 'Brand name is required.', fields: { name: 'Required' } });
+      return;
+    }
+
+    // Auto-prepend https:// if the user typed a bare domain. Saves them
+    // the validation round-trip for a really common mistake.
+    if (this.newSponsor.website_url && !/^https?:\/\//i.test(this.newSponsor.website_url)) {
+      this.newSponsor.website_url = 'https://' + this.newSponsor.website_url.trim();
     }
 
     this.creatingSponsor.set(true);
@@ -265,7 +277,6 @@ export class TournamentSponsorsManageComponent implements OnChanges {
       .subscribe({
         next: (res) => {
           const created = res.data;
-          // If a logo was chosen, upload it as a follow-up request.
           if (this.logoFile()) {
             this.uploadLogoFor(created.id, () => this.onSponsorCreated(created));
           } else {
@@ -274,9 +285,33 @@ export class TournamentSponsorsManageComponent implements OnChanges {
         },
         error: (err) => {
           this.creatingSponsor.set(false);
-          this.flash(err.error?.message ?? 'Could not create sponsor', false);
+          this.applyServerError(err);
         },
       });
+  }
+
+  /**
+   * Parse a Laravel error response and render inline in the modal.
+   * Handles 422 (validation), 403 (authz), 500 (server), and network errors.
+   */
+  private applyServerError(err: unknown): void {
+    const e = err as { status?: number; error?: { message?: string; errors?: Record<string, string[]> } };
+    const fields: Record<string, string> = {};
+
+    if (e.error?.errors) {
+      for (const [key, msgs] of Object.entries(e.error.errors)) {
+        fields[key] = Array.isArray(msgs) ? msgs[0] : String(msgs);
+      }
+    }
+
+    const topMessage =
+      e.error?.message ??
+      (e.status === 0       ? 'Cannot reach the server. Check your connection.'
+      : e.status === 403    ? 'You are not authorized to create sponsors.'
+      : e.status === 500    ? 'Server error. Please try again or contact support.'
+      : 'Could not create sponsor.');
+
+    this.createError.set({ message: topMessage, fields });
   }
 
   private uploadLogoFor(sponsorId: string, done: () => void): void {

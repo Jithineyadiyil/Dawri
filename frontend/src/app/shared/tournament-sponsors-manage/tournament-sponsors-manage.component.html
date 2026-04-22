@@ -182,10 +182,29 @@
           An admin can later add it to the global catalog so other organizers can use it too.
         </p>
 
+        @if (createError(); as err) {
+          <div class="tsm-modal__error" role="alert">
+            <span class="tsm-modal__error-icon" aria-hidden="true">⚠</span>
+            <div class="tsm-modal__error-body">
+              <strong>{{ err.message }}</strong>
+              @if ((err.fields | keyvalue).length > 0) {
+                <ul class="tsm-modal__error-list">
+                  @for (kv of err.fields | keyvalue; track kv.key) {
+                    <li><em>{{ kv.key }}:</em> {{ kv.value }}</li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        }
+
         <div class="tsm-form__grid">
-          <label class="tsm-field tsm-field--span2">
+          <label class="tsm-field tsm-field--span2" [class.tsm-field--invalid]="createError()?.fields?.['name']">
             <span class="tsm-field__label">Brand name *</span>
             <input type="text" [(ngModel)]="newSponsor.name" maxlength="120" placeholder="e.g. Acme Energy Drinks">
+            @if (createError()?.fields?.['name']; as msg) {
+              <small class="tsm-field__error">{{ msg }}</small>
+            }
           </label>
 
           <label class="tsm-field">
@@ -193,9 +212,12 @@
             <input type="text" [(ngModel)]="newSponsor.name_ar" maxlength="120">
           </label>
 
-          <label class="tsm-field">
+          <label class="tsm-field" [class.tsm-field--invalid]="createError()?.fields?.['website_url']">
             <span class="tsm-field__label">Website</span>
             <input type="url" [(ngModel)]="newSponsor.website_url" placeholder="https://">
+            @if (createError()?.fields?.['website_url']; as msg) {
+              <small class="tsm-field__error">{{ msg }}</small>
+            }
           </label>
 
           <label class="tsm-field tsm-field--span2">
@@ -208,9 +230,12 @@
             <input type="text" [(ngModel)]="newSponsor.contact_name">
           </label>
 
-          <label class="tsm-field">
+          <label class="tsm-field" [class.tsm-field--invalid]="createError()?.fields?.['contact_email']">
             <span class="tsm-field__label">Contact email</span>
             <input type="email" [(ngModel)]="newSponsor.contact_email">
+            @if (createError()?.fields?.['contact_email']; as msg) {
+              <small class="tsm-field__error">{{ msg }}</small>
+            }
           </label>
 
           <label class="tsm-field tsm-field--span2">
