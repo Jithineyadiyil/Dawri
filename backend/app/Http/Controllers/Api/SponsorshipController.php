@@ -118,6 +118,46 @@ class SponsorshipController extends Controller
         return response()->json(['data' => new SponsorshipResource($sponsorship->refresh()->load('sponsor'))]);
     }
 
+    /**
+     * Admin approves a pending organizer-proposed sponsorship.
+     * Flips 'pending' → 'active' and records the activation timestamp.
+     */
+    public function approve(Sponsorship $sponsorship): JsonResponse
+    {
+        try {
+            $this->service->approve($sponsorship);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        return response()->json(['data' => new SponsorshipResource($sponsorship->refresh()->load('sponsor'))]);
+    }
+
+    /**
+     * Admin rejects a pending organizer-proposed sponsorship.
+     * Flips 'pending' → 'cancelled' with a reason appended to notes.
+     */
+    public function reject(Request $request, Sponsorship $sponsorship): JsonResponse
+    {
+        $reason = $request->string('reason')->toString() ?: null;
+        try {
+            $this->service->reject($sponsorship, $reason);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        return response()->json(['data' => new SponsorshipResource($sponsorship->refresh()->load('sponsor'))]);
+    }
+
+    /**
+     * Quick dashboard stat — pending proposals awaiting admin review.
+     * Consumed by the admin panel to show a badge on the Sponsors tab.
+     */
+    public function pendingCount(): JsonResponse
+    {
+        return response()->json([
+            'pending_count' => Sponsorship::where('contract_status', 'pending')->count(),
+        ]);
+    }
+
     public function destroy(Sponsorship $sponsorship): JsonResponse
     {
         if ($sponsorship->contract_status !== 'draft') {

@@ -29,6 +29,8 @@ export interface SponsorDisplay {
   id: string;
   name: string;
   name_ar: string | null;
+  tagline: string | null;
+  tagline_ar: string | null;
   logo_url: string | null;
   website_url: string | null;
   placement_type: 'title' | 'presenting' | 'supporting';
@@ -63,6 +65,18 @@ export class TournamentSponsorsComponent implements OnChanges {
   readonly loading = signal(true);
   readonly error   = signal<string | null>(null);
   readonly summary = signal<TournamentSponsorSummary | null>(null);
+
+  /** Set of sponsor IDs whose logo image failed to load — used to show
+   *  the letter fallback instead of a broken image icon. */
+  readonly brokenLogos = signal<Set<string>>(new Set());
+
+  /** Called from the template on <img (error)> — adds the sponsor ID to the
+   *  broken set so the fallback renders on the next CD pass. */
+  markLogoBroken(sponsorId: string): void {
+    const s = new Set(this.brokenLogos());
+    s.add(sponsorId);
+    this.brokenLogos.set(s);
+  }
 
   /** True if any sponsor exists at any tier. Hides the whole widget otherwise. */
   readonly hasAnySponsor = computed(() => {

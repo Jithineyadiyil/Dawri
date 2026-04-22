@@ -10,6 +10,8 @@ import { ApiService, MatchEvidence, MatchRescheduleRequest } from '../../core/se
 import { AuthService } from '../../core/services/auth.service';
 import { BrandingService } from '../../core/services/branding.service';
 import { ToastService } from '../../core/services/toast.service';
+import { TournamentSponsorsComponent } from '../../shared/tournament-sponsors/tournament-sponsors.component';
+import { TournamentSponsorsManageComponent } from '../../shared/tournament-sponsors-manage/tournament-sponsors-manage.component';
 
 /**
  * Bracket match shape used by the template. Sprint 2 adds scheduling and
@@ -51,7 +53,7 @@ export interface BracketRound {
 @Component({
   selector: 'app-tournament-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, TournamentSponsorsComponent, TournamentSponsorsManageComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tournament-detail.component.html',
   styleUrls: ['./tournament-detail.component.scss'],

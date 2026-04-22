@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SponsorController;
 use App\Http\Controllers\Api\SponsorshipController;
+use App\Http\Controllers\Api\TournamentSponsorshipController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TournamentController;
 use App\Http\Controllers\Api\WalletController;
@@ -51,6 +52,14 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/dashboard', [DashboardController::class, 'index']);
+
+        // Sprint 9: sponsor catalog for organizer dropdowns
+        Route::get('/sponsors-catalog', [TournamentSponsorshipController::class, 'sponsorsCatalog']);
+
+        // Sprint 9: organizer manages sponsorships on their own tournaments
+        Route::get   ('/tournaments/{tournament}/sponsorships/manage',               [TournamentSponsorshipController::class, 'manageIndex']);
+        Route::post  ('/tournaments/{tournament}/sponsorships/manage',               [TournamentSponsorshipController::class, 'propose']);
+        Route::delete('/tournaments/{tournament}/sponsorships/manage/{sponsorship}', [TournamentSponsorshipController::class, 'withdrawProposal']);
 
         // Sprint 4: Self-profile endpoints
         Route::get   ('/profile/me',         [ProfileController::class, 'me']);
@@ -134,6 +143,11 @@ Route::prefix('v1')->group(function () {
             Route::post('sponsorships/{sponsorship}/activate', [SponsorshipController::class, 'activate']);
             Route::post('sponsorships/{sponsorship}/fulfill',  [SponsorshipController::class, 'fulfill']);
             Route::post('sponsorships/{sponsorship}/cancel',   [SponsorshipController::class, 'cancel']);
+
+            // Sprint 9: approve/reject organizer proposals
+            Route::post('sponsorships/{sponsorship}/approve',  [SponsorshipController::class, 'approve']);
+            Route::post('sponsorships/{sponsorship}/reject',   [SponsorshipController::class, 'reject']);
+            Route::get ('sponsorships-pending-count',          [SponsorshipController::class, 'pendingCount']);
         });
     });
 });

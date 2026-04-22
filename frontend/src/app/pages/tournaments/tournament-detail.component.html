@@ -186,6 +186,16 @@
       </button>
     }
 
+    <!-- ── Sponsors (Sprint 8) ──────────────────────────────────── -->
+    <!-- Widget auto-hides when tournament has no active sponsors. -->
+    <app-tournament-sponsors [tournamentId]="t.id" />
+
+    <!-- ── Sponsor management (Sprint 9) ─────────────────────────── -->
+    <!-- Visible only to the tournament's organizer or admin. -->
+    @if (canManageMatch()) {
+      <app-tournament-sponsors-manage [tournamentId]="t.id" />
+    }
+
     <!-- ── Tabs ─────────────────────────────────────────────────── -->
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" [class.tab--active]="activeTab()==='bracket'" (click)="activeTab.set('bracket')">Bracket</button>

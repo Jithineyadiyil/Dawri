@@ -1,0 +1,166 @@
+<section class="tsm-root">
+  <header class="tsm-header">
+    <div class="tsm-header__titles">
+      <h3 class="tsm-header__title">
+        <span class="tsm-header__icon" aria-hidden="true">🤝</span>
+        Tournament Sponsors
+      </h3>
+      <p class="tsm-header__sub">
+        Propose sponsorship deals for this tournament. Proposals require admin approval before going public.
+      </p>
+    </div>
+
+    <div class="tsm-header__stats">
+      @if (pendingCount() > 0) {
+        <div class="tsm-chip tsm-chip--pending">
+          <span class="tsm-chip__num">{{ pendingCount() }}</span>
+          <span class="tsm-chip__label">awaiting approval</span>
+        </div>
+      }
+      @if (activeCount() > 0) {
+        <div class="tsm-chip tsm-chip--active">
+          <span class="tsm-chip__num">{{ activeCount() }}</span>
+          <span class="tsm-chip__label">live</span>
+        </div>
+      }
+      <button type="button" class="tsm-btn tsm-btn--primary" (click)="openForm()" [disabled]="showForm()">
+        + Propose sponsor
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Proposal form ─────────────────────────────────────────────── -->
+  @if (showForm()) {
+    <div class="tsm-form">
+      <h4 class="tsm-form__title">Propose a new sponsorship</h4>
+
+      <div class="tsm-form__grid">
+        <label class="tsm-field tsm-field--span2">
+          <span class="tsm-field__label">Sponsor</span>
+          <select [(ngModel)]="newDeal.sponsor_id">
+            <option value="">Select a sponsor</option>
+            @for (s of catalog(); track s.id) {
+              <option [value]="s.id">{{ s.name }}@if (s.tagline) { — {{ s.tagline }} }</option>
+            }
+          </select>
+          @if (catalog().length === 0) {
+            <small class="tsm-field__hint">No sponsors in catalog. Ask an admin to add brands in /admin/sponsors.</small>
+          }
+        </label>
+
+        <label class="tsm-field">
+          <span class="tsm-field__label">Placement</span>
+          <select [(ngModel)]="newDeal.placement_type">
+            <option value="title">Title — headline branding</option>
+            <option value="presenting">Presenting — large hero card</option>
+            <option value="supporting">Supporting — logo in grid</option>
+          </select>
+        </label>
+
+        <label class="tsm-field">
+          <span class="tsm-field__label">Contribution</span>
+          <select [(ngModel)]="newDeal.contribution_type">
+            <option value="cash">Cash (SAR)</option>
+            <option value="in_kind">In-kind goods</option>
+            <option value="logo">Logo only (no money)</option>
+          </select>
+        </label>
+
+        @if (newDeal.contribution_type === 'cash') {
+          <label class="tsm-field tsm-field--span2">
+            <span class="tsm-field__label">Cash amount (SAR)</span>
+            <input type="number" min="1" step="1" [(ngModel)]="newDeal.cash_amount_sar">
+          </label>
+        }
+
+        @if (newDeal.contribution_type === 'in_kind') {
+          <label class="tsm-field tsm-field--span2">
+            <span class="tsm-field__label">In-kind description</span>
+            <input type="text" [(ngModel)]="newDeal.in_kind_description"
+                   placeholder="e.g. 10 Logitech G Pro Keyboards">
+          </label>
+          <label class="tsm-field">
+            <span class="tsm-field__label">Estimated value (SAR)</span>
+            <input type="number" min="0" step="1" [(ngModel)]="newDeal.in_kind_value_sar">
+          </label>
+        }
+
+        <label class="tsm-field tsm-field--span2">
+          <span class="tsm-field__label">Notes for admin (optional)</span>
+          <textarea rows="3" [(ngModel)]="newDeal.notes"
+                    placeholder="Any context the admin should know — contract status, sponsor contacts, etc."></textarea>
+        </label>
+      </div>
+
+      <div class="tsm-form__actions">
+        <button type="button" class="tsm-btn tsm-btn--ghost" (click)="cancelForm()">Cancel</button>
+        <button type="button" class="tsm-btn tsm-btn--primary" (click)="saveDeal()" [disabled]="saving()">
+          {{ saving() ? 'Submitting…' : 'Submit for approval' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Deals list ───────────────────────────────────────────────── -->
+  @if (loading()) {
+    <div class="tsm-empty">Loading…</div>
+  } @else if (deals().length === 0) {
+    <div class="tsm-empty">
+      No sponsorship deals yet. Click <strong>Propose sponsor</strong> to add one.
+    </div>
+  } @else {
+    <table class="tsm-table">
+      <thead>
+        <tr>
+          <th>Sponsor</th>
+          <th>Placement</th>
+          <th>Contribution</th>
+          <th>Value</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (d of deals(); track d.id) {
+          <tr>
+            <td class="sponsor-cell">
+              @if (d.sponsor?.logo_url) {
+                <img [src]="d.sponsor!.logo_url" [alt]="d.sponsor!.name">
+              }
+              <strong>{{ d.sponsor?.name ?? '—' }}</strong>
+            </td>
+            <td><span class="tier-pill tier-{{ d.placement_type }}">{{ d.placement_type }}</span></td>
+            <td>{{ d.contribution_type }}</td>
+            <td>
+              @if (d.contribution_type === 'cash') {
+                {{ d.cash_amount_sar | number }} SAR
+              } @else if (d.contribution_type === 'in_kind') {
+                {{ d.in_kind_description }}
+                @if (d.in_kind_value_sar) { <small class="muted">({{ d.in_kind_value_sar | number }} SAR)</small> }
+              } @else {
+                <span class="muted">Logo only</span>
+              }
+            </td>
+            <td>
+              <span class="tsm-badge" [class]="statusClass(d.contract_status)">
+                {{ prettyStatus(d.contract_status) }}
+              </span>
+            </td>
+            <td>
+              @if (d.contract_status === 'pending') {
+                <button class="tsm-btn-link tsm-btn-link--danger" (click)="withdrawProposal(d)">
+                  Withdraw
+                </button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <!-- Toast -->
+  @if (toast(); as t) {
+    <div class="tsm-toast" [class.ok]="t.ok" [class.err]="!t.ok">{{ t.msg }}</div>
+  }
+</section>

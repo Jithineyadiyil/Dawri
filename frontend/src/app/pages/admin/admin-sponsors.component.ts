@@ -85,6 +85,11 @@ export class AdminSponsorsComponent implements OnInit {
     this.sponsors().filter((s) => s.is_active)
   );
 
+  /* Pending count — drives the "N awaiting approval" chip in the header */
+  readonly pendingCount = computed(() =>
+    this.sponsorships().filter((d) => d.contract_status === 'pending').length
+  );
+
   ngOnInit(): void {
     this.loadSponsors();
     this.loadSponsorships();
@@ -172,12 +177,17 @@ export class AdminSponsorsComponent implements OnInit {
     });
   }
 
-  transitionDeal(deal: SponsorshipRow, action: 'activate' | 'fulfill' | 'cancel'): void {
-    const verb = action === 'cancel' ? 'Cancel this deal?' : `Confirm ${action}?`;
-    if (action === 'cancel' && !confirm(verb)) return;
+  transitionDeal(deal: SponsorshipRow, action: 'activate' | 'fulfill' | 'cancel' | 'approve' | 'reject'): void {
+    // Ask for confirmation on destructive/important transitions.
+    const confirmMessages: Record<string, string> = {
+      cancel:  'Cancel this deal?',
+      reject:  'Reject this pending proposal? The organizer will be notified.',
+      approve: 'Approve this proposal and make it live on the tournament page?',
+    };
+    if (confirmMessages[action] && !confirm(confirmMessages[action])) return;
 
     this.http.post(`${this.apiAdmin}/sponsorships/${deal.id}/${action}`, {}).subscribe({
-      next: () => { this.flash(`Deal ${action}d`, true); this.loadSponsorships(); },
+      next: () => { this.flash(`Deal ${action}${action.endsWith('e') ? 'd' : 'ed'}`, true); this.loadSponsorships(); },
       error: (err) => this.flash(err.error?.message ?? `${action} failed`, false),
     });
   }

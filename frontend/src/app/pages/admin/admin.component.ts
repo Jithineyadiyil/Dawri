@@ -24,6 +24,8 @@ import { environment } from '../../../environments/environment';
             {{ tab.label }}
           </button>
         }
+        <!-- Sprint 8: sponsors live on their own page; render as a tab-styled link -->
+        <a class="tab" routerLink="/admin/sponsors">🤝 Sponsors</a>
       </div>
 
       <!-- ═══ OVERVIEW ═══ -->

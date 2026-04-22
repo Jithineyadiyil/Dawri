@@ -19,6 +19,11 @@
             [class.active]="activeTab() === 'deals'"
             (click)="activeTab.set('deals')">
       Deals ({{ sponsorships().length }})
+      @if (pendingCount() > 0) {
+        <span class="pending-badge" [title]="pendingCount() + ' awaiting approval'">
+          {{ pendingCount() }}
+        </span>
+      }
     </button>
   </div>
 
@@ -218,13 +223,17 @@
                   <span class="badge" [class]="statusClass(d.contract_status)">{{ d.contract_status }}</span>
                 </td>
                 <td class="actions-cell">
-                  @if (d.contract_status === 'draft' || d.contract_status === 'pending') {
+                  @if (d.contract_status === 'pending') {
+                    <button class="btn-link btn-link--ok"     (click)="transitionDeal(d, 'approve')">Approve</button>
+                    <button class="btn-link btn-link--danger" (click)="transitionDeal(d, 'reject')">Reject</button>
+                  }
+                  @if (d.contract_status === 'draft') {
                     <button class="btn-link btn-link--ok" (click)="transitionDeal(d, 'activate')">Activate</button>
                   }
                   @if (d.contract_status === 'active') {
                     <button class="btn-link btn-link--ok" (click)="transitionDeal(d, 'fulfill')">Fulfill</button>
                   }
-                  @if (d.contract_status !== 'cancelled' && d.contract_status !== 'fulfilled') {
+                  @if (d.contract_status !== 'cancelled' && d.contract_status !== 'fulfilled' && d.contract_status !== 'pending') {
                     <button class="btn-link btn-link--danger" (click)="transitionDeal(d, 'cancel')">Cancel</button>
                   }
                 </td>

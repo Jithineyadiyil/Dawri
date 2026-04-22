@@ -81,6 +81,76 @@ class SponsorshipService
     }
 
     /**
+     * Create a sponsorship in 'pending' state — used when a tournament
+     * organizer proposes a deal that needs admin review before going public.
+     *
+     * Uses the same guards as create() but skips exclusive-placement checks
+     * against ACTIVE sponsorships (because pending deals aren't visible yet).
+     * Title/presenting exclusivity is still enforced against other pending
+     * deals so two organizers can't propose competing title sponsors.
+     *
+     * @param  array  $data  Same shape as create()
+     */
+    public function createAsProposal(array $data, ?User $proposer = null): Sponsorship
+    {
+        $this->guardSponsorActive($data['sponsor_id']);
+        $this->guardTournamentExists($data['tournament_id']);
+        $this->guardExclusivePlacement($data['tournament_id'], $data['placement_type']);
+        $this->guardContributionCoherent($data);
+
+        return DB::transaction(function () use ($data, $proposer): Sponsorship {
+            return Sponsorship::create([
+                'tournament_id'          => $data['tournament_id'],
+                'sponsor_id'             => $data['sponsor_id'],
+                'placement_type'         => $data['placement_type'],
+                'contribution_type'      => $data['contribution_type'],
+                'cash_amount_sar'        => $data['cash_amount_sar'] ?? 0,
+                'in_kind_description'    => $data['in_kind_description'] ?? null,
+                'in_kind_description_ar' => $data['in_kind_description_ar'] ?? null,
+                'in_kind_value_sar'      => $data['in_kind_value_sar'] ?? null,
+                'contract_status'        => 'pending',
+                'notes'                  => $data['notes'] ?? null,
+                'created_by_user_id'     => $proposer?->id,
+            ]);
+        });
+    }
+
+    /**
+     * Admin approves a pending organizer proposal — flips it to active.
+     * Only pending deals can be approved; active/fulfilled/cancelled throw.
+     */
+    public function approve(Sponsorship $sponsorship): Sponsorship
+    {
+        if ($sponsorship->contract_status !== 'pending') {
+            throw new RuntimeException(
+                "Only pending sponsorships can be approved. Current status: {$sponsorship->contract_status}."
+            );
+        }
+
+        $sponsorship->update([
+            'contract_status' => 'active',
+            'activated_at'    => now(),
+        ]);
+
+        return $sponsorship;
+    }
+
+    /**
+     * Admin rejects a pending organizer proposal — flips it to cancelled
+     * with a reason appended to notes. Terminal state.
+     */
+    public function reject(Sponsorship $sponsorship, ?string $reason = null): Sponsorship
+    {
+        if ($sponsorship->contract_status !== 'pending') {
+            throw new RuntimeException(
+                "Only pending sponsorships can be rejected. Current status: {$sponsorship->contract_status}."
+            );
+        }
+
+        return $this->cancel($sponsorship, $reason ?? 'Rejected by admin');
+    }
+
+    /**
      * Mark a sponsorship fulfilled — payment received / goods delivered.
      * This is the terminal happy state.
      */
@@ -164,6 +234,9 @@ class SponsorshipService
             return; // supporting has no exclusivity
         }
 
+        // Block if another sponsor already holds this slot in any non-terminal
+        // state — including 'pending' so two organizers can't simultaneously
+        // propose competing title sponsors.
         $exists = Sponsorship::where('tournament_id', $tournamentId)
             ->where('placement_type', $placement)
             ->whereIn('contract_status', ['draft', 'pending', 'active'])
@@ -207,7 +280,7 @@ class SponsorshipService
      * Public-facing serialization of a single sponsorship for the tournament
      * detail page. Keeps internal notes/audit fields out of the wire format.
      *
-     * @return array{id:string,name:string,name_ar:?string,logo_url:?string,website_url:?string,placement_type:string,contribution_type:string,cash_amount_sar:float,in_kind_description:?string}|null
+     * @return array{id:string,name:string,name_ar:?string,tagline:?string,tagline_ar:?string,logo_url:?string,website_url:?string,placement_type:string,contribution_type:string,cash_amount_sar:float,in_kind_description:?string}|null
      */
     private function formatSponsorship(?Sponsorship $s): ?array
     {
@@ -219,6 +292,8 @@ class SponsorshipService
             'id'                   => $s->id,
             'name'                 => $s->sponsor->name,
             'name_ar'              => $s->sponsor->name_ar,
+            'tagline'              => $s->sponsor->tagline,
+            'tagline_ar'           => $s->sponsor->tagline_ar,
             'logo_url'             => $s->sponsor->logo_url,
             'website_url'          => $s->sponsor->website_url,
             'placement_type'       => $s->placement_type,
