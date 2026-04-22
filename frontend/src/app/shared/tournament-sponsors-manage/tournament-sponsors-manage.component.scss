@@ -187,28 +187,94 @@
     letter-spacing: 0.06em;
     color: var(--mu);
     text-transform: uppercase;
+    display: flex;
+    align-items: center;
   }
 
   &__hint { font-size: 0.72rem; color: var(--dim); }
 
   input, select, textarea {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--br);
+    /* High-contrast field surface against the panel bg */
+    background: #12132b;
+    border: 1px solid #2a2d4a;
     border-radius: 8px;
     padding: 10px 12px;
-    color: var(--tx);
+    color: #f4f4f7;
     font-family: inherit;
-    font-size: 0.9rem;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    font-size: 0.95rem;
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+
+    &::placeholder { color: #6b6f8a; }
+
+    &:hover { border-color: #3a3d5c; }
 
     &:focus {
       outline: none;
       border-color: var(--gold);
-      box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.14);
+      background: #181932;
+      box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.25);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
     }
   }
 
+  /* Dropdown arrow + native options — browsers don't inherit
+     parent colors into the <option> popover, so style them directly. */
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, #f4f4f7 50%),
+      linear-gradient(-45deg, transparent 50%, #f4f4f7 50%);
+    background-position:
+      calc(100% - 18px) calc(50% - 2px),
+      calc(100% - 13px) calc(50% - 2px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 36px;
+    cursor: pointer;
+  }
+
+  /* Explicit option styling — this fixes the "invisible dropdown" problem
+     on Chrome/Edge where the option list inherits neither bg nor color. */
+  option {
+    background-color: #12132b;
+    color: #f4f4f7;
+    padding: 8px 12px;
+  }
+
+  option:checked,
+  option:hover {
+    background-color: #2a1f4a;
+    color: #fbbf24;
+  }
+
   textarea { resize: vertical; min-height: 70px; }
+
+  /* File input tweaks — the "Choose file" button blends in */
+  input[type="file"] {
+    padding: 8px 12px;
+    cursor: pointer;
+
+    &::file-selector-button {
+      background: rgba(168, 85, 247, 0.18);
+      color: #f4f4f7;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      border-radius: 6px;
+      padding: 6px 12px;
+      margin-right: 12px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+
+      &:hover { background: rgba(168, 85, 247, 0.3); }
+    }
+  }
 }
 
 /* ── Table ───────────────────────────────────────────────────────── */
@@ -312,4 +378,135 @@
 
   &.ok  { background: rgba(74, 222, 128, 0.2);  border: 1px solid rgba(74, 222, 128, 0.4);  color: #6ee7b7; }
   &.err { background: rgba(248, 113, 113, 0.2); border: 1px solid rgba(248, 113, 113, 0.4); color: #fca5a5; }
+}
+
+/* ── Sprint 10: Create Sponsor modal ─────────────────────────────── */
+
+.tsm-inline-create {
+  margin-left: auto;
+  font-family: inherit;
+  background: none;
+  border: none;
+  color: var(--cyan);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0 0 0 10px;
+
+  &:hover { color: var(--gold); }
+}
+
+.tsm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 20, 0.72);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  z-index: 200;
+  padding: 20px;
+  animation: tsm-backdrop-in 0.15s ease-out;
+}
+
+.tsm-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--bg2);
+  border: 1px solid var(--br);
+  border-radius: 16px;
+  padding: 28px;
+  color: var(--tx);
+  animation: tsm-modal-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+
+    h3 {
+      font-family: var(--fh);
+      font-size: 1.2rem;
+      letter-spacing: 0.03em;
+      margin: 0;
+      color: var(--gold);
+    }
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    color: var(--mu);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+
+    &:hover { color: var(--tx); background: rgba(255, 255, 255, 0.05); }
+  }
+
+  &__intro {
+    color: var(--mu);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin: 0 0 20px;
+    padding: 12px 14px;
+    background: rgba(251, 191, 36, 0.08);
+    border-left: 3px solid var(--cyan);
+    border-radius: 6px;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--br);
+  }
+}
+
+.tsm-logo-preview {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed var(--br);
+  border-radius: 10px;
+
+  img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 6px;
+  }
+
+  &__label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--mu);
+    font-weight: 600;
+  }
+}
+
+@keyframes tsm-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tsm-modal-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tsm-modal-backdrop, .tsm-modal { animation: none; }
 }

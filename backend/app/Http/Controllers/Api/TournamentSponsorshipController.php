@@ -36,8 +36,81 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class TournamentSponsorshipController extends Controller
 {
-    public function __construct(private readonly SponsorshipService $service)
+    public function __construct(
+        private readonly SponsorshipService $service,
+        private readonly SponsorLogoService $logoService,
+    ) {
+    }
+
+    /**
+     * Create a new sponsor brand owned by the current organizer (private scope).
+     * Admins also use this endpoint; admin-created sponsors still default to
+     * 'global' scope via the existing admin SponsorController, not this one.
+     *
+     * Request: multipart/form-data (to support optional logo upload)
+     */
+    public function createSponsor(CreateOrganizerSponsorRequest $request): JsonResponse
     {
+        $user = $request->user();
+        $data = $request->validated();
+
+        // Default slug from name; ensure uniqueness by appending a random suffix.
+        $slug = Str::slug($data['name']) . '-' . Str::random(6);
+
+        $sponsor = Sponsor::create([
+            'name'               => $data['name'],
+            'name_ar'            => $data['name_ar']    ?? null,
+            'slug'               => $slug,
+            'tagline'            => $data['tagline']    ?? null,
+            'tagline_ar'         => $data['tagline_ar'] ?? null,
+            'website_url'        => $data['website_url']   ?? null,
+            'contact_email'      => $data['contact_email'] ?? null,
+            'is_active'          => true,
+            // Organizer-created → private. Admins use /admin/sponsors for global.
+            'scope'              => Sponsor::SCOPE_PRIVATE,
+            'created_by_user_id' => $user?->id,
+        ]);
+
+        // Optional logo in the same request
+        if ($request->hasFile('logo')) {
+            $url = $this->logoService->store($sponsor, $request->file('logo'));
+            $sponsor->update(['logo_url' => $url]);
+        }
+
+        return response()->json([
+            'data'    => new SponsorResource($sponsor->refresh()),
+            'message' => 'Sponsor created. It will only appear on your own tournaments until an admin promotes it.',
+        ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Upload/replace the logo on an existing sponsor.
+     *
+     * Authorization:
+     *   - Admin: any sponsor
+     *   - Organizer: only sponsors they created (private scope)
+     */
+    public function uploadLogo(Request $request, Sponsor $sponsor): JsonResponse
+    {
+        $user = $request->user();
+
+        $canEdit = $user && (
+            $user->role === 'admin'
+            || (string) $sponsor->created_by_user_id === (string) $user->id
+        );
+        if (! $canEdit) {
+            throw new AuthorizationException('You may only edit logos on sponsors you created.');
+        }
+
+        $request->validate([
+            'logo' => ['required', 'file', 'max:2048',
+                       'mimetypes:image/png,image/jpeg,image/webp,image/svg+xml'],
+        ]);
+
+        $url = $this->logoService->store($sponsor, $request->file('logo'));
+        $sponsor->update(['logo_url' => $url]);
+
+        return response()->json(['data' => new SponsorResource($sponsor->refresh())]);
     }
 
     /**
@@ -108,7 +181,12 @@ class TournamentSponsorshipController extends Controller
 
     /**
      * Read-only sponsor catalog for organizer dropdowns.
-     * Returns only active sponsors — organizers don't see deactivated brands.
+     *
+     * Returns active sponsors visible to the current user:
+     *   - Admin sees every active sponsor
+     *   - Organizer sees global sponsors + their own scoped sponsors
+     *
+     * Includes is_global flag so the UI can flag scoped rows as "Your private sponsor".
      */
     public function sponsorsCatalog(Request $request): JsonResponse
     {
@@ -117,8 +195,9 @@ class TournamentSponsorshipController extends Controller
         }
 
         $sponsors = Sponsor::active()
+            ->visibleTo($request->user())
             ->orderBy('name')
-            ->get(['id', 'name', 'name_ar', 'slug', 'tagline', 'logo_url', 'website_url', 'is_active']);
+            ->get(['id', 'name', 'name_ar', 'slug', 'tagline', 'logo_url', 'website_url', 'is_active', 'is_global', 'created_by_user_id']);
 
         return response()->json([
             'data' => SponsorResource::collection($sponsors),

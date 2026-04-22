@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Admin-only CRUD for sponsors.
+ * Admin CRUD for sponsors.
  *
  * Routes (mounted under /api/v1/admin):
  *   GET    /sponsors
@@ -22,6 +22,8 @@ use Symfony\Component\HttpFoundation\Response;
  *   GET    /sponsors/{sponsor}
  *   PATCH  /sponsors/{sponsor}
  *   DELETE /sponsors/{sponsor}
+ *   POST   /sponsors/{sponsor}/promote   (Sprint 10 — scoped → global)
+ *   POST   /sponsors/{sponsor}/demote    (Sprint 10 — global → scoped)
  */
 class SponsorController extends Controller
 {
@@ -33,11 +35,18 @@ class SponsorController extends Controller
             $query->active();
         }
 
+        // Sprint 10: admin can filter to see only global or only scoped sponsors
+        if ($request->filled('scope')) {
+            $scope = $request->string('scope')->toString();
+            if ($scope === 'global') $query->where('is_global', true);
+            if ($scope === 'scoped') $query->where('is_global', false);
+        }
+
         if ($search = $request->string('q')->toString()) {
             $query->where(function ($q) use ($search) {
-                $q->where('name',    'like', "%{$search}%")
+                $q->where('name', 'like', "%{$search}%")
                   ->orWhere('name_ar', 'like', "%{$search}%")
-                  ->orWhere('slug',    'like', "%{$search}%");
+                  ->orWhere('slug', 'like', "%{$search}%");
             });
         }
 
@@ -49,8 +58,11 @@ class SponsorController extends Controller
     public function store(StoreSponsorRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
+        $data['slug']      = $data['slug'] ?? Str::slug($data['name']);
         $data['is_active'] = $data['is_active'] ?? true;
+        // Admin-created sponsors are globally visible by default.
+        $data['is_global']          = true;
+        $data['created_by_user_id'] = $request->user()?->id;
 
         $sponsor = Sponsor::create($data);
 
@@ -72,9 +84,40 @@ class SponsorController extends Controller
 
     public function destroy(Sponsor $sponsor): JsonResponse
     {
-        // Soft-delete via is_active; hard delete cascades to sponsorships
-        // which we don't want once contracts exist.
+        // Soft-delete via is_active. Hard delete would cascade to sponsorships.
         $sponsor->update(['is_active' => false]);
         return response()->json(['message' => 'Sponsor deactivated.']);
+    }
+
+    /**
+     * Sprint 10: promote a scoped (organizer-created) sponsor to global.
+     * Idempotent — already-global sponsors return unchanged.
+     */
+    public function promote(Sponsor $sponsor): JsonResponse
+    {
+        if (! $sponsor->is_global) {
+            $sponsor->update(['is_global' => true]);
+        }
+        return response()->json([
+            'data'    => new SponsorResource($sponsor->refresh()),
+            'message' => 'Sponsor promoted to global catalog.',
+        ]);
+    }
+
+    /**
+     * Sprint 10: demote a global sponsor back to scoped (requires a creator).
+     */
+    public function demote(Sponsor $sponsor): JsonResponse
+    {
+        if (! $sponsor->created_by_user_id) {
+            return response()->json([
+                'message' => 'Cannot demote — this sponsor has no creator on record.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        $sponsor->update(['is_global' => false]);
+        return response()->json([
+            'data'    => new SponsorResource($sponsor->refresh()),
+            'message' => 'Sponsor demoted to scoped visibility.',
+        ]);
     }
 }

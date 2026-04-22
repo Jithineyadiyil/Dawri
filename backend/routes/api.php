@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\OrganizerSponsorController;
 use App\Http\Controllers\Api\SponsorController;
 use App\Http\Controllers\Api\SponsorshipController;
 use App\Http\Controllers\Api\TournamentSponsorshipController;
@@ -55,6 +56,16 @@ Route::prefix('v1')->group(function () {
 
         // Sprint 9: sponsor catalog for organizer dropdowns
         Route::get('/sponsors-catalog', [TournamentSponsorshipController::class, 'sponsorsCatalog']);
+
+        // Sprint 10: organizers create their own sponsor brands (scoped until admin promotes)
+        Route::post ('/sponsors',                 [OrganizerSponsorController::class, 'store']);
+        Route::patch('/sponsors/{sponsor}',       [OrganizerSponsorController::class, 'update']);
+        Route::post ('/sponsors/{sponsor}/logo',  [OrganizerSponsorController::class, 'uploadLogo']);
+
+        // Sprint 10: organizer creates a new sponsor brand (starts as private scope)
+        Route::post('/sponsors-create', [TournamentSponsorshipController::class, 'createSponsor']);
+        // Sprint 10: upload/replace a logo on a sponsor (own private sponsor or admin)
+        Route::post('/sponsors/{sponsor}/logo', [TournamentSponsorshipController::class, 'uploadLogo']);
 
         // Sprint 9: organizer manages sponsorships on their own tournaments
         Route::get   ('/tournaments/{tournament}/sponsorships/manage',               [TournamentSponsorshipController::class, 'manageIndex']);
@@ -148,6 +159,13 @@ Route::prefix('v1')->group(function () {
             Route::post('sponsorships/{sponsorship}/approve',  [SponsorshipController::class, 'approve']);
             Route::post('sponsorships/{sponsorship}/reject',   [SponsorshipController::class, 'reject']);
             Route::get ('sponsorships-pending-count',          [SponsorshipController::class, 'pendingCount']);
+
+            // Sprint 10: promote/demote organizer-created sponsors
+            Route::post('sponsors/{sponsor}/promote', [SponsorController::class, 'promote']);
+            Route::post('sponsors/{sponsor}/demote',  [SponsorController::class, 'demote']);
+
+            // Sprint 10: promote a private (organizer-created) sponsor to global
+            Route::post('sponsors/{sponsor}/promote', [SponsorController::class, 'promoteToGlobal']);
         });
     });
 });

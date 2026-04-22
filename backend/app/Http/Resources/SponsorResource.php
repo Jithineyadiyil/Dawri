@@ -9,7 +9,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * SponsorResource — public shape for the Sponsor model.
- * Internal contact fields (email, phone) are only exposed to admins.
+ *
+ * Always exposed: id, name, name_ar, slug, tagline, logo_url, website_url,
+ *                 is_active, scope, created_by_user_id
+ *
+ * Admin-only: contact_* fields, company_id, created_at timestamp
  */
 class SponsorResource extends JsonResource
 {
@@ -19,15 +23,17 @@ class SponsorResource extends JsonResource
         $isAdmin = $request->user()?->role === 'admin';
 
         return array_filter([
-            'id'            => $this->id,
-            'name'          => $this->name,
-            'name_ar'       => $this->name_ar,
-            'slug'          => $this->slug,
-            'tagline'       => $this->tagline,
-            'tagline_ar'    => $this->tagline_ar,
-            'logo_url'      => $this->logo_url,
-            'website_url'   => $this->website_url,
-            'is_active'     => (bool) $this->is_active,
+            'id'                 => $this->id,
+            'name'               => $this->name,
+            'name_ar'            => $this->name_ar,
+            'slug'               => $this->slug,
+            'tagline'            => $this->tagline,
+            'tagline_ar'         => $this->tagline_ar,
+            'logo_url'           => $this->logo_url,
+            'website_url'        => $this->website_url,
+            'is_active'          => (bool) $this->is_active,
+            'scope'              => $this->scope,
+            'created_by_user_id' => $this->created_by_user_id,
 
             // Admin-only fields
             'contact_name'  => $isAdmin ? $this->contact_name  : null,

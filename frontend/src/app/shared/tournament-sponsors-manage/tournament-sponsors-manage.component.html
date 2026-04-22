@@ -36,15 +36,20 @@
 
       <div class="tsm-form__grid">
         <label class="tsm-field tsm-field--span2">
-          <span class="tsm-field__label">Sponsor</span>
+          <span class="tsm-field__label">
+            Sponsor
+            <button type="button" class="tsm-inline-create" (click)="openCreateSponsor()">+ Create new sponsor</button>
+          </span>
           <select [(ngModel)]="newDeal.sponsor_id">
             <option value="">Select a sponsor</option>
             @for (s of catalog(); track s.id) {
-              <option [value]="s.id">{{ s.name }}@if (s.tagline) { — {{ s.tagline }} }</option>
+              <option [value]="s.id">
+                {{ s.name }}@if (s.is_global === false) { (private) }@if (s.tagline) { — {{ s.tagline }} }
+              </option>
             }
           </select>
           @if (catalog().length === 0) {
-            <small class="tsm-field__hint">No sponsors in catalog. Ask an admin to add brands in /admin/sponsors.</small>
+            <small class="tsm-field__hint">No sponsors yet. Click "Create new sponsor" to add one.</small>
           }
         </label>
 
@@ -162,5 +167,76 @@
   <!-- Toast -->
   @if (toast(); as t) {
     <div class="tsm-toast" [class.ok]="t.ok" [class.err]="!t.ok">{{ t.msg }}</div>
+  }
+
+  <!-- ── Sprint 10: Create Sponsor modal ──────────────────────────── -->
+  @if (showCreateSponsor()) {
+    <div class="tsm-modal-backdrop" (click)="cancelCreateSponsor()">
+      <div class="tsm-modal" (click)="$event.stopPropagation()">
+        <header class="tsm-modal__header">
+          <h3>Create a new sponsor</h3>
+          <button type="button" class="tsm-modal__close" (click)="cancelCreateSponsor()" aria-label="Close">✕</button>
+        </header>
+        <p class="tsm-modal__intro">
+          This sponsor will be visible on your tournaments immediately.
+          An admin can later add it to the global catalog so other organizers can use it too.
+        </p>
+
+        <div class="tsm-form__grid">
+          <label class="tsm-field tsm-field--span2">
+            <span class="tsm-field__label">Brand name *</span>
+            <input type="text" [(ngModel)]="newSponsor.name" maxlength="120" placeholder="e.g. Acme Energy Drinks">
+          </label>
+
+          <label class="tsm-field">
+            <span class="tsm-field__label">Arabic name</span>
+            <input type="text" [(ngModel)]="newSponsor.name_ar" maxlength="120">
+          </label>
+
+          <label class="tsm-field">
+            <span class="tsm-field__label">Website</span>
+            <input type="url" [(ngModel)]="newSponsor.website_url" placeholder="https://">
+          </label>
+
+          <label class="tsm-field tsm-field--span2">
+            <span class="tsm-field__label">Tagline (short slogan)</span>
+            <input type="text" [(ngModel)]="newSponsor.tagline" maxlength="200" placeholder="e.g. Fuel your play">
+          </label>
+
+          <label class="tsm-field">
+            <span class="tsm-field__label">Contact name</span>
+            <input type="text" [(ngModel)]="newSponsor.contact_name">
+          </label>
+
+          <label class="tsm-field">
+            <span class="tsm-field__label">Contact email</span>
+            <input type="email" [(ngModel)]="newSponsor.contact_email">
+          </label>
+
+          <label class="tsm-field tsm-field--span2">
+            <span class="tsm-field__label">Logo (PNG, JPG, SVG, WebP — max 2 MB)</span>
+            <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" (change)="onLogoSelected($event)">
+            @if (logoPreviewUrl()) {
+              <div class="tsm-logo-preview">
+                <img [src]="logoPreviewUrl()" alt="Logo preview">
+                <span class="tsm-logo-preview__label">Preview</span>
+              </div>
+            }
+          </label>
+        </div>
+
+        <footer class="tsm-modal__actions">
+          <button type="button" class="tsm-btn tsm-btn--ghost" (click)="cancelCreateSponsor()">Cancel</button>
+          <button type="button" class="tsm-btn tsm-btn--primary" (click)="saveNewSponsor()"
+                  [disabled]="creatingSponsor() || uploadingLogo()">
+            @if (creatingSponsor() || uploadingLogo()) {
+              {{ uploadingLogo() ? 'Uploading logo…' : 'Creating sponsor…' }}
+            } @else {
+              Save sponsor
+            }
+          </button>
+        </footer>
+      </div>
+    </div>
   }
 </section>

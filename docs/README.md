@@ -1,143 +1,102 @@
-# Sprint 9 — Organizer-proposed Sponsorships
+# Sprint 10 — Organizer-created Sponsors
 
-Lets tournament organizers propose sponsorship deals on their own tournaments. Admin reviews and approves/rejects.
+Organizers can now create their own sponsor brand entries (with logo upload + website + contact info) directly from their tournament's "Manage Sponsors" section. No admin intervention required to use them on their own tournaments.
+
+## Scope model (Option B)
+
+- **Admin-created** sponsors are `is_global = true` — visible to every organizer in their catalog dropdown
+- **Organizer-created** sponsors are `is_global = false` — visible ONLY to their creator (plus admins) until an admin promotes them
+- **Admin can "Promote"** a scoped sponsor from `/admin/sponsors` → it becomes global and appears in everyone's catalog
 
 ## What's in this delivery
 
-### Backend (5 files)
-- `SponsorshipService.php` — REPLACES: adds `createAsProposal()`, `approve()`, `reject()` + tightens placement guard
-- `SponsorshipController.php` — REPLACES: adds `approve()`, `reject()`, `pendingCount()` methods
-- `TournamentSponsorshipController.php` — NEW: organizer-facing endpoints
-- `ProposeSponsorshipRequest.php` — NEW: FormRequest for organizer proposals
-- `routes/api.php` — REPLACES: adds 6 new routes
+### Backend (10 files)
+- `database/migrations/2026_04_22_000002_add_scoped_sponsors_columns.php` — NEW — adds `created_by_user_id` + `is_global` columns, backfills existing rows as global
+- `app/Models/Sponsor.php` — REPLACES — adds `createdBy()` relation + `visibleTo()` scope
+- `app/Http/Requests/StoreOrganizerSponsorRequest.php` — NEW — validation for organizer create
+- `app/Http/Controllers/Api/OrganizerSponsorController.php` — NEW — create, update, uploadLogo
+- `app/Http/Controllers/Api/SponsorController.php` — REPLACES — adds `promote()` + `demote()` methods, cleans up a leftover broken method from the old repo
+- `app/Http/Controllers/Api/SponsorshipController.php` — REPLACES (unchanged from Sprint 9) — kept for dependency completeness
+- `app/Http/Controllers/Api/TournamentSponsorshipController.php` — REPLACES — catalog filters by visibility scope
+- `app/Http/Resources/SponsorResource.php` — REPLACES — exposes `is_global` publicly + admin-only `created_by_user_id`
+- `app/Services/SponsorshipService.php` — REPLACES (unchanged from Sprint 9) — kept for dependency completeness
+- `routes/api.php` — REPLACES — 5 new routes
 
-### Frontend (9 files)
-- `tournament-sponsors-manage.component.{ts,html,scss}` — NEW: embedded organizer widget
-- `tournament-detail.component.{ts,html}` — REPLACES: imports + embeds the manage widget
-- `admin-sponsors.component.{ts,html,scss}` — REPLACES: adds Approve/Reject buttons + pending badge
-- `admin.component.ts` — REPLACES: keeps Sponsors tab link (unchanged from Sprint 8)
-
-## File map
-
-| ZIP path | Save to |
-|---|---|
-| `backend/app/Services/SponsorshipService.php` | `backend\app\Services\SponsorshipService.php` (REPLACE) |
-| `backend/app/Http/Controllers/Api/SponsorshipController.php` | `backend\app\Http\Controllers\Api\SponsorshipController.php` (REPLACE) |
-| `backend/app/Http/Controllers/Api/TournamentSponsorshipController.php` | `backend\app\Http\Controllers\Api\TournamentSponsorshipController.php` (NEW) |
-| `backend/app/Http/Requests/ProposeSponsorshipRequest.php` | `backend\app\Http\Requests\ProposeSponsorshipRequest.php` (NEW) |
-| `backend/routes/api.php` | `backend\routes\api.php` (REPLACE) |
-| `frontend/src/app/shared/tournament-sponsors-manage/*` | `frontend\src\app\shared\tournament-sponsors-manage\` (NEW directory, 3 files) |
-| `frontend/src/app/pages/tournaments/tournament-detail.component.*` | `frontend\src\app\pages\tournaments\` (REPLACE 2 files) |
-| `frontend/src/app/pages/admin/admin-sponsors.component.*` | `frontend\src\app\pages\admin\` (REPLACE 3 files) |
-| `frontend/src/app/pages/admin/admin.component.ts` | `frontend\src\app\pages\admin\admin.component.ts` (REPLACE) |
+### Frontend (6 files)
+- `shared/tournament-sponsors-manage/*.{ts,html,scss}` — REPLACES — adds "+ Create new sponsor" button, modal with file upload, "Private" pill for scoped sponsors in the dropdown
+- `pages/admin/admin-sponsors.component.*` — REPLACES — adds Visibility column (Global/Private badge), Promote button on scoped rows
 
 ## Install
 
-```cmd
-cd /D "D:\xamp new\htdocs\Dawri\frontend\src\app\shared"
-mkdir tournament-sponsors-manage
-```
-
-Then copy files per the map. No migration required — we reuse the existing `pending` enum value that was already in the schema but never wired.
-
-```cmd
-cd /D "D:\xamp new\htdocs\Dawri\backend"
-composer dump-autoload
-php artisan optimize:clear
-```
+1. Extract the ZIP into `D:\xamp new\htdocs\Dawri\`
+2. Run the migration:
+   ```cmd
+   cd /D "D:\xamp new\htdocs\Dawri\backend"
+   php artisan migrate
+   ```
+3. Ensure the public storage symlink exists (probably already done for marketplace avatars):
+   ```cmd
+   php artisan storage:link
+   ```
+4. Refresh Laravel:
+   ```cmd
+   composer dump-autoload
+   php artisan optimize:clear
+   ```
+5. Restart Angular dev server (needed because new files exist):
+   ```cmd
+   REM in your ng serve window
+   Ctrl+C
+   ng serve --port=4300
+   ```
 
 ## New API endpoints
 
-### Organizer-facing (authenticated — organizer of the tournament OR admin)
-- `GET /api/v1/sponsors-catalog` — read-only sponsor directory for dropdowns
-- `GET /api/v1/tournaments/{t}/sponsorships/manage` — full list (incl. drafts/pending) for the tournament
-- `POST /api/v1/tournaments/{t}/sponsorships/manage` — propose a new deal (starts in `pending`)
-- `DELETE /api/v1/tournaments/{t}/sponsorships/manage/{id}` — withdraw a pending proposal
+### Organizer-facing (authenticated, role ∈ {admin, organizer})
+- `POST /api/v1/sponsors` — create a new sponsor brand
+  - Admin → is_global=true (goes to global catalog)
+  - Organizer → is_global=false (scoped to their tournaments only)
+- `PATCH /api/v1/sponsors/{sponsor}` — update own sponsor (or any if admin)
+- `POST /api/v1/sponsors/{sponsor}/logo` — multipart file upload (PNG/JPG/SVG/WebP, 2 MB max)
 
-### Admin-facing (new, under /admin)
-- `POST /api/v1/admin/sponsorships/{id}/approve` — pending → active
-- `POST /api/v1/admin/sponsorships/{id}/reject` — pending → cancelled with "Rejected by admin" note
-- `GET  /api/v1/admin/sponsorships-pending-count` — dashboard badge data
+### Admin-facing (new under /admin)
+- `POST /api/v1/admin/sponsors/{sponsor}/promote` — flip is_global=true
+- `POST /api/v1/admin/sponsors/{sponsor}/demote` — flip is_global=false (requires a creator)
 
-## The full flow — what organizers see
+## Logo upload internals
 
-1. **Organizer logs in** (e.g. `organizer@dawri.gg / password`)
-2. Navigates to their own tournament's detail page
-3. New **"Tournament Sponsors"** section appears below the public sponsors widget — **only visible to them and admins**
-4. Clicks **+ Propose sponsor**
-5. Picks a sponsor from the catalog (read-only list), sets placement + contribution + amount
-6. Clicks **Submit for approval** → deal saves with `contract_status='pending'`
-7. Row shows in their list with "Awaiting approval" badge
-8. They can click **Withdraw** on their own pending proposal at any time
+- Stored in `storage/app/public/sponsor-logos/{sponsor-uuid}.{ext}`
+- Public URL served via `/storage/sponsor-logos/...` (requires `storage:link`)
+- When a sponsor's logo is replaced, the previous file is deleted to avoid orphans
+- Both client-side and server-side validate file type + size
 
-## The full flow — what admins see
+## Permission matrix (updated)
 
-1. Admin logs in (`admin@dawri.gg`)
-2. Goes to `/admin/sponsors` (or clicks the 🤝 Sponsors tab in `/admin`)
-3. On the **Deals** tab, a **pulsing amber badge** shows the pending count
-4. Pending rows appear with **Approve** / **Reject** buttons
-5. Click **Approve** → confirms → flips to active → immediately goes public on tournament page
-6. Click **Reject** → confirms → flips to cancelled with "Rejected by admin" in notes
+| Who | Create sponsor brand | Own sponsor visible | Edit own sponsor | Promote to global | Create deal |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Admin | ✅ (is_global=true) | Everyone | ✅ | ✅ | ✅ (any state) |
+| Organizer | ✅ (is_global=false, scoped) | Self + admin only | ✅ | ❌ | ✅ (as `pending`) |
+| Player | ❌ | — | ❌ | ❌ | ❌ |
 
-## Permission model summary
+## The organizer journey
 
-| Who | Create sponsor (brand) | Create deal | Activate deal | Approve deal | Reject deal |
-|---|---|---|---|---|---|
-| Admin | ✅ | ✅ (any state) | ✅ | ✅ | ✅ |
-| Organizer | ❌ | ✅ (as `pending`, on own tournaments only) | ❌ | ❌ | ❌ |
-| Player | ❌ | ❌ | ❌ | ❌ | ❌ |
-
-Organizers can only propose — they cannot unilaterally activate. Admin retains full control over what goes public.
-
-## Business rule guards
-
-The service enforces these even when organizers are the caller:
-
-- Sponsor must exist and be active
-- Tournament must exist
-- Only one title sponsor per tournament (across all non-terminal states — pending included)
-- Only one presenting sponsor per tournament (same rule)
-- Unlimited supporting sponsors
-- Cash contribution must have amount > 0
-- In-kind contribution must have description
-- Logo-only contribution must not have cash or description
-
-All API responses return 422 with a clear message if any guard fails.
-
-## Pending state in the lifecycle
-
-```
-        organizer proposes
-               │
-               ▼
-        ┌─────────────┐
-        │   pending   │
-        └──────┬──────┘
-               │
-       ┌───────┴────────┐
-       │                │
-  admin approve   admin reject
-       │                │
-       ▼                ▼
-  ┌──────────┐    ┌────────────┐
-  │  active  │    │ cancelled  │
-  └────┬─────┘    └────────────┘
-       │
-  admin fulfill
-       │
-       ▼
-  ┌────────────┐
-  │ fulfilled  │
-  └────────────┘
-```
-
-Admin-created deals still start as `draft` and skip the pending step (admins trust themselves).
+1. Organizer navigates to their tournament detail page
+2. Scrolls to "🤝 Tournament Sponsors" section → clicks **+ Propose sponsor**
+3. In the sponsor dropdown → sees global sponsors (Red Bull, Logitech, etc.) + any they've created
+4. Their own sponsors show `(private)` suffix so they know those aren't in global catalog yet
+5. If the brand isn't listed → clicks **+ Create new sponsor** next to the field label
+6. Modal opens: fills name, website, uploads logo, etc. → Save
+7. Sponsor is created instantly, logo uploaded, auto-selected in the deal form
+8. Organizer fills deal details, submits → deal goes to admin for approval
+9. Admin reviews in `/admin/sponsors`:
+   - On the **Sponsors** tab: can click **Promote** on the new brand to make it available to all organizers
+   - On the **Deals** tab: can approve the deal proposal (Sprint 9 flow unchanged)
 
 ## Commit
 
 ```cmd
 cd /D "D:\xamp new\htdocs\Dawri"
 git add -A
-git commit -m "feat(sprint9): organizer-proposed sponsorships with admin approval"
+git commit -m "feat(sprint10): organizer-created sponsors with logo upload and admin promotion"
 git push
 ```

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,11 +15,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Sponsor — a brand/company that can back tournaments.
  *
- * Sponsors are independent entities. They MAY be linked to a Company record
- * (when a Dawri enterprise customer is also sponsoring) but don't have to be
- * (e.g. a global brand with no tournament-hosting activity of its own).
+ * Ownership & visibility (Sprint 10):
+ *   - Admin-created sponsors have `is_global = true` and are visible to
+ *     every organizer in their catalog dropdowns.
+ *   - Organizer-created sponsors have `is_global = false` and are only
+ *     visible to their creator (and admins) until an admin promotes them.
  *
- * Managed by Dawri staff through /admin; not self-serve in Sprint 8.
+ * Use the `visibleTo()` scope to filter lists by the current user.
  */
 class Sponsor extends Model
 {
@@ -29,10 +32,13 @@ class Sponsor extends Model
         'logo_url', 'website_url',
         'contact_name', 'contact_email', 'contact_phone',
         'company_id', 'is_active',
+        // Sprint 10
+        'created_by_user_id', 'is_global',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_global' => 'boolean',
     ];
 
     // ── Relationships ─────────────────────────────────────────────────
@@ -42,12 +48,16 @@ class Sponsor extends Model
         return $this->belongsTo(Company::class);
     }
 
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
     public function sponsorships(): HasMany
     {
         return $this->hasMany(Sponsorship::class);
     }
 
-    /** Tournaments this sponsor is actively backing. */
     public function activeTournaments(): BelongsToMany
     {
         return $this->belongsToMany(Tournament::class, 'sponsorships')
@@ -58,8 +68,30 @@ class Sponsor extends Model
 
     // ── Scopes ────────────────────────────────────────────────────────
 
-    public function scopeActive($query)
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Filter sponsors visible to a given user.
+     *   - Admin sees every sponsor (no filter applied).
+     *   - Organizer sees global sponsors + any they created themselves.
+     *   - Anyone else: global only.
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    {
+        if ($user && $user->role === 'admin') {
+            return $query;
+        }
+
+        if ($user && $user->role === 'organizer') {
+            return $query->where(function (Builder $q) use ($user) {
+                $q->where('is_global', true)
+                  ->orWhere('created_by_user_id', $user->id);
+            });
+        }
+
+        return $query->where('is_global', true);
     }
 }

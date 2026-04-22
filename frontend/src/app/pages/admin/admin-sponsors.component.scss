@@ -375,3 +375,16 @@
   .btn, .btn-link { transition: none; }
   .toast { animation: none; }
 }
+
+/* Sprint 10: visibility badges in the sponsors table */
+.badge--global {
+  background: rgba(74, 222, 128, 0.14);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.badge--scoped {
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--cyan);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}

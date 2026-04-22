@@ -69,6 +69,7 @@
               <th>Name</th>
               <th>Website</th>
               <th>Contact</th>
+              <th>Visibility</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -94,11 +95,21 @@
                   } @else { <span class="muted">—</span> }
                 </td>
                 <td>
+                  @if (s.is_global === false) {
+                    <span class="badge badge--scoped" title="Only visible to creator + admins">Private</span>
+                  } @else {
+                    <span class="badge badge--global" title="In global catalog — all organizers can use">Global</span>
+                  }
+                </td>
+                <td>
                   <span class="badge" [class.badge--ok]="s.is_active" [class.badge--muted]="!s.is_active">
                     {{ s.is_active ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
-                <td>
+                <td class="actions-cell">
+                  @if (s.is_global === false) {
+                    <button type="button" class="btn-link btn-link--ok" (click)="promoteSponsor(s)">Promote</button>
+                  }
                   <button type="button" class="btn-link" (click)="toggleSponsorActive(s)">
                     {{ s.is_active ? 'Deactivate' : 'Activate' }}
                   </button>

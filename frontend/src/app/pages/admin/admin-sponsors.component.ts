@@ -23,6 +23,8 @@ interface SponsorRow {
   contact_name: string | null;
   contact_email: string | null;
   is_active: boolean;
+  is_global?: boolean;   // Sprint 10
+  created_by_user_id?: string | null;
 }
 
 interface SponsorshipRow {
@@ -147,6 +149,16 @@ export class AdminSponsorsComponent implements OnInit {
     }).subscribe({
       next: () => { this.flash('Updated', true); this.loadSponsors(); },
       error: (err) => this.flash(err.error?.message ?? 'Update failed', false),
+    });
+  }
+
+  /** Sprint 10: promote a scoped sponsor to the global catalog. */
+  promoteSponsor(s: SponsorRow): void {
+    if (!confirm(`Promote ${s.name} to the global catalog? Every organizer will then be able to use this sponsor.`)) return;
+
+    this.http.post(`${this.apiAdmin}/sponsors/${s.id}/promote`, {}).subscribe({
+      next: () => { this.flash(`${s.name} promoted to global`, true); this.loadSponsors(); },
+      error: (err) => this.flash(err.error?.message ?? 'Promote failed', false),
     });
   }
 

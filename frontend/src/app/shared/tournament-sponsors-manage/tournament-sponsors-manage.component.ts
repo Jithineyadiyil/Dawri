@@ -22,6 +22,7 @@ interface SponsorCatalogEntry {
   logo_url: string | null;
   tagline: string | null;
   is_active: boolean;
+  is_global?: boolean;   // Sprint 10 — scoped sponsors show "Private" pill
 }
 
 interface SponsorshipRow {
@@ -71,6 +72,14 @@ export class TournamentSponsorsManageComponent implements OnChanges {
   readonly showForm  = signal(false);
   readonly saving    = signal(false);
   readonly toast     = signal<{ msg: string; ok: boolean } | null>(null);
+
+  /* Sprint 10: inline sponsor creation state */
+  readonly showCreateSponsor = signal(false);
+  readonly creatingSponsor   = signal(false);
+  readonly uploadingLogo     = signal(false);
+  readonly logoFile          = signal<File | null>(null);
+  readonly logoPreviewUrl    = signal<string | null>(null);
+  newSponsor = this.emptySponsor();
 
   /* ── Form model ─────────────────────────────────────────────────── */
   newDeal = this.emptyDeal();
@@ -199,6 +208,118 @@ export class TournamentSponsorsManageComponent implements OnChanges {
       in_kind_description: '',
       in_kind_value_sar: null,
       notes: '',
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+   *  Sprint 10 — Inline sponsor creation + logo upload
+   * ═══════════════════════════════════════════════════════════════ */
+
+  openCreateSponsor(): void {
+    this.newSponsor = this.emptySponsor();
+    this.logoFile.set(null);
+    this.logoPreviewUrl.set(null);
+    this.showCreateSponsor.set(true);
+  }
+
+  cancelCreateSponsor(): void {
+    this.showCreateSponsor.set(false);
+  }
+
+  /** Handle <input type="file"> change. Validates size and type client-side. */
+  onLogoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file  = input.files?.[0] ?? null;
+    if (!file) { this.logoFile.set(null); this.logoPreviewUrl.set(null); return; }
+
+    const allowed = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      this.flash('Logo must be PNG, JPG, SVG, or WebP', false);
+      input.value = '';
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      this.flash('Logo must be 2 MB or smaller', false);
+      input.value = '';
+      return;
+    }
+
+    this.logoFile.set(file);
+    const reader = new FileReader();
+    reader.onload = () => this.logoPreviewUrl.set(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  /**
+   * Create the sponsor, then upload its logo (if one was chosen), then
+   * refresh the catalog and auto-select the new entry in the deal form.
+   */
+  saveNewSponsor(): void {
+    if (!this.newSponsor.name.trim()) {
+      this.flash('Sponsor name is required', false); return;
+    }
+
+    this.creatingSponsor.set(true);
+    this.http
+      .post<{ data: SponsorCatalogEntry }>(`${environment.apiUrl}/sponsors`, this.newSponsor)
+      .subscribe({
+        next: (res) => {
+          const created = res.data;
+          // If a logo was chosen, upload it as a follow-up request.
+          if (this.logoFile()) {
+            this.uploadLogoFor(created.id, () => this.onSponsorCreated(created));
+          } else {
+            this.onSponsorCreated(created);
+          }
+        },
+        error: (err) => {
+          this.creatingSponsor.set(false);
+          this.flash(err.error?.message ?? 'Could not create sponsor', false);
+        },
+      });
+  }
+
+  private uploadLogoFor(sponsorId: string, done: () => void): void {
+    const file = this.logoFile();
+    if (!file) { done(); return; }
+
+    this.uploadingLogo.set(true);
+    const fd = new FormData();
+    fd.append('logo', file);
+
+    this.http
+      .post(`${environment.apiUrl}/sponsors/${sponsorId}/logo`, fd)
+      .subscribe({
+        next: () => { this.uploadingLogo.set(false); done(); },
+        error: () => {
+          // Sponsor was created but logo failed — still proceed, flash a warning
+          this.uploadingLogo.set(false);
+          this.flash('Sponsor created but logo upload failed. You can retry later.', false);
+          done();
+        },
+      });
+  }
+
+  private onSponsorCreated(created: SponsorCatalogEntry): void {
+    this.creatingSponsor.set(false);
+    this.flash('Sponsor created. Now set up the deal.', true);
+    this.showCreateSponsor.set(false);
+    this.loadCatalog();
+    // Auto-select the newly-created sponsor in the deal form
+    this.newDeal.sponsor_id = created.id;
+  }
+
+  private emptySponsor(): {
+    name: string;
+    name_ar: string | null;
+    tagline: string | null;
+    website_url: string | null;
+    contact_name: string | null;
+    contact_email: string | null;
+  } {
+    return {
+      name: '', name_ar: null, tagline: null,
+      website_url: null, contact_name: null, contact_email: null,
     };
   }
 }
