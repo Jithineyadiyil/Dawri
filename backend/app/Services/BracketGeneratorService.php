@@ -139,6 +139,61 @@ class BracketGeneratorService
 
             $currentRoundMatches = $nextRoundMatches;
         }
+
+        // ── Walkover propagation pass ───────────────────────────────────────
+        // After all rounds are built and linked, walk every walkover match
+        // (R1 byes) and push its winner into the next match's open slot.
+        // Without this pass, walkover winners would never propagate because
+        // the BracketAdvancementService::advance() method is only invoked
+        // by API result-confirmation calls — bye matches never trigger one.
+        // This must happen ONCE per walkover and ONLY here (not inline at
+        // create-time) to avoid double-writes when advance() later runs on
+        // sibling matches in the same R2 placeholder.
+        $this->propagateWalkoverWinners($bracket->id);
+    }
+
+    /**
+     * Walks all walkover matches in a bracket, pushing each winner forward
+     * into its `next_match_id`'s next open slot. This mirrors what
+     * BracketAdvancementService::fillParticipantSlot does, but is invoked
+     * only once at generation time so byes are never stuck behind a missing
+     * advance() call. Idempotent: safe to call after every bracket build.
+     *
+     * Chains are handled by iterating multiple passes — if propagating a
+     * walkover winner produces a new match where both slots are now filled
+     * with walkover winners (an unlikely but possible 2-vs-2 byes case),
+     * that new match itself does NOT auto-resolve — it stays pending and
+     * is played normally by the participants.
+     */
+    private function propagateWalkoverWinners(string $bracketId): void
+    {
+        $walkovers = TournamentMatch::where('bracket_id', $bracketId)
+            ->where('status', 'walkover')
+            ->whereNotNull('winner_id')
+            ->whereNotNull('next_match_id')
+            ->orderBy('round_number')
+            ->orderBy('match_number')
+            ->get();
+
+        foreach ($walkovers as $walkover) {
+            $next = TournamentMatch::find($walkover->next_match_id);
+            if (! $next) continue;
+
+            // Push the walkover winner into the first available slot.
+            // Re-read fresh fields each time to handle the case where another
+            // walkover already filled slot A in this same iteration.
+            if ($next->participant_a_id === null) {
+                $next->participant_a_id = $walkover->winner_id;
+            } elseif ($next->participant_b_id === null
+                   && $next->participant_a_id !== $walkover->winner_id) {
+                // Defensive guard: refuse to write the same player into both
+                // slots (this would happen if buggy code routed two distinct
+                // walkovers to the same target; with proper seeding it should
+                // never occur, but the guard prevents silent corruption).
+                $next->participant_b_id = $walkover->winner_id;
+            }
+            $next->save();
+        }
     }
 
     // ─── Double Elimination ───────────────────────────────────────────────────

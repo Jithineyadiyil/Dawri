@@ -321,3 +321,40 @@
   transition:opacity .6s ease, transform .6s ease;
   &.visible { opacity:1; transform:translateY(0); }
 }
+
+/* "See All Partners →" CTA — sits directly below the platform-sponsors strip
+   on the home page. Renders only when at least one active partner exists
+   (gated by hasPartners() in the component). Subtle ghost-button styling so
+   it doesn't compete with the gold "Join Free" CTA in the nav. */
+.see-all-partners {
+  display: flex;
+  justify-content: center;
+  padding: 0 24px 60px;
+  margin-top: -8px;
+}
+.see-all-partners__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+  background: transparent;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+
+  span { transition: transform 0.2s; }
+
+  &:hover {
+    background: var(--gold);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px var(--gold-glow);
+  }
+  &:hover span { transform: translateX(4px); }
+}

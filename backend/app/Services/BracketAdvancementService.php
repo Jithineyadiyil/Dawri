@@ -222,6 +222,15 @@ class BracketAdvancementService
 
     private function fillParticipantSlot(TournamentMatch $match, string $participantId): void
     {
+        // Idempotency: if this participant is already in either slot, no-op.
+        // Without this guard, a duplicate advance() call (e.g. from a double
+        // result-confirmation) would write the same winner into BOTH slots,
+        // producing "Player X vs Player X" in the next match.
+        if ($match->participant_a_id === $participantId
+            || $match->participant_b_id === $participantId) {
+            return;
+        }
+
         if ($match->participant_a_id === null) {
             $match->participant_a_id = $participantId;
         } elseif ($match->participant_b_id === null) {

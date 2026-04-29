@@ -128,8 +128,21 @@ class MatchController extends Controller
             return response()->json(['message' => 'No winner set.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        // ── Idempotency guard ───────────────────────────────────────────────
+        // Mark the match completed BEFORE calling advance() so that a second
+        // call (caused by double-click, network retry, or any caller bug)
+        // is rejected by the status check above. Without this, advance()
+        // could be invoked multiple times for the same match — each call
+        // writing the same winner forward and corrupting the next match's
+        // slots (e.g. "Player 1 vs Player 1" in the final).
+        // We also stamp completed_at for auditability.
+        $match->update([
+            'status'       => 'completed',
+            'completed_at' => now(),
+        ]);
+
         try {
-            $this->advancement->advance($match);
+            $this->advancement->advance($match->fresh());
             return response()->json([
                 'message' => 'Result confirmed and bracket advanced.',
                 'data'    => $this->matchArray($match->fresh()),

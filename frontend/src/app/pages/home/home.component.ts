@@ -1,9 +1,11 @@
 import {
-  ChangeDetectionStrategy, Component, AfterViewInit, ElementRef
+  ChangeDetectionStrategy, Component, AfterViewInit, DestroyRef, ElementRef, inject, signal
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { PlatformSponsorsStripComponent } from '../../components/platform-sponsors-strip/platform-sponsors-strip.component';
+import { PlatformSponsorService } from '../../components/platform-sponsors-strip/platform-sponsor.service';
 
 @Component({
   selector: 'app-home',
@@ -14,6 +16,16 @@ import { PlatformSponsorsStripComponent } from '../../components/platform-sponso
   styleUrls: ['./home.component.scss'],
 })
 export class HomeComponent implements AfterViewInit {
+  /**
+   * Tracks whether ANY active platform sponsor exists. Used to gate the
+   * "See All Partners →" CTA below the sponsor strip on the home page —
+   * we don't show the link when there's nothing to see. Reuses the same
+   * shared service the strip itself consumes, so this triggers no extra
+   * network call.
+   */
+  private sponsorService = inject(PlatformSponsorService);
+  private destroyRef     = inject(DestroyRef);
+  readonly hasPartners   = signal(false);
 
   readonly games = [
     {
@@ -88,7 +100,17 @@ export class HomeComponent implements AfterViewInit {
     { name: 'Khalid T.', role: 'Swiss Master',   img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&q=80&fit=crop&crop=face' },
   ];
 
-  constructor(private el: ElementRef) {}
+  constructor(private el: ElementRef) {
+    // Probe the shared platform-sponsor cache so we can hide the
+    // "See All Partners →" CTA when there are no partners to show.
+    // Errors are non-fatal — fall back to hidden CTA, never break home.
+    this.sponsorService.load()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (d) => this.hasPartners.set((d.title.length + d.standard.length) > 0),
+        error: ()  => this.hasPartners.set(false),
+      });
+  }
 
   ngAfterViewInit(): void {
     const observer = new IntersectionObserver(

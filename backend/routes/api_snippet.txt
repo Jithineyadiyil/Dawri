@@ -1,0 +1,22 @@
+// ─────────────────────────────────────────────────────────────────────────
+// PASTE THIS SNIPPET into backend/routes/api.php
+// 
+// Location: right after line 55 (the existing platform-sponsors route),
+// inside the same public block (NOT inside auth:sanctum).
+//
+// Search for this line:
+//     Route::get('/platform-sponsors', [PlatformSponsorController::class, 'index']);
+//
+// Add the following 2 lines IMMEDIATELY after it.
+// ─────────────────────────────────────────────────────────────────────────
+
+// Public stats for /sponsors page hero band.
+// Cached server-side for 5 minutes (see PublicStatsController).
+Route::get('/stats/public', [PublicStatsController::class, 'index']);
+
+// ─────────────────────────────────────────────────────────────────────────
+// ALSO ADD this `use` import at the top of the file with the other
+// controller imports:
+//
+//     use App\Http\Controllers\Api\PublicStatsController;
+// ─────────────────────────────────────────────────────────────────────────

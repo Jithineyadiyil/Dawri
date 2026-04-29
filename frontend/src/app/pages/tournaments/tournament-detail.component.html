@@ -52,12 +52,20 @@
         <span>{{ t.format_label }}</span>
       </div>
 
+      <!-- ── Meta + actions row ──────────────────────────────────────
+           The tournament name is intentionally NOT rendered again here —
+           the hero banner above already carries it. Showing it twice in
+           the same viewport just steals attention from the page actions.
+           This row carries the format / game / registration badges and
+           any contextual action buttons (register, generate bracket). -->
       <div class="detail-header__top">
-        <div>
-          <h1 class="detail-title">{{ t.name }}</h1>
-          @if (t.name_ar) {
-            <p class="detail-title-ar" dir="rtl" lang="ar">{{ t.name_ar }}</p>
-          }
+        <div class="detail-badges">
+          <span class="badge" [class]="'badge--game-' + t.game">{{ t.game_label }}</span>
+          <span class="badge badge--format">{{ t.format_label }}</span>
+          <span class="badge" [class.badge--open]="t.is_registration_open"
+                [class.badge--closed]="!t.is_registration_open">
+            {{ t.is_registration_open ? 'Registration Open' : 'Registration Closed' }}
+          </span>
         </div>
         <div class="detail-header__cta">
           @if (t.is_registration_open && auth.isLoggedIn() && !t.is_registered) {
@@ -74,15 +82,6 @@
             </button>
           }
         </div>
-      </div>
-
-      <div class="detail-badges">
-        <span class="badge" [class]="'badge--game-' + t.game">{{ t.game_label }}</span>
-        <span class="badge badge--format">{{ t.format_label }}</span>
-        <span class="badge" [class.badge--open]="t.is_registration_open"
-              [class.badge--closed]="!t.is_registration_open">
-          {{ t.is_registration_open ? 'Registration Open' : 'Registration Closed' }}
-        </span>
       </div>
     </div>
 

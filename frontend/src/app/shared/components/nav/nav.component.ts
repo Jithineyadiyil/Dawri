@@ -29,6 +29,7 @@ import { AuthService } from '../../../core/services/auth.service';
         <a routerLink="/tournaments" routerLinkActive="active" class="nav-link">Tournaments</a>
         <a routerLink="/marketplace" routerLinkActive="active" class="nav-link">Marketplace</a>
         <a routerLink="/leaderboard" routerLinkActive="active" class="nav-link">Leaderboard</a>
+        <a routerLink="/sponsors"    routerLinkActive="active" class="nav-link">Partners</a>
         <a routerLink="/pricing" routerLinkActive="active" class="nav-link">Pricing</a>
       </div>
 
@@ -68,6 +69,7 @@ import { AuthService } from '../../../core/services/auth.service';
         <a routerLink="/tournaments" class="drawer-link">Tournaments</a>
         <a routerLink="/marketplace" class="drawer-link">Marketplace</a>
         <a routerLink="/leaderboard" class="drawer-link">Leaderboard</a>
+        <a routerLink="/sponsors"    class="drawer-link">Partners</a>
         <a routerLink="/pricing" class="drawer-link">Pricing</a>
         @if (auth.isLoggedIn()) {
           <a routerLink="/dashboard" class="drawer-link">Dashboard</a>

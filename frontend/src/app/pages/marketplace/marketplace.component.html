@@ -23,7 +23,7 @@
         }
         <button type="button" class="cart-btn" (click)="openCart()" [disabled]="!cartCount()">
           🛒 Cart
-          @if (cartCount()) { <span class="cart-count">{{ cartCount() }}</span> }
+          @if (cartCount()) { <span class="cart-count">{{ cartCount() > 99 ? '99+' : cartCount() }}</span> }
         </button>
       </div>
     </header>
@@ -33,95 +33,194 @@
       <button type="button" role="tab"
               [class.active]="activeTab() === 'store'"
               (click)="switchTab('store')">Store</button>
-      <button type="button" role="tab"
-              [class.active]="activeTab() === 'orders'"
-              (click)="switchTab('orders')">My Orders</button>
+      @if (auth.isLoggedIn()) {
+        <button type="button" role="tab"
+                [class.active]="activeTab() === 'orders'"
+                (click)="switchTab('orders')">My Orders</button>
+      }
     </nav>
 
     <!-- ═════════════════════════════════ STORE TAB ═════════════════════════ -->
     @if (activeTab() === 'store') {
 
-      <div class="mp-filters">
+      <!-- ── Hero carousel — Featured Brands ────────────────────────────
+           Rotates through real brands (no fabricated banners). Pauses
+           on hover, manual nav via dots and arrows, auto-advances every
+           6 seconds. Hides itself when there are no products yet. -->
+      @if (currentSlide(); as slide) {
+        <section class="hero-carousel"
+                 (mouseenter)="pauseSlides(true)"
+                 (mouseleave)="pauseSlides(false)"
+                 aria-roledescription="carousel"
+                 aria-label="Featured brands">
+          <div class="hero-carousel__bg" aria-hidden="true">
+            <div class="hero-carousel__orb hero-carousel__orb--gold"></div>
+            <div class="hero-carousel__orb hero-carousel__orb--violet"></div>
+          </div>
+
+          <div class="hero-carousel__inner">
+            <div class="hero-carousel__text">
+              <div class="hero-carousel__chips">
+                <span class="hero-carousel__chip">Featured</span>
+                <span class="hero-carousel__chip hero-carousel__chip--cat">{{ categoryLabel(slide.category) }}</span>
+                <span class="hero-carousel__chip hero-carousel__chip--count">{{ slide.itemCount }} variants</span>
+              </div>
+              <h2 class="hero-carousel__title">{{ slide.brand }}</h2>
+              <p class="hero-carousel__desc">
+                Instant digital delivery · Saudi Arabia
+              </p>
+
+              <!-- Real denomination chips drawn from this brand's actual face values.
+                   Capped at 5 in the computed signal. -->
+              @if (slide.denominations.length > 0) {
+                <div class="hero-carousel__denoms" aria-label="Available denominations">
+                  @for (d of slide.denominations; track d) {
+                    <span class="denom-chip">{{ d }} <small>SAR</small></span>
+                  }
+                </div>
+              }
+
+              <div class="hero-carousel__row">
+                <div class="hero-carousel__from">
+                  <span class="from-label">From</span>
+                  <span class="from-num">{{ slide.fromPrice | number:'1.0-2' }}</span>
+                  <span class="from-ccy">SAR</span>
+                </div>
+                <button type="button" class="hero-carousel__cta" (click)="shopBrand(slide)">
+                  Shop {{ slide.brand }}
+                  <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            </div>
+            <div class="hero-carousel__art">
+              <span class="hero-carousel__art-badge" aria-hidden="true">⚡ Instant</span>
+              <img [src]="slide.logo"
+                   [alt]="slide.brand"
+                   loading="eager"
+                   (error)="onImgError($event)"/>
+            </div>
+          </div>
+
+          <!-- Manual nav -->
+          @if (featuredBrands().length > 1) {
+            <button type="button" class="hero-carousel__arrow hero-carousel__arrow--prev"
+                    (click)="nudgeSlide(-1)" aria-label="Previous slide">‹</button>
+            <button type="button" class="hero-carousel__arrow hero-carousel__arrow--next"
+                    (click)="nudgeSlide(1)" aria-label="Next slide">›</button>
+
+            <div class="hero-carousel__dots" role="tablist">
+              @for (b of featuredBrands(); track b.brand; let i = $index) {
+                <button type="button"
+                        class="hero-carousel__dot"
+                        role="tab"
+                        [class.active]="i === slideIndex()"
+                        [attr.aria-label]="'Go to slide ' + (i + 1)"
+                        [attr.aria-selected]="i === slideIndex()"
+                        (click)="goToSlide(i)"></button>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      <!-- ── Search bar (full width above the sidebar+grid split) ──── -->
+      <div class="mp-search">
         <div class="search-box">
           <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
           </svg>
           <input type="text"
                  class="search-input"
-                 placeholder="Search brand, name, or name_ar…"
+                 placeholder="Search brands or products…"
                  [value]="searchQuery()"
                  (input)="setSearch($event)"/>
         </div>
+      </div>
 
-        <div class="cat-chips">
-          @for (cat of categories; track cat) {
-            <button type="button"
-                    class="cat-chip"
-                    [class.active]="activeCategory() === cat"
-                    (click)="activeCategory.set(cat)">
-              {{ cat | titlecase }}
-            </button>
+      <!-- ── Two-column layout: category sidebar + product grid ─────── -->
+      <div class="mp-layout">
+
+        <!-- Sidebar: vertical category nav with icons.
+             Sticky on desktop. On mobile, falls back to horizontal scroll. -->
+        <aside class="mp-sidebar" aria-label="Categories">
+          <h3 class="mp-sidebar__title">Categories</h3>
+          <nav class="mp-sidebar__nav">
+            @for (cat of categories; track cat) {
+              <button type="button"
+                      class="cat-card"
+                      [class.active]="activeCategory() === cat"
+                      (click)="activeCategory.set(cat)">
+                <span class="cat-card__icon" aria-hidden="true">{{ categoryIcon(cat) }}</span>
+                <span class="cat-card__label">{{ categoryLabel(cat) }}</span>
+              </button>
+            }
+          </nav>
+        </aside>
+
+        <!-- Main content area — product grid OR loading/empty states. -->
+        <div class="mp-main">
+          @if (loading()) {
+            <div class="mp-skeleton">
+              @for (i of [1,2,3,4,5,6,7,8]; track i) { <div class="skel-card"></div> }
+            </div>
+          } @else if (filtered().length === 0) {
+            <div class="mp-empty">
+              <span class="empty-icon">🎁</span>
+              <h3>No products match your search</h3>
+              <p>Try a different category or clear the filters.</p>
+            </div>
+          } @else {
+            @for (brand of brandKeys(); track brand) {
+              <section class="brand-section">
+                <header class="brand-head">
+                  <img class="brand-logo"
+                       [src]="grouped()[brand][0].image_url || '/brands/generic.svg'"
+                       [alt]="brand"
+                       loading="lazy"
+                       (error)="onImgError($event)"/>
+                  <h2 class="brand-name">{{ brand }}</h2>
+                  <span class="brand-count">{{ grouped()[brand].length }} {{ grouped()[brand].length === 1 ? 'item' : 'items' }}</span>
+                </header>
+
+                <div class="product-grid">
+                  @for (p of grouped()[brand]; track p.id) {
+                    <article class="product-card">
+                      <div class="product-card__art">
+                        <img [src]="p.image_url || '/brands/generic.svg'"
+                             [alt]="p.brand"
+                             loading="lazy"
+                             (error)="onImgError($event)"/>
+                      </div>
+
+                      <div class="product-card__body">
+                        <h3 class="product-card__name">{{ p.name }}</h3>
+                        @if (p.name_ar) {
+                          <p class="product-card__name-ar" dir="rtl" lang="ar">{{ p.name_ar }}</p>
+                        }
+                        <div class="product-card__price">
+                          <span class="price-num">{{ p.our_price | number:'1.0-2' }}</span>
+                          <span class="price-ccy">SAR</span>
+                        </div>
+                      </div>
+
+                      <button type="button"
+                              class="product-card__cta"
+                              (click)="addToCart(p, $event)"
+                              [attr.aria-label]="'Add ' + p.name + ' to cart'">
+                        @if (cartQty(p.id)) {
+                          <span class="added">✓ {{ cartQty(p.id) }} in cart</span>
+                        } @else {
+                          Add to cart
+                        }
+                      </button>
+                    </article>
+                  }
+                </div>
+              </section>
+            }
           }
         </div>
       </div>
-
-      @if (loading()) {
-        <div class="mp-skeleton">
-          @for (i of [1,2,3,4,5,6,7,8]; track i) { <div class="skel-card"></div> }
-        </div>
-      } @else if (filtered().length === 0) {
-        <div class="mp-empty">
-          <span class="empty-icon">🎁</span>
-          <h3>No products match your search</h3>
-          <p>Try a different category or clear the filters.</p>
-        </div>
-      } @else {
-
-        @for (brand of brandKeys(); track brand) {
-          <section class="brand-section">
-            <header class="brand-head">
-              <img class="brand-logo"
-                   [src]="grouped()[brand][0].image_url || '/brands/generic.svg'"
-                   [alt]="brand"
-                   loading="lazy"/>
-              <h2 class="brand-name">{{ brand }}</h2>
-              <span class="brand-count">{{ grouped()[brand].length }} {{ grouped()[brand].length === 1 ? 'item' : 'items' }}</span>
-            </header>
-
-            <div class="product-grid">
-              @for (p of grouped()[brand]; track p.id) {
-                <article class="product-card">
-                  <div class="product-card__art">
-                    <img [src]="p.image_url || '/brands/generic.svg'" [alt]="p.brand" loading="lazy"/>
-                  </div>
-
-                  <div class="product-card__body">
-                    <h3 class="product-card__name">{{ p.name }}</h3>
-                    @if (p.name_ar) {
-                      <p class="product-card__name-ar" dir="rtl" lang="ar">{{ p.name_ar }}</p>
-                    }
-                    <div class="product-card__price">
-                      <span class="price-num">{{ p.our_price | number:'1.0-2' }}</span>
-                      <span class="price-ccy">SAR</span>
-                    </div>
-                  </div>
-
-                  <button type="button"
-                          class="product-card__cta"
-                          (click)="addToCart(p, $event)"
-                          [attr.aria-label]="'Add ' + p.name + ' to cart'">
-                    @if (cartQty(p.id)) {
-                      <span class="added">✓ {{ cartQty(p.id) }} in cart</span>
-                    } @else {
-                      Add to cart
-                    }
-                  </button>
-                </article>
-              }
-            </div>
-          </section>
-        }
-      }
     }
 
     <!-- ═════════════════════════════════ ORDERS TAB ═════════════════════════ -->
@@ -143,7 +242,8 @@
             <article class="order-row">
               <img class="order-logo"
                    [src]="o.product?.image_url || '/brands/generic.svg'"
-                   [alt]="o.product?.brand || 'Product'"/>
+                   [alt]="o.product?.brand || 'Product'"
+                   (error)="onImgError($event)"/>
 
               <div class="order-main">
                 <div class="order-names">
@@ -201,7 +301,10 @@
 
       @if (cart().length === 0) {
         <div class="cart-empty">
-          <p>Your cart is empty.</p>
+          <span class="empty-icon">🛒</span>
+          <h4>Your cart is empty</h4>
+          <p>Browse the store and add items to get started.</p>
+          <button type="button" class="btn-ghost" (click)="closeCart()">Continue shopping</button>
         </div>
       } @else {
         <div class="cart-items">
@@ -209,7 +312,8 @@
             <div class="cart-item">
               <img class="cart-item__img"
                    [src]="item.product.image_url || '/brands/generic.svg'"
-                   [alt]="item.product.brand"/>
+                   [alt]="item.product.brand"
+                   (error)="onImgError($event)"/>
               <div class="cart-item__info">
                 <p class="cart-item__name">{{ item.product.name }}</p>
                 @if (item.product.name_ar) {
@@ -235,12 +339,17 @@
 
           <div class="pay-chips">
             @for (m of payMethods; track m.id) {
-              <button type="button"
-                      class="pay-chip"
-                      [class.active]="paymentMethod() === m.id"
-                      (click)="paymentMethod.set(m.id)">
-                {{ m.icon }} {{ m.label }}
-              </button>
+              <!-- Wallet only makes sense for logged-in users.
+                   Guests still see Card / Mada / STC Pay; they'll be
+                   prompted to sign in when they hit Checkout below. -->
+              @if (m.id !== 'wallet' || auth.isLoggedIn()) {
+                <button type="button"
+                        class="pay-chip"
+                        [class.active]="paymentMethod() === m.id"
+                        (click)="paymentMethod.set(m.id)">
+                  {{ m.icon }} {{ m.label }}
+                </button>
+              }
             }
           </div>
 
@@ -391,6 +500,37 @@
           </button>
         </footer>
       }
+    </div>
+  }
+
+  <!-- ═════════════════════════════════════ GUEST LOGIN PROMPT ═════════════════════
+       Shown when a logged-out user tries to check out. Guests can browse
+       and build a cart freely; this only blocks the final purchase step. -->
+  @if (showLoginPrompt()) {
+    <div class="modal-back" (click)="showLoginPrompt.set(false)"></div>
+    <div class="modal modal--prompt" role="dialog" aria-label="Sign in required">
+      <header class="modal-head">
+        <h3>Sign in to check out</h3>
+        <button type="button" class="modal-close"
+                (click)="showLoginPrompt.set(false)" aria-label="Close">✕</button>
+      </header>
+      <div class="modal-body">
+        <p class="prompt-line">
+          Your cart is saved. Sign in to complete your purchase and we'll deliver
+          your codes instantly.
+        </p>
+        <ul class="prompt-bullets">
+          <li>✓ Your cart will still be here</li>
+          <li>✓ One-tap purchases on future visits</li>
+          <li>✓ Order history and reveal-on-demand codes</li>
+        </ul>
+      </div>
+      <footer class="modal-foot">
+        <button type="button" class="btn-ghost"
+                (click)="showLoginPrompt.set(false)">Keep shopping</button>
+        <a class="btn-primary" routerLink="/auth"
+           (click)="showLoginPrompt.set(false)">Sign in</a>
+      </footer>
     </div>
   }
 

@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, shareReplay, tap } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface PlatformSponsorRow {
   id: string;
@@ -37,7 +38,11 @@ export interface PlatformSponsorsByTier {
 @Injectable({ providedIn: 'root' })
 export class PlatformSponsorService {
   private http = inject(HttpClient);
-  private base = 'http://localhost:8001/api/v1';
+
+  // Resolve the API base from environment so production builds hit the
+  // real domain instead of localhost. Other services in this codebase
+  // (auth.service, tournament.service) follow the same pattern.
+  private base = environment.apiUrl;
 
   private cache$: Observable<PlatformSponsorsByTier> | null = null;
 

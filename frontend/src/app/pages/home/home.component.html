@@ -68,6 +68,17 @@
   <!-- ── PLATFORM SPONSORS (auto-hides if none active) ──────────────── -->
   <app-platform-sponsors-strip variant="hero"></app-platform-sponsors-strip>
 
+  <!-- "See all" CTA for the sponsors page. Hidden when no partners
+       exist (so we don't show a link to an empty showcase). -->
+  @if (hasPartners()) {
+    <div class="see-all-partners">
+      <a routerLink="/sponsors" class="see-all-partners__link">
+        See All Partners
+        <span aria-hidden="true">→</span>
+      </a>
+    </div>
+  }
+
   <!-- ── GAMES ─────────────────────────────────────────────────────── -->
   <section class="section">
     <div class="section-wrap">

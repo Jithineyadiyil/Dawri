@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\PlayerController;
 use App\Http\Controllers\Api\PlatformSponsorController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PublicStatsController;
 use App\Http\Controllers\Api\OrganizerSponsorController;
 use App\Http\Controllers\Api\SponsorController;
 use App\Http\Controllers\Api\SponsorshipController;
@@ -53,6 +54,10 @@ Route::prefix('v1')->group(function () {
 
     // Sprint 14: platform sponsors — visible to all visitors
     Route::get('/platform-sponsors', [PlatformSponsorController::class, 'index']);
+
+    // Public platform stats for /sponsors page hero band.
+    // Backed by real DB counts, server-side cached for 5 minutes.
+    Route::get('/stats/public', [PublicStatsController::class, 'index']);
 
     // Sprint 13 Phase 1: Finance report downloads — token-in-query auth
     // (handled inside AdminFinanceController::ensureAdminFromQueryToken)

@@ -1,9 +1,10 @@
 import {
-  ChangeDetectionStrategy, Component, OnInit,
+  ChangeDetectionStrategy, Component, OnInit, OnDestroy,
   inject, signal, computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -36,6 +37,30 @@ interface Product {
 
 interface CartItem { product: Product; qty: number; }
 
+/**
+ * One slide in the marketplace hero carousel. Computed from real product
+ * data — no admin CRUD, no fabrication. The shape is intentionally tight
+ * so the slide template stays predictable.
+ */
+interface FeaturedBrand {
+  /** Brand display name, e.g. "PSN", "Mobily". */
+  brand: string;
+  /** How many SKUs this brand has — drives the "X cards available" copy. */
+  itemCount: number;
+  /** The most-expensive product, used for the headline price + visual. */
+  headline: Product;
+  /** Resolved logo URL (falls back to /brands/generic.svg). */
+  logo: string;
+  /** Backend category value to apply when the user clicks the slide CTA. */
+  category: string;
+  /** Lowest price across this brand's SKUs, for the "from X SAR" tag. */
+  fromPrice: number;
+  /** Up to 5 face-value denominations (e.g. [20, 50, 100, 200, 500])
+   *  shown as quick-glance chips under the description. Always real,
+   *  always sorted ascending, deduplicated. */
+  denominations: number[];
+}
+
 type PayMethod = 'wallet' | 'card' | 'mada' | 'stc_pay';
 
 interface OrderRow {
@@ -55,12 +80,12 @@ interface RevealResponse { data: { code: string; already_revealed: boolean }; }
 @Component({
   selector: 'app-marketplace',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './marketplace.component.html',
   styleUrls: ['./marketplace.component.scss'],
 })
-export class MarketplaceComponent implements OnInit {
+export class MarketplaceComponent implements OnInit, OnDestroy {
   private readonly api  = inject(ApiService);
   readonly auth         = inject(AuthService);
 
@@ -74,10 +99,17 @@ export class MarketplaceComponent implements OnInit {
   readonly searchQuery    = signal('');
 
   // Cart
+  // Stored in localStorage so a user's cart survives page reloads, route
+  // changes, and the auth boundary (guest → logged-in user keeps their cart).
+  // Only productId + qty are persisted; product details are re-resolved
+  // against the latest fetched products list at runtime to avoid showing
+  // stale prices or names.
+  private readonly CART_STORAGE_KEY = 'dawri.marketplace.cart.v1';
   readonly cart          = signal<CartItem[]>([]);
   readonly showCart      = signal(false);
   readonly paymentMethod = signal<PayMethod>('card');
   readonly purchasing    = signal(false);
+  readonly showLoginPrompt = signal(false);  // shown when guest hits checkout
 
   // Stable idempotency key for the CURRENT checkout attempt. Reset after
   // either success or a user-triggered close; preserved across network
@@ -109,7 +141,44 @@ export class MarketplaceComponent implements OnInit {
   // 'topup' covers telecom recharge + in-game currency (existing chip meaning).
   // 'food' and 'services' are new chips; both render via the same cat-chip loop,
   // so no template change is needed — just adding the strings here.
+  // NOTE: keep the values lowercase / single-token. The displayed text is
+  // produced by categoryLabel() so the values can stay backend-friendly
+  // while users see properly capitalised, hyphenated labels.
   readonly categories = ['all', 'gaming', 'streaming', 'shopping', 'topup', 'food', 'services'] as const;
+
+  /**
+   * Map a backend category value to its user-facing label.
+   * Most categories titlecase fine; the special-cases live here.
+   *
+   * @param cat  Backend category value (e.g. 'topup').
+   * @returns    Display label (e.g. 'Top-up').
+   */
+  categoryLabel(cat: string): string {
+    if (cat === 'topup') return 'Top-up';
+    if (cat === 'all')   return 'All';
+    return cat.charAt(0).toUpperCase() + cat.slice(1);
+  }
+
+  /**
+   * Emoji icon for each category — used in the sidebar navigation cards.
+   * Kept inline (not externalised) because the set is small and rarely
+   * changes; an svg-icon system would be over-engineering here.
+   *
+   * @param cat  Backend category value.
+   * @returns    Emoji string suitable for inline rendering.
+   */
+  categoryIcon(cat: string): string {
+    switch (cat) {
+      case 'all':       return '✨';
+      case 'gaming':    return '🎮';
+      case 'streaming': return '📺';
+      case 'shopping':  return '🛍️';
+      case 'topup':     return '📱';
+      case 'food':      return '🍔';
+      case 'services':  return '⚙️';
+      default:          return '🏷️';
+    }
+  }
 
   readonly payMethods: ReadonlyArray<{ id: PayMethod; label: string; icon: string }> = [
     { id: 'wallet',  label: 'Wallet',   icon: '👛' },
@@ -148,6 +217,114 @@ export class MarketplaceComponent implements OnInit {
 
   brandKeys(): string[] { return Object.keys(this.grouped()); }
 
+  // ── Hero carousel ──────────────────────────────────────────────────────────
+  // Featured brands rotation — driven entirely by REAL product data, no
+  // hardcoded slides. We pick the top brands by SKU count, take the
+  // highest-priced product from each as the visual anchor, and rotate
+  // through them automatically. When categories are filtered, the
+  // carousel reflects the filtered set so it stays contextually
+  // relevant. If there are zero products, the carousel hides itself.
+
+  /** Index of the slide currently shown in the carousel. */
+  readonly slideIndex = signal(0);
+  /** Internal handle for the auto-rotate timer; cleared on destroy/hover. */
+  private rotateHandle: ReturnType<typeof setInterval> | null = null;
+  /** True while the user hovers the carousel — pauses auto-rotate. */
+  readonly slidePaused = signal(false);
+
+  /**
+   * Top featured brands derived from the current product list.
+   * Each brand becomes one carousel slide. Capped at MAX_SLIDES so the
+   * dots row stays readable even with a huge catalogue.
+   */
+  readonly featuredBrands = computed<FeaturedBrand[]>(() => {
+    const MAX_SLIDES = 5;
+    const map: Record<string, Product[]> = {};
+    for (const p of this.products()) (map[p.brand] ??= []).push(p);
+
+    return Object.entries(map)
+      // Heaviest brands first — most variety = most likely to convert.
+      .sort(([, a], [, b]) => b.length - a.length)
+      .slice(0, MAX_SLIDES)
+      .map(([brand, items]) => {
+        // Pick the most expensive item as the "headline" — it carries
+        // the most visual weight and gives a credible price point.
+        const headline = items.reduce(
+          (top, p) => (p.our_price > top.our_price ? p : top),
+          items[0],
+        );
+        // "from X SAR" — lowest price across this brand's SKUs.
+        const fromPrice = items.reduce(
+          (lo, p) => (p.our_price < lo ? p.our_price : lo),
+          items[0].our_price,
+        );
+        // Top 5 unique denominations sorted ascending — for the chip row.
+        const denominations = [...new Set(items.map(p => p.face_value))]
+          .sort((a, b) => a - b)
+          .slice(0, 5);
+        return {
+          brand,
+          itemCount: items.length,
+          headline,
+          logo: headline.image_url ?? '/brands/generic.svg',
+          category: headline.category,
+          fromPrice,
+          denominations,
+        };
+      });
+  });
+
+  /** Convenience accessor for the currently-shown slide. */
+  readonly currentSlide = computed<FeaturedBrand | null>(() => {
+    const slides = this.featuredBrands();
+    if (slides.length === 0) return null;
+    const idx = Math.min(this.slideIndex(), slides.length - 1);
+    return slides[idx];
+  });
+
+  /** Manual nav: jump to a specific dot. Resets the auto-rotate timer. */
+  goToSlide(i: number): void {
+    this.slideIndex.set(i);
+    this.restartRotation();
+  }
+
+  /** Manual nav: previous/next arrows. Wraps around the ends. */
+  nudgeSlide(delta: -1 | 1): void {
+    const len = this.featuredBrands().length;
+    if (len === 0) return;
+    this.slideIndex.set((this.slideIndex() + delta + len) % len);
+    this.restartRotation();
+  }
+
+  /** Pause auto-rotate while the carousel is hovered (better UX). */
+  pauseSlides(paused: boolean): void {
+    this.slidePaused.set(paused);
+  }
+
+  /** "Shop {brand}" CTA — filters the list to that brand's category. */
+  shopBrand(slide: FeaturedBrand): void {
+    this.activeCategory.set(slide.category);
+    // Pre-fill the search with the brand name so the user lands on a
+    // tightly-scoped product list — most users want everything for that
+    // brand, not the broader category.
+    this.searchQuery.set(slide.brand);
+    // Smooth-scroll to the product grid below the carousel.
+    queueMicrotask(() => {
+      const grid = document.querySelector('.brand-section');
+      grid?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  private restartRotation(): void {
+    if (this.rotateHandle) { clearInterval(this.rotateHandle); }
+    this.rotateHandle = setInterval(() => {
+      if (this.slidePaused()) return;
+      const len = this.featuredBrands().length;
+      if (len <= 1) return;
+      this.slideIndex.set((this.slideIndex() + 1) % len);
+    }, 6000);
+  }
+
   readonly cartCount = computed(() => this.cart().reduce((s, i) => s + i.qty, 0));
   readonly cartTotal = computed(() => this.cart().reduce((s, i) => s + i.product.our_price * i.qty, 0));
   readonly canAfford = computed(() => this.paymentMethod() !== 'wallet' || this.walletBalance() >= this.cartTotal());
@@ -184,21 +361,68 @@ export class MarketplaceComponent implements OnInit {
     (e.target as HTMLInputElement).value = val;
   }
 
+  /**
+   * Image load-failure handler. When a product image_url returns 404 or
+   * fails to load (network error, CORS, unreachable host), swap the src
+   * to the local generic placeholder so the user doesn't see a browser
+   * broken-image icon.
+   *
+   * Guards against an infinite loop if the placeholder itself fails by
+   * checking the current src — if the swap was already applied, do
+   * nothing further.
+   */
+  onImgError(e: Event): void {
+    const img = e.target as HTMLImageElement | null;
+    if (!img) return;
+    const placeholder = '/brands/generic.svg';
+    if (img.src.endsWith(placeholder)) return; // already on placeholder, give up
+    img.src = placeholder;
+  }
+
   // ── Lifecycle ────────────────────────────────────────────────────────────────
 
   ngOnInit(): void {
     this.loadProducts();
     if (this.auth.isLoggedIn()) this.loadWallet();
+    // Carousel auto-rotate kicks off immediately. The handler reads
+    // featuredBrands() lazily so it picks up products once they load —
+    // no need to defer until after loadProducts() resolves.
+    this.restartRotation();
+  }
+
+  ngOnDestroy(): void {
+    if (this.rotateHandle) {
+      clearInterval(this.rotateHandle);
+      this.rotateHandle = null;
+    }
   }
 
   loadProducts(): void {
     this.loading.set(true);
     this.api.getProducts().pipe(catchError(() => of({ data: [] as Product[], meta: null, links: null })))
-      .subscribe(r => { this.products.set((r.data as Product[]) ?? []); this.loading.set(false); });
+      .subscribe(r => {
+        this.products.set((r.data as Product[]) ?? []);
+        this.loading.set(false);
+        // Restore cart now that we have product details to resolve
+        // stored {id, qty} pairs against. See hydrateCart().
+        this.hydrateCart();
+      });
   }
+  /**
+   * Refresh the wallet balance from the API.
+   *
+   * Pushes the result to BOTH the local component signal (for the
+   * marketplace hero badge) AND the AuthService signal (for the top-nav
+   * balance + any other consumer). Without the auth.updateBalance() call,
+   * the nav balance goes stale after every purchase / top-up.
+   */
   loadWallet(): void {
     this.api.getWallet().pipe(catchError(() => of({ data: { balance: 0, currency: 'SAR', transactions: [] } })))
-      .subscribe(r => this.walletBalance.set(r.data?.balance ?? 0));
+      .subscribe(r => {
+        const balance = r.data?.balance ?? 0;
+        this.walletBalance.set(balance);
+        this.auth.updateBalance(balance);
+      });
   }
   loadOrders(): void {
     this.ordersLoading.set(true);
@@ -211,37 +435,112 @@ export class MarketplaceComponent implements OnInit {
   }
 
   // ── Cart ─────────────────────────────────────────────────────────────────────
+  //
+  // Cart works for both guests and logged-in users. State persists across
+  // page reloads via localStorage. Authentication is required only at
+  // checkout — see checkout() for the prompt.
+  //
+  // Persistence rules:
+  //   - Only { productId, qty } pairs are stored.
+  //   - Product details are re-resolved from this.products() at hydrate time.
+  //   - Storage failures (private mode, quota) degrade gracefully to in-memory.
 
   addToCart(p: Product, e?: Event): void {
     e?.stopPropagation();
-    if (!this.auth.isLoggedIn()) { this.notify('Please sign in to add items.', false); return; }
     this.cart.update(items => {
       const existing = items.find(i => i.product.id === p.id);
       if (existing) return items.map(i => i.product.id === p.id ? { ...i, qty: i.qty + 1 } : i);
       return [...items, { product: p, qty: 1 }];
     });
+    this.persistCart();
     this.notify(`${p.name} added to cart`, true);
   }
   removeFromCart(productId: string): void {
     this.cart.update(items => items.filter(i => i.product.id !== productId));
+    this.persistCart();
   }
   updateQty(productId: string, delta: number): void {
     this.cart.update(items =>
       items.map(i => i.product.id === productId ? { ...i, qty: i.qty + delta } : i)
         .filter(i => i.qty > 0)
     );
+    this.persistCart();
   }
-  clearCart(): void { this.cart.set([]); }
+  clearCart(): void {
+    this.cart.set([]);
+    this.persistCart();
+  }
   openCart(): void {
-    if (!this.auth.isLoggedIn()) { this.notify('Please sign in first.', false); return; }
     this.showCart.set(true);
   }
   closeCart(): void { this.showCart.set(false); }
+
+  // ── Cart persistence (localStorage) ─────────────────────────────────────────
+
+  /**
+   * Serialise the cart to localStorage. Stores only productId + qty so we
+   * don't pin stale price/name data between sessions. Silently swallows
+   * storage errors (quota exceeded, private-mode unavailability) — the
+   * cart still works in-memory for the current session.
+   */
+  private persistCart(): void {
+    try {
+      const payload = this.cart().map(i => ({ id: i.product.id, qty: i.qty }));
+      localStorage.setItem(this.CART_STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {
+      // Non-fatal: cart still works in-memory for this session.
+      console.warn('[marketplace] cart persistence unavailable:', err);
+    }
+  }
+
+  /**
+   * Re-hydrate the cart from localStorage. Must be called AFTER products()
+   * is populated so we can resolve productIds → full Product objects.
+   * Silently drops any stored productIds that no longer exist in the
+   * fetched product list (e.g. a product was retired between sessions).
+   */
+  private hydrateCart(): void {
+    let stored: Array<{ id: string; qty: number }> = [];
+    try {
+      const raw = localStorage.getItem(this.CART_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      stored = parsed.filter((x: any) =>
+        x && typeof x.id === 'string' && typeof x.qty === 'number' && x.qty > 0,
+      );
+    } catch (err) {
+      console.warn('[marketplace] cart hydrate failed:', err);
+      return;
+    }
+    if (stored.length === 0) return;
+
+    const byId = new Map(this.products().map(p => [p.id, p]));
+    const restored: CartItem[] = [];
+    for (const entry of stored) {
+      const product = byId.get(entry.id);
+      if (product) restored.push({ product, qty: entry.qty });
+    }
+    if (restored.length > 0) {
+      this.cart.set(restored);
+    }
+    // Re-persist to drop any unresolvable IDs from storage.
+    if (restored.length !== stored.length) {
+      this.persistCart();
+    }
+  }
 
   // ── Checkout ─────────────────────────────────────────────────────────────────
 
   checkout(): void {
     if (this.cart().length === 0) return;
+    // Guests must sign in to complete a purchase. We let them browse and
+    // build a cart freely, but checkout requires an account so we can
+    // record the order, charge a wallet, and deliver digital codes.
+    if (!this.auth.isLoggedIn()) {
+      this.showLoginPrompt.set(true);
+      return;
+    }
     if (this.paymentMethod() === 'wallet' && !this.canAfford()) {
       this.notify('Insufficient wallet balance.', false);
       return;
