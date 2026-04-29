@@ -83,6 +83,27 @@ export const routes: Routes = [
     canActivate: [authGuard],
     title: 'Company Branding — Dawri',
   },
+  // Sprint 14: public sponsors showcase
+  {
+    path: 'sponsors',
+    loadComponent: () => import('./pages/sponsors/sponsors.component').then(m => m.SponsorsComponent),
+    title: 'Our Partners — Dawri',
+  },
+  // Sprint 14: admin platform-sponsors management — MUST come before /admin
+  {
+    path: 'admin/platform-sponsors',
+    loadComponent: () => import('./pages/admin/platform-sponsors/admin-platform-sponsors.component')
+      .then(m => m.AdminPlatformSponsorsComponent),
+    canActivate: [authGuard],
+    title: 'Platform Sponsors — Admin — Dawri',
+  },
+  // Sprint 13 Phase 1: Finance module — MUST come before /admin (specificity)
+  {
+    path: 'admin/finance',
+    loadComponent: () => import('./pages/admin/finance/finance.component').then(m => m.FinanceComponent),
+    canActivate: [authGuard],
+    title: 'Finance &amp; Reports — Admin — Dawri',
+  },
   // Sprint 8: Sponsor admin page — MUST come before /admin so the more
   // specific path matches first
   {
@@ -90,6 +111,13 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/admin/admin-sponsors.component').then(m => m.AdminSponsorsComponent),
     canActivate: [authGuard],
     title: 'Sponsors — Admin — Dawri',
+  },
+  // Sprint 11: Marketplace admin page — same specificity requirement
+  {
+    path: 'admin/marketplace',
+    loadComponent: () => import('./pages/admin/marketplace/admin-marketplace.component').then(m => m.AdminMarketplaceComponent),
+    canActivate: [authGuard],
+    title: 'Marketplace — Admin — Dawri',
   },
   {
     path: 'admin',

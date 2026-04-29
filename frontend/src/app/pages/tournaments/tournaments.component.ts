@@ -7,6 +7,7 @@ import { ReactiveFormsModule, FormBuilder, FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService }  from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { PlatformSponsorsStripComponent } from '../../components/platform-sponsors-strip/platform-sponsors-strip.component';
 
 /**
  * Tournaments listing page (Sprint 3 redesign).
@@ -25,7 +26,7 @@ import { AuthService } from '../../core/services/auth.service';
 @Component({
   selector: 'app-tournaments',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink, PlatformSponsorsStripComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tournaments.component.html',
   styleUrls: ['./tournaments.component.scss'],

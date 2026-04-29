@@ -5,11 +5,12 @@ import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-dashboard.component';
 
 @Component({
   selector: 'dw-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, SubscriptionsDashboardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="admin">
@@ -26,6 +27,12 @@ import { environment } from '../../../environments/environment';
         }
         <!-- Sprint 8: sponsors live on their own page; render as a tab-styled link -->
         <a class="tab" routerLink="/admin/sponsors">🤝 Sponsors</a>
+        <!-- Sprint 14: platform-level sponsors management -->
+        <a class="tab" routerLink="/admin/platform-sponsors">🎯 Platform Sponsors</a>
+        <!-- Sprint 11: marketplace admin also lives on its own page -->
+        <a class="tab" routerLink="/admin/marketplace">🛒 Marketplace</a>
+        <!-- Sprint 13: finance & reports on its own page -->
+        <a class="tab" routerLink="/admin/finance">💰 Finance</a>
       </div>
 
       <!-- ═══ OVERVIEW ═══ -->
@@ -142,6 +149,9 @@ import { environment } from '../../../environments/environment';
 
       <!-- ═══ SUBSCRIPTIONS ═══ -->
       <ng-container *ngIf="activeTab() === 'subscriptions'">
+        <!-- Sprint 13: subscriptions-focused dashboard (MRR, plans, renewals, trials). -->
+        <app-subscriptions-dashboard [isActive]="activeTab() === 'subscriptions'"></app-subscriptions-dashboard>
+
         <div class="toolbar">
           <select class="filter-select" [(ngModel)]="subPlanFilter" (change)="loadSubscriptions()">
             <option value="">All Plans</option>

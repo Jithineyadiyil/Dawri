@@ -1,0 +1,22 @@
+<div class="admin-finance">
+  <header class="page-header">
+    <h1>💰 Finance &amp; Reports</h1>
+    <p class="subtitle">Revenue reporting, invoice register, and ZATCA-ready VAT breakdown</p>
+  </header>
+
+  <nav class="tabs">
+    <button [class.active]="tab() === 'revenue'"  (click)="setTab('revenue')">💵 Revenue</button>
+    <button [class.active]="tab() === 'invoices'" (click)="setTab('invoices')">🧾 Invoices</button>
+    <button [class.active]="tab() === 'vat'"      (click)="setTab('vat')">📊 VAT</button>
+  </nav>
+
+  @if (tab() === 'revenue') {
+    <app-revenue-report></app-revenue-report>
+  }
+  @if (tab() === 'invoices') {
+    <app-invoice-register></app-invoice-register>
+  }
+  @if (tab() === 'vat') {
+    <app-vat-report></app-vat-report>
+  }
+</div>

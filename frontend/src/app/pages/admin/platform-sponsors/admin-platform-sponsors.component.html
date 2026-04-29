@@ -1,0 +1,164 @@
+<div class="aps">
+  <header class="page-header">
+    <div class="title-row">
+      <h1>🎯 Platform Sponsors</h1>
+      <button class="btn-primary" (click)="openCreate()">+ Add platform sponsor</button>
+    </div>
+    <p class="subtitle">Brands sponsoring Dawri-the-platform — visible on home, footer, /sponsors page, and tournament list.</p>
+  </header>
+
+  @if (!loading() && rows().length > 0) {
+    <div class="kpi-row">
+      <div class="kpi"><span class="n">{{ rows().length }}</span><span class="l">Total</span></div>
+      <div class="kpi"><span class="n">{{ liveCount() }}</span><span class="l">Live now</span></div>
+      <div class="kpi"><span class="n">{{ titleCount() }}</span><span class="l">Title</span></div>
+      <div class="kpi"><span class="n">{{ pausedCount() }}</span><span class="l">Paused</span></div>
+    </div>
+  }
+
+  @if (loading()) {
+    <p class="loading">Loading…</p>
+  } @else if (error()) {
+    @if (error(); as err) {
+      <div class="error-box">⚠️ {{ err }}</div>
+    }
+  } @else if (rows().length === 0) {
+    <div class="empty">
+      <p>No platform sponsors yet.</p>
+      <p class="muted">Click <strong>Add platform sponsor</strong> to feature a brand on the homepage and across Dawri.</p>
+    </div>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Sponsor</th>
+          <th>Tier</th>
+          <th>Order</th>
+          <th>Window</th>
+          <th>Status</th>
+          <th class="r">Contract value</th>
+          <th class="r">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr [class.row-paused]="!row.is_active" [class.row-not-live]="row.is_active && !row.is_currently_live">
+            <td>
+              <div class="sponsor-cell">
+                @if (row.sponsor_logo) {
+                  <img class="sponsor-logo-thumb" [src]="row.sponsor_logo" [alt]="row.sponsor_name" />
+                } @else {
+                  <div class="sponsor-logo-placeholder">{{ row.sponsor_name.charAt(0) }}</div>
+                }
+                <div>
+                  <div class="strong">{{ row.sponsor_name }}</div>
+                  @if (!row.sponsor_active) {
+                    <div class="muted small">Sponsor record inactive</div>
+                  }
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="tier-pill tier-{{ row.tier }}">{{ row.tier }}</span>
+            </td>
+            <td class="mono">{{ row.display_order }}</td>
+            <td class="muted small mono">
+              {{ row.starts_at ? (row.starts_at | date:'shortDate') : 'always' }}
+              <br>→ {{ row.ends_at ? (row.ends_at | date:'shortDate') : 'no end' }}
+            </td>
+            <td>
+              @if (row.is_currently_live) {
+                <span class="status-pill status-live">● live</span>
+              } @else if (row.is_active) {
+                <span class="status-pill status-scheduled">scheduled</span>
+              } @else {
+                <span class="status-pill status-paused">paused</span>
+              }
+            </td>
+            <td class="r mono">
+              {{ row.contract_value_sar ? ((row.contract_value_sar | number:'1.2-2') + ' SAR') : '—' }}
+            </td>
+            <td class="r actions">
+              <button class="btn-icon" (click)="toggle(row)" [title]="row.is_active ? 'Pause' : 'Activate'">
+                {{ row.is_active ? '⏸' : '▶' }}
+              </button>
+              <button class="btn-icon" (click)="openEdit(row)" title="Edit">✎</button>
+              <button class="btn-icon danger" (click)="remove(row)" title="Remove">🗑</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <!-- Modal -->
+  @if (modalMode(); as mode) {
+    <div class="overlay" (click)="closeModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <header>
+          <h2>{{ mode === 'edit' ? 'Edit platform sponsor' : 'Add platform sponsor' }}</h2>
+          <button class="close" (click)="closeModal()">✕</button>
+        </header>
+        <div class="body">
+          <label>
+            Sponsor *
+            <select [(ngModel)]="form.sponsor_id" [disabled]="mode === 'edit'">
+              <option value="">— Select sponsor —</option>
+              @for (s of catalog(); track s.id) {
+                <option [value]="s.id">{{ s.name }}</option>
+              }
+            </select>
+            @if (mode === 'edit') {
+              <span class="hint-inline">Sponsor cannot be changed; remove and re-add to swap.</span>
+            } @else {
+              <span class="hint-inline">Sponsor not listed? Add it via the Sponsors admin first.</span>
+            }
+          </label>
+
+          <div class="grid-2">
+            <label>
+              Tier *
+              <select [(ngModel)]="form.tier">
+                <option value="title">Title (large hero placement, only one allowed)</option>
+                <option value="standard">Standard (carousel placement)</option>
+              </select>
+            </label>
+            <label>
+              Display order
+              <input type="number" min="0" [(ngModel)]="form.display_order" />
+              <span class="hint-inline">Lower = earlier in the carousel</span>
+            </label>
+            <label>
+              Starts (optional)
+              <input type="date" [(ngModel)]="form.starts_at" />
+            </label>
+            <label>
+              Ends (optional)
+              <input type="date" [(ngModel)]="form.ends_at" />
+            </label>
+            <label>
+              Contract value (SAR, internal)
+              <input type="number" step="0.01" min="0" [(ngModel)]="form.contract_value_sar" />
+            </label>
+            <label class="inline">
+              <input type="checkbox" [(ngModel)]="form.is_active" />
+              Active
+            </label>
+          </div>
+
+          <label>
+            Internal notes
+            <textarea rows="3" [(ngModel)]="form.internal_notes"
+                      placeholder="Notes visible only to admins (contract terms, deliverables, etc.)"></textarea>
+          </label>
+        </div>
+        <footer>
+          <button class="ghost" (click)="closeModal()">Cancel</button>
+          <button class="btn-primary" (click)="save()" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+</div>

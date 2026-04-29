@@ -1,0 +1,128 @@
+/* ═══════════════════════════════════════════════════════════════
+ * Sprint 12A+ additive styles — distributor card enhancements.
+ *
+ * ADD these blocks to your existing admin-marketplace.component.scss.
+ * They assume the base styles (the .admin-marketplace wrapper, distributor-card,
+ * creds-ok, creds-missing, etc.) are already present.
+ *
+ * Everything below is INSIDE the existing `.admin-marketplace { ... }`
+ * nesting scope. Paste them at the end of that block.
+ * ═══════════════════════════════════════════════════════════════ */
+
+.admin-marketplace {
+
+  // ── Stock summary grid on distributor card ──────────────────────
+  .stock-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin: 12px 0;
+
+    .stock-stat {
+      background: #0a0a14;
+      border: 1px solid #2a2a3a;
+      border-radius: 6px;
+      padding: 10px 6px;
+      text-align: center;
+
+      .n {
+        display: block;
+        font-family: 'Space Mono', monospace;
+        font-size: 18px;
+        font-weight: 700;
+        color: #a855f7;
+        line-height: 1;
+      }
+      .l {
+        display: block;
+        font-size: 10px;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-top: 4px;
+        line-height: 1.3;
+      }
+    }
+  }
+
+  // ── Credential flags (api_key / secret / client_id chips) ───────
+  .cred-flags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin: 6px 0;
+
+    .flag {
+      background: rgba(34, 197, 94, .12);
+      color: #86efac;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      text-transform: lowercase;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: .3px;
+    }
+  }
+
+  .distributor-card {
+    .creds-status { margin: 0 0 6px; }
+    .mono { font-family: 'Space Mono', monospace; font-size: 11px; }
+    .small { font-size: 11px; }
+    .muted { color: #666; }
+  }
+
+  // ── Test connection result banner ───────────────────────────────
+  .test-result {
+    margin: 12px 0;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+
+    p { margin: 0; flex: 1; line-height: 1.4; }
+
+    strong {
+      font-size: 14px;
+      margin-right: 4px;
+    }
+
+    .dismiss {
+      background: transparent;
+      border: 0;
+      color: inherit;
+      opacity: .6;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0 4px;
+
+      &:hover { opacity: 1; }
+    }
+
+    &.success {
+      background: rgba(34, 197, 94, .1);
+      border: 1px solid rgba(34, 197, 94, .3);
+      color: #86efac;
+    }
+    &.error {
+      background: rgba(239, 68, 68, .1);
+      border: 1px solid rgba(239, 68, 68, .3);
+      color: #fca5a5;
+    }
+  }
+
+  // ── Card action row (primary + Test button side-by-side) ────────
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+
+    button {
+      flex: 1;
+      font-size: 12px;
+      padding: 8px 10px;
+    }
+  }
+}

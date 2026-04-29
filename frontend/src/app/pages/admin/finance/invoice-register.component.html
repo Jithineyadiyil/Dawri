@@ -1,0 +1,129 @@
+<div class="invoice-register">
+
+  <app-date-range-picker (rangeChange)="onRangeChange($event)"></app-date-range-picker>
+
+  <div class="toolbar">
+    <div class="left">
+      <select class="select"
+              [ngModel]="status()" (ngModelChange)="onStatusChange($event)">
+        <option value="all">All statuses</option>
+        <option value="paid">Paid</option>
+        <option value="draft">Draft</option>
+        <option value="overdue">Overdue</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      <input type="text" class="search-input"
+             placeholder="Search invoice #, customer name, email…"
+             [ngModel]="search()"
+             (ngModelChange)="onSearchChange($event)" />
+    </div>
+    <div class="right">
+      <button class="btn-download" (click)="downloadPdf()" [disabled]="!payload()">📄 PDF</button>
+      <button class="btn-download" (click)="downloadXlsx()" [disabled]="!payload()">📊 Excel</button>
+    </div>
+  </div>
+
+  @if (loading() && !payload()) {
+    <p class="loading">Loading invoices…</p>
+  }
+  @if (error(); as err) {
+    <div class="error-box">⚠️ {{ err }}</div>
+  }
+
+  @if (payload(); as p) {
+
+    <!-- Summary tiles -->
+    <div class="kpi-grid">
+      <div class="kpi-tile">
+        <div class="kpi-label">Invoices</div>
+        <div class="kpi-value">{{ p.summary.count }}</div>
+        <div class="kpi-sub">matching filters</div>
+      </div>
+      <div class="kpi-tile amber">
+        <div class="kpi-label">Subtotal</div>
+        <div class="kpi-value">{{ p.summary.subtotal | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR pre-VAT</div>
+      </div>
+      <div class="kpi-tile cyan">
+        <div class="kpi-label">VAT</div>
+        <div class="kpi-value">{{ p.summary.vat | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR tax</div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-label">Total</div>
+        <div class="kpi-value">{{ p.summary.total | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR inc. VAT</div>
+      </div>
+      <div class="kpi-tile green">
+        <div class="kpi-label">Paid</div>
+        <div class="kpi-value">{{ p.summary.paid | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR collected</div>
+      </div>
+      <div class="kpi-tile red">
+        <div class="kpi-label">Unpaid</div>
+        <div class="kpi-value">{{ p.summary.unpaid | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR outstanding</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="report-card">
+      @if (p.data.length === 0) {
+        <p class="empty">No invoices match the filters.</p>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Invoice #</th>
+              <th>Customer</th>
+              <th>Status</th>
+              <th>Method</th>
+              <th>Period</th>
+              <th class="r">Subtotal</th>
+              <th class="r">VAT</th>
+              <th class="r">Total</th>
+              <th>Paid</th>
+              <th class="r">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (inv of p.data; track inv.id) {
+              <tr>
+                <td class="mono">{{ inv.invoice_number }}</td>
+                <td>
+                  <div class="strong">{{ inv.user_name }}</div>
+                  <div class="muted small">{{ inv.user_email }}</div>
+                </td>
+                <td><span [class]="statusClass(inv.status)">{{ inv.status }}</span></td>
+                <td class="muted small">{{ inv.payment_method ?? '—' }}</td>
+                <td class="muted small mono">
+                  {{ inv.period_start ? (inv.period_start | date:'mediumDate') : '—' }}<br>
+                  → {{ inv.period_end ? (inv.period_end | date:'mediumDate') : '—' }}
+                </td>
+                <td class="r mono">{{ inv.subtotal | number:'1.2-2' }}</td>
+                <td class="r mono muted">{{ inv.vat_amount | number:'1.2-2' }}</td>
+                <td class="r mono strong">{{ inv.total | number:'1.2-2' }} {{ inv.currency }}</td>
+                <td class="muted small mono">
+                  {{ inv.paid_at ? (inv.paid_at | date:'shortDate') : '—' }}
+                </td>
+                <td class="r">
+                  <button class="btn-download" (click)="downloadInvoicePdf(inv.id)" title="Download invoice PDF">
+                    📄 PDF
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <div class="pagination">
+          <span>Page {{ p.meta.page }} of {{ lastPage() }} · {{ p.meta.total }} invoices total</span>
+          <div>
+            <button (click)="goToPage(page() - 1)" [disabled]="page() <= 1">← Prev</button>
+            <button (click)="goToPage(page() + 1)" [disabled]="page() >= lastPage()">Next →</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

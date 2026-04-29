@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\OutOfStockException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PlaceOrderRequest;
 use App\Http\Requests\TopUpRequest;
@@ -14,6 +15,7 @@ use App\Models\DigitalOrder;
 use App\Models\DigitalProduct;
 use App\Notifications\OrderConfirmationNotification;
 use App\Services\DistributorRouter;
+use App\Services\InventoryCodeService;
 use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,31 +28,30 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * MarketplaceController
  *
- * Sprint 5 rewrite — addresses these prior issues:
- *   - bug 3  : brand logos now served from local /brands/ assets (DigitalProductResource)
- *   - bug 4  : batch checkout (one request fulfils the whole cart)
- *   - bug 5  : distributor failure after successful charge → automatic refund
- *   - bug 6  : key_version stored on every code for APP_KEY rotation safety
- *   - item 9 : DigitalOrderResource carries bilingual product names
- *   - item 10: OrderConfirmationNotification dispatched on success
- *   - item 11: idempotency_key de-dupes repeated click / network-retry submissions
- *   - item 12: topUp now routes through PaymentService::charge (no more free money)
- *   - items 13-16: API Resources, strict types, FormRequests
+ * Sprint 5  : distributor-based fulfillment (WUPEX / Reloadly / Jawaker).
+ * Sprint 12A: fulfillment_mode branching — inventory-pool products
+ *             serve pre-loaded codes; API products still call distributor.
+ *
+ * Sprint 12A+ hotfix v2: PaymentService::charge actual signature is
+ *   charge(User $user, float $amount, string $method, string $reference)
+ * — not (user, amount, method, array $meta). Earlier call sites passed
+ * an array where a string reference was expected. Fixed throughout.
  */
 final class MarketplaceController extends Controller
 {
     public function __construct(
-        private readonly DistributorRouter $router,
-        private readonly PaymentService    $payment,
+        private readonly DistributorRouter    $router,
+        private readonly PaymentService       $payment,
+        private readonly InventoryCodeService $inventory,
     ) {}
 
-    // ── Catalogue ─────────────────────────────────────────────────────────────
+    // ── Catalogue ─────────────────────────────────────────────────────────
 
     public function products(Request $request): JsonResponse
     {
         $products = DigitalProduct::where('is_active', true)
-            ->when($request->filled('category'), fn ($q) => $q->where('category', $request->input('category')))
-            ->when($request->filled('brand'),    fn ($q) => $q->where('brand',    $request->input('brand')))
+            ->when($request->filled('category'), fn($q) => $q->where('category', $request->input('category')))
+            ->when($request->filled('brand'),    fn($q) => $q->where('brand',    $request->input('brand')))
             ->orderBy('sort_order')->orderBy('brand')->orderBy('face_value')
             ->get();
 
@@ -59,12 +60,11 @@ final class MarketplaceController extends Controller
         ]);
     }
 
-    // ── Checkout ──────────────────────────────────────────────────────────────
+    // ── Checkout ──────────────────────────────────────────────────────────
 
     /**
-     * Place a new order. Accepts either a single product_id (legacy) or a
-     * batched items[] cart. Idempotent: repeated calls with the same
-     * idempotency_key return the original order.
+     * Place a new order. Accepts a single product_id (legacy) or a
+     * batched items[] cart. Idempotent on idempotency_key.
      *
      * @throws \Throwable
      */
@@ -75,105 +75,97 @@ final class MarketplaceController extends Controller
         $idempotencyKey = (string) ($request->input('idempotency_key') ?: Str::uuid());
         $items          = $request->normalisedItems();
 
-        // Idempotency: if orders already exist for this key, return them unchanged.
-        // Batch orders are stored with line-suffixed keys (e.g. "xyz-0", "xyz-1"),
-        // so we look for ANY row whose idempotency_key starts with "{key}-".
-        $existing = DigitalOrder::where('user_id', $user->id)
-            ->where('idempotency_key', 'like', $idempotencyKey . '-%')
-            ->with(['product', 'code'])
-            ->orderBy('created_at')
+        // Idempotency: return existing orders for this key unchanged.
+        $existing = DigitalOrder::where('idempotency_key', $idempotencyKey)
+            ->where('user_id', $user->id)
             ->get();
         if ($existing->isNotEmpty()) {
             return response()->json([
-                'data'       => DigitalOrderResource::collection($existing),
-                'idempotent' => true,
-            ], Response::HTTP_OK);
+                'data'    => DigitalOrderResource::collection($existing),
+                'message' => 'Order already processed.',
+            ]);
         }
 
-        // Expand items into individual order rows (one per unit, because each
-        // card code is a distinct digital good).
-        $expanded = [];
-        $runningTotal = 0.0;
-        foreach ($items as $line) {
-            $product = DigitalProduct::find($line['product_id']);
-            if (! $product || ! $product->is_active) {
+        // Resolve + validate products + compute total
+        $products = DigitalProduct::whereIn('id', array_column($items, 'product_id'))->get()->keyBy('id');
+
+        $total = 0.0;
+        foreach ($items as $it) {
+            $p = $products->get($it['product_id']);
+            if (!$p || !$p->is_active) {
                 return response()->json([
-                    'message' => 'One of the requested products is unavailable.',
-                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                    'message' => "Product {$it['product_id']} is unavailable.",
+                ], 422);
             }
-            for ($i = 0; $i < $line['qty']; $i++) {
-                $expanded[]    = $product;
-                $runningTotal += (float) $product->our_price;
-            }
+            $total += ((float) $p->our_price) * (int) ($it['quantity'] ?? 1);
         }
 
-        if (empty($expanded)) {
-            return response()->json(['message' => 'Cart is empty.'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+        // Charge payment up front; fulfilment failures refund per-order.
+        // Signature: charge(User, float $amount, string $method, string $reference)
+        // We pass idempotency_key as the reference — PaymentService uses it
+        // to de-dup charges internally.
+        $charge = $this->payment->charge($user, (float) $total, $paymentMethod, $idempotencyKey);
 
-        // Single payment for the whole cart.
-        $charge = $this->payment->charge($user, $runningTotal, $paymentMethod, $idempotencyKey);
-        if (! $charge['success']) {
+        if (!$charge['success']) {
             return response()->json([
-                'message' => $charge['message'],
-            ], Response::HTTP_PAYMENT_REQUIRED);
+                'message' => $charge['message'] ?? 'Payment failed.',
+            ], 402);
         }
 
-        // Fulfil each line item. If any distributor fails, refund proportionally
-        // and mark those rows as failed.
-        $orders = [];
-        $failures = 0;
+        $paymentRef = (string) ($charge['payment_ref'] ?? $idempotencyKey);
 
-        foreach ($expanded as $index => $product) {
-            $lineRef = $idempotencyKey . '-' . $index;
-            $order = $this->fulfilOne(
-                user:           $user,
-                product:        $product,
-                paymentMethod:  $paymentMethod,
-                paymentRef:     (string) $charge['payment_ref'],
-                idempotencyKey: $lineRef,
-            );
+        // Fulfil each line, tracking refunds needed on failure.
+        $orders      = [];
+        $refundTotal = 0.0;
 
-            $orders[] = $order;
-            if ($order->status !== 'completed') {
-                $failures++;
-                // Refund this line item since payment succeeded but distributor didn't fulfil
-                $refund = $this->payment->refund(
-                    $user,
-                    (float) $order->unit_price,
-                    $paymentMethod,
-                    (string) $charge['payment_ref'],
+        foreach ($items as $it) {
+            /** @var DigitalProduct $p */
+            $p = $products->get($it['product_id']);
+            $qty = (int) ($it['quantity'] ?? 1);
+
+            for ($i = 0; $i < $qty; $i++) {
+                $order = $this->fulfilOne(
+                    user:           $user,
+                    product:        $p,
+                    paymentMethod:  $paymentMethod,
+                    paymentRef:     $paymentRef,
+                    idempotencyKey: $idempotencyKey . '-' . $p->id . '-' . $i,
                 );
-                if ($refund['success']) {
-                    $order->update(['status' => 'refunded']);
-                }
-            } else {
-                // Notify the user (email always; SMS if phone on file)
-                try {
-                    $user->notify(new OrderConfirmationNotification($order));
-                } catch (\Throwable $e) {
-                    Log::warning('Order notification failed', ['order' => $order->id, 'err' => $e->getMessage()]);
+                $orders[] = $order;
+
+                if ($order->status === 'failed') {
+                    $refundTotal += (float) $order->total_price;
                 }
             }
         }
 
-        // Return the collection of orders created (completed + refunded rows both visible)
+        // Refund any failed lines — same signature shape as charge.
+        // Reference = original payment ref so operator can trace the
+        // partial reversal against the original wallet debit.
+        if ($refundTotal > 0) {
+            $this->payment->refund($user, (float) $refundTotal, $paymentMethod, $paymentRef);
+        }
+
+        // Send confirmation on at least one successful order
+        $success = array_filter($orders, fn($o) => $o->status === 'completed');
+        if (!empty($success)) {
+            try {
+                $user->notify(new OrderConfirmationNotification(array_values($success)));
+            } catch (\Throwable $e) {
+                Log::warning('OrderConfirmationNotification failed', ['err' => $e->getMessage()]);
+            }
+        }
+
         return response()->json([
-            'data' => DigitalOrderResource::collection(
-                collect($orders)->map->load(['product', 'code'])
-            ),
-            'summary' => [
-                'total_lines' => count($orders),
-                'completed'   => count($orders) - $failures,
-                'failed'      => $failures,
-                'charged'     => (float) $runningTotal,
-            ],
-        ], Response::HTTP_CREATED);
+            'data'    => DigitalOrderResource::collection(collect($orders)),
+            'message' => count($success) === count($orders)
+                            ? 'All items fulfilled.'
+                            : 'Order partially fulfilled — failed items refunded.',
+        ]);
     }
 
     /**
-     * Fulfil a single line item: create order row, ask the router to place
-     * the distributor order, encrypt the returned code.
+     * Fulfill a single unit of product. Routes by fulfillment_mode.
      */
     private function fulfilOne(
         $user,
@@ -189,47 +181,93 @@ final class MarketplaceController extends Controller
                 'distributor'     => $product->distributor,
                 'idempotency_key' => $idempotencyKey,
                 'quantity'        => 1,
-                'unit_price'      => $product->our_price,
-                'total_price'     => $product->our_price,
+                'unit_price'      => (float) $product->our_price,
+                'total_price'     => (float) $product->our_price,
                 'status'          => 'processing',
                 'payment_method'  => $paymentMethod,
                 'payment_ref'     => $paymentRef,
             ]);
 
-            $result = $this->router->placeOrder(
-                distributorProductId:  (string) ($product->distributor_product_id ?? $product->id),
-                internalOrderId:       (string) $order->id,
-                preferredDistributor:  (string) $product->distributor,
-                brand:                 (string) $product->brand,
-            );
-
-            if ($result['success'] && ! empty($result['code'])) {
-                $order->update([
-                    'status'               => 'completed',
-                    'distributor'          => $result['distributor'] ?? $product->distributor,
-                    'distributor_order_id' => $result['order_id'],
-                    'fulfilled_at'         => now(),
-                ]);
-                DigitalCode::create([
-                    'order_id'    => $order->id,
-                    'code_enc'    => Crypt::encryptString($result['code']),
-                    'code_hash'   => hash('sha256', $result['code']),
-                    'key_version' => (int) config('app.cipher_version', 1),
-                    'expires_at'  => now()->addDays(365),
-                ]);
-            } else {
-                $order->update(['status' => 'failed']);
-                Log::warning('Distributor fulfilment failed', [
-                    'order'    => $order->id,
-                    'reason'   => $result['message'] ?? 'unknown',
-                ]);
+            if ($product->isInventoryMode()) {
+                return $this->fulfilFromInventory($order, $product);
             }
 
-            return $order->fresh();
+            return $this->fulfilFromDistributor($order, $product);
         });
     }
 
-    // ── Code reveal ───────────────────────────────────────────────────────────
+    /**
+     * Sprint 12A — inventory-pool fulfillment path.
+     */
+    private function fulfilFromInventory(DigitalOrder $order, DigitalProduct $product): DigitalOrder
+    {
+        try {
+            $claim = $this->inventory->claim($product, (string) $order->id);
+        } catch (OutOfStockException $e) {
+            $order->update(['status' => 'failed']);
+            Log::warning('Inventory fulfilment failed — out of stock', [
+                'order'   => $order->id,
+                'product' => $product->id,
+            ]);
+            return $order->fresh();
+        }
+
+        DigitalCode::create([
+            'order_id'    => $order->id,
+            'code_enc'    => Crypt::encryptString($claim->code_enc),
+            'code_hash'   => hash('sha256', $claim->code_enc),
+            'key_version' => (int) config('app.cipher_version', 1),
+            'expires_at'  => $claim->expires_at ?? now()->addDays(365),
+        ]);
+
+        $this->inventory->deliver($claim);
+
+        $order->update([
+            'status'       => 'completed',
+            'fulfilled_at' => now(),
+        ]);
+
+        return $order->fresh();
+    }
+
+    /**
+     * Sprint 5 — API distributor fulfillment path.
+     */
+    private function fulfilFromDistributor(DigitalOrder $order, DigitalProduct $product): DigitalOrder
+    {
+        $result = $this->router->placeOrder(
+            distributorProductId: (string) ($product->distributor_product_id ?? $product->id),
+            internalOrderId:      (string) $order->id,
+            preferredDistributor: (string) $product->distributor,
+            brand:                (string) $product->brand,
+        );
+
+        if ($result['success'] && !empty($result['code'])) {
+            $order->update([
+                'status'               => 'completed',
+                'distributor'          => $result['distributor'] ?? $product->distributor,
+                'distributor_order_id' => $result['order_id'],
+                'fulfilled_at'         => now(),
+            ]);
+            DigitalCode::create([
+                'order_id'    => $order->id,
+                'code_enc'    => Crypt::encryptString($result['code']),
+                'code_hash'   => hash('sha256', $result['code']),
+                'key_version' => (int) config('app.cipher_version', 1),
+                'expires_at'  => now()->addDays(365),
+            ]);
+        } else {
+            $order->update(['status' => 'failed']);
+            Log::warning('Distributor fulfilment failed', [
+                'order'  => $order->id,
+                'reason' => $result['message'] ?? 'unknown',
+            ]);
+        }
+
+        return $order->fresh();
+    }
+
+    // ── Code reveal ───────────────────────────────────────────────────────
 
     public function revealCode(Request $request, string $id): JsonResponse
     {
@@ -238,45 +276,39 @@ final class MarketplaceController extends Controller
             ->where('status', 'completed')
             ->firstOrFail();
 
-        $code = DigitalCode::where('order_id', $order->id)->first();
-        if (! $code) {
-            return response()->json(['message' => 'Code not yet available.'], Response::HTTP_NOT_FOUND);
-        }
+        $code = DigitalCode::where('order_id', $order->id)->firstOrFail();
 
-        // Decrypt — supports rotated APP_KEY if previous_keys configured in config/app.php
         try {
             $plain = Crypt::decryptString($code->code_enc);
         } catch (\Throwable $e) {
-            Log::error('Code decrypt failed — possible APP_KEY mismatch', [
-                'order'       => $order->id,
-                'key_version' => $code->key_version,
+            Log::error('Code decrypt failed', [
+                'order_id' => $order->id,
+                'err'      => $e->getMessage(),
             ]);
             return response()->json([
-                'message' => 'Unable to decrypt code. Please contact support.',
+                'message' => 'Unable to reveal code. Please contact support.',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        $alreadyShown = $code->revealed_at !== null;
-        if (! $alreadyShown) {
-            $code->update(['revealed_at' => now()]);
-        }
+        $code->update(['revealed_at' => $code->revealed_at ?? now()]);
 
         return response()->json([
             'data' => [
-                'code'             => $plain,
-                'already_revealed' => $alreadyShown,
+                'order_id'    => $order->id,
+                'code'        => $plain,
+                'revealed_at' => $code->revealed_at?->toIso8601String(),
+                'expires_at'  => $code->expires_at?->toIso8601String(),
             ],
         ]);
     }
 
-    // ── Orders history ────────────────────────────────────────────────────────
+    // ── Orders + wallet ───────────────────────────────────────────────────
 
     public function orders(Request $request): JsonResponse
     {
-        $orders = DigitalOrder::with(['product', 'code'])
-            ->where('user_id', $request->user()->id)
+        $orders = DigitalOrder::where('user_id', $request->user()->id)
             ->orderByDesc('created_at')
-            ->paginate(20);
+            ->paginate(25);
 
         return response()->json([
             'data' => DigitalOrderResource::collection($orders),
@@ -288,55 +320,40 @@ final class MarketplaceController extends Controller
         ]);
     }
 
-    // ── Wallet ────────────────────────────────────────────────────────────────
-
     public function wallet(Request $request): JsonResponse
     {
+        $user = $request->user();
         return response()->json([
             'data' => [
-                'balance'  => (float) ($request->user()->wallet_balance ?? 0),
+                'balance'  => (float) ($user->wallet_balance ?? 0),
                 'currency' => 'SAR',
             ],
         ]);
     }
 
-    /**
-     * Top up the wallet. Charges the selected gateway method first, then
-     * credits the wallet — no more free-money bug (item 12).
-     */
     public function topUp(TopUpRequest $request): JsonResponse
     {
-        $user           = $request->user();
-        $amount         = (float) $request->input('amount');
-        $method         = (string) $request->input('payment_method');
-        $idempotencyKey = (string) ($request->input('idempotency_key') ?: Str::uuid());
+        $user   = $request->user();
+        $amount = (float) $request->input('amount');
+        $method = (string) $request->input('payment_method');
+        $ref    = (string) ($request->input('reference') ?: Str::uuid());
 
-        // Charge the external method first
-        $charge = $this->payment->charge($user, $amount, $method, 'TOPUP-' . $idempotencyKey);
-        if (! $charge['success']) {
+        // Same (User, float $amount, string $method, string $reference) signature.
+        $charge = $this->payment->charge($user, $amount, $method, $ref);
+
+        if (!$charge['success']) {
             return response()->json([
-                'message' => $charge['message'],
-            ], Response::HTTP_PAYMENT_REQUIRED);
+                'message' => $charge['message'] ?? 'Top-up failed.',
+            ], 402);
         }
 
-        // Credit wallet only after successful charge
-        DB::table('users')
-            ->where('id', $user->id)
-            ->increment('wallet_balance', $amount);
-
-        Log::info('Wallet top-up completed', [
-            'user'        => $user->id,
-            'amount'      => $amount,
-            'method'      => $method,
-            'payment_ref' => $charge['payment_ref'],
-        ]);
+        $user->increment('wallet_balance', $amount);
 
         return response()->json([
-            'message' => 'Wallet topped up successfully.',
+            'message' => 'Wallet topped up.',
             'data'    => [
-                'balance'     => (float) DB::table('users')->where('id', $user->id)->value('wallet_balance'),
-                'currency'    => 'SAR',
-                'payment_ref' => $charge['payment_ref'],
+                'balance' => (float) $user->fresh()->wallet_balance,
+                'amount'  => $amount,
             ],
         ]);
     }

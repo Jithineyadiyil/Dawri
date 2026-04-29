@@ -1,0 +1,156 @@
+<div class="subs-dashboard">
+
+  <header class="page-header">
+    <div class="title-row">
+      <h2>📈 Subscriptions overview</h2>
+      @if (payload(); as p) {
+        <div class="meta">
+          <span class="muted">Updated {{ timeAgo(p.generated_at) }}</span>
+          <button class="btn-ghost" (click)="refreshManually()" title="Refresh">⟳</button>
+        </div>
+      }
+    </div>
+  </header>
+
+  @if (loading() && !payload()) {
+    <p class="loading">Loading subscriptions dashboard…</p>
+  }
+  @if (error(); as err) {
+    <div class="error-box">
+      ⚠️ {{ err }}
+      <button class="btn-ghost" (click)="loadDashboard()">Retry</button>
+    </div>
+  }
+
+  @if (payload(); as p) {
+    @if (p.kpis; as k) {
+
+      <!-- KPI tiles -->
+      <section class="kpi-grid">
+        <div class="kpi-tile mrr">
+          <div class="kpi-label">MRR</div>
+          <div class="kpi-value">{{ k.mrr | number:'1.2-2' }}</div>
+          <div class="kpi-sub">SAR monthly</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">ARR</div>
+          <div class="kpi-value">{{ k.arr | number:'1.2-2' }}</div>
+          <div class="kpi-sub">SAR annualized</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">Active subs</div>
+          <div class="kpi-value">{{ k.active_count | number }}</div>
+          <div class="kpi-sub">paying customers</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">Trials</div>
+          <div class="kpi-value">{{ k.trial_count | number }}</div>
+          <div class="kpi-sub">pending conversion</div>
+        </div>
+        <div class="kpi-tile good">
+          <div class="kpi-label">New this week</div>
+          <div class="kpi-value">{{ k.new_this_week | number }}</div>
+          <div class="kpi-sub">last 7 days</div>
+        </div>
+        <div class="kpi-tile warn">
+          <div class="kpi-label">Churn this month</div>
+          <div class="kpi-value">{{ k.cancelled_this_month | number }}</div>
+          <div class="kpi-sub">cancellations</div>
+        </div>
+      </section>
+
+      <!-- Charts + plan breakdown -->
+      <section class="mid-row">
+        <div class="chart-card">
+          <h3>New subscriptions (14 days)</h3>
+          <div class="chart-wrap"><canvas #subsCanvas></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Cancellations (14 days)</h3>
+          <div class="chart-wrap"><canvas #churnCanvas></canvas></div>
+        </div>
+        <div class="card plans-card">
+          <h3>📦 Active subs by plan</h3>
+          @if (p.plans.length === 0) {
+            <p class="empty">No active subscriptions yet.</p>
+          } @else {
+            <table class="data-table">
+              <thead>
+                <tr><th>Plan</th><th class="r">Count</th><th class="r">%</th><th class="r">MRR</th></tr>
+              </thead>
+              <tbody>
+                @for (row of p.plans; track row.plan) {
+                  <tr>
+                    <td class="strong"><span class="plan-badge plan-{{ row.plan }}">{{ row.plan }}</span></td>
+                    <td class="r mono">{{ row.count }}</td>
+                    <td class="r muted">{{ planPercentage(row) }}%</td>
+                    <td class="r strong">{{ row.mrr_contribution | number:'1.2-2' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      </section>
+
+      <!-- Bottom row: renewals + trials -->
+      <section class="bottom-row">
+
+        <div class="card">
+          <h3>📅 Upcoming renewals (next 7 days)</h3>
+          @if (p.upcoming_renewals.length === 0) {
+            <p class="empty">No renewals in the next 7 days.</p>
+          } @else {
+            <table class="data-table">
+              <thead>
+                <tr><th>User</th><th>Plan</th><th class="r">Price</th><th class="r">Renews</th></tr>
+              </thead>
+              <tbody>
+                @for (r of p.upcoming_renewals; track r.id) {
+                  <tr>
+                    <td>
+                      <div class="strong">{{ r.user_name }}</div>
+                      <div class="muted small">{{ r.user_email }}</div>
+                    </td>
+                    <td><span class="plan-badge plan-{{ r.plan }}">{{ r.plan }}</span></td>
+                    <td class="r mono">{{ r.price | number:'1.2-2' }}</td>
+                    <td class="r muted">{{ daysUntil(r.renews_at) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+
+        <div class="card">
+          <h3>⏰ Expiring trials (next 14 days)</h3>
+          @if (p.expiring_trials.length === 0) {
+            <p class="empty">No trials expiring in the next 14 days.</p>
+          } @else {
+            <table class="data-table">
+              <thead>
+                <tr><th>User</th><th>Plan</th><th class="r">Expires</th></tr>
+              </thead>
+              <tbody>
+                @for (t of p.expiring_trials; track t.id) {
+                  <tr>
+                    <td>
+                      <div class="strong">{{ t.user_name }}</div>
+                      <div class="muted small">{{ t.user_email }}</div>
+                    </td>
+                    <td><span class="plan-badge plan-{{ t.plan }}">{{ t.plan }}</span></td>
+                    <td class="r muted">{{ daysUntil(t.trial_ends_at) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+
+      </section>
+
+    } @else {
+      <p class="empty">Subscriptions table not found — module not installed.</p>
+    }
+  }
+</div>

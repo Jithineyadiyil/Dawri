@@ -233,6 +233,163 @@ class AdminController extends Controller
     // SUBSCRIPTIONS
     // ═══════════════════════════════════════════════════════════════════
 
+    /**
+     * GET /admin/subscriptions/dashboard
+     *
+     * Sprint 13 — SaaS-focused dashboard embedded at the top of the
+     * Subscriptions tab in the admin control panel. Returns KPIs, plan
+     * breakdown, new-sub / churn 14-day series, upcoming renewals and
+     * trials needing attention.
+     *
+     * MRR is normalised across billing cycles:
+     *   - monthly → price as-is
+     *   - annual  → price / 12
+     *   - custom  → excluded (enterprise one-offs don't fit MRR)
+     */
+    public function subscriptionsDashboard(): JsonResponse
+    {
+        if (! Schema::hasTable('subscriptions')) {
+            return response()->json(['data' => [
+                'kpis'              => null,
+                'plans'             => [],
+                'charts'            => null,
+                'upcoming_renewals' => [],
+                'expiring_trials'   => [],
+                'generated_at'      => now()->toIso8601String(),
+            ]]);
+        }
+
+        $now        = now();
+        $weekAgo    = $now->copy()->subDays(7);
+        $monthStart = $now->copy()->startOfMonth();
+
+        // ── KPIs ────────────────────────────────────────────────────
+        $mrr = (float) Subscription::query()
+            ->where('status', 'active')
+            ->whereIn('billing_cycle', ['monthly', 'annual'])
+            ->selectRaw(<<<'SQL'
+                COALESCE(SUM(
+                    CASE billing_cycle
+                        WHEN 'annual'  THEN price / 12
+                        WHEN 'monthly' THEN price
+                        ELSE 0
+                    END
+                ), 0) AS mrr
+            SQL)
+            ->value('mrr');
+
+        $activeCount    = Subscription::where('status', 'active')->count();
+        $trialCount     = Subscription::where('status', 'trial')->count();
+        $newThisWeek    = Subscription::where('created_at', '>=', $weekAgo)->count();
+        $cancelledMonth = Subscription::where('status', 'cancelled')
+            ->where('cancelled_at', '>=', $monthStart)
+            ->count();
+
+        $kpis = [
+            'mrr'                  => round($mrr, 2),
+            'arr'                  => round($mrr * 12, 2),
+            'active_count'         => $activeCount,
+            'trial_count'          => $trialCount,
+            'new_this_week'        => $newThisWeek,
+            'cancelled_this_month' => $cancelledMonth,
+        ];
+
+        // ── Plan breakdown ──────────────────────────────────────────
+        $planRows = Subscription::query()
+            ->where('status', 'active')
+            ->whereIn('billing_cycle', ['monthly', 'annual'])
+            ->selectRaw('plan, COUNT(*) as count, ' . <<<'SQL'
+                COALESCE(SUM(
+                    CASE billing_cycle
+                        WHEN 'annual'  THEN price / 12
+                        WHEN 'monthly' THEN price
+                        ELSE 0
+                    END
+                ), 0) AS mrr_contribution
+            SQL)
+            ->groupBy('plan')
+            ->orderByDesc('mrr_contribution')
+            ->get()
+            ->map(fn ($r) => [
+                'plan'             => $r->plan,
+                'count'            => (int) $r->count,
+                'mrr_contribution' => round((float) $r->mrr_contribution, 2),
+            ])
+            ->all();
+
+        // ── 14-day charts ───────────────────────────────────────────
+        $days = [];
+        for ($i = 13; $i >= 0; $i--) {
+            $days[] = $now->copy()->subDays($i)->toDateString();
+        }
+
+        $newRaw = Subscription::query()
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as n')
+            ->where('created_at', '>=', $now->copy()->subDays(14)->startOfDay())
+            ->groupBy('day')->pluck('n', 'day')->toArray();
+
+        $cancelRaw = Subscription::query()
+            ->selectRaw('DATE(cancelled_at) as day, COUNT(*) as n')
+            ->whereNotNull('cancelled_at')
+            ->where('cancelled_at', '>=', $now->copy()->subDays(14)->startOfDay())
+            ->groupBy('day')->pluck('n', 'day')->toArray();
+
+        $labels = $newSubs = $cancellations = [];
+        foreach ($days as $d) {
+            $labels[]        = date('M j', strtotime($d));
+            $newSubs[]       = (int) ($newRaw[$d] ?? 0);
+            $cancellations[] = (int) ($cancelRaw[$d] ?? 0);
+        }
+
+        // ── Upcoming renewals (next 7 days) ─────────────────────────
+        $upcoming = Subscription::with('user:id,name,email')
+            ->where('status', 'active')
+            ->whereBetween('current_period_end', [$now, $now->copy()->addDays(7)])
+            ->orderBy('current_period_end')
+            ->limit(20)
+            ->get()
+            ->map(fn ($s) => [
+                'id'         => $s->id,
+                'user_name'  => $s->user?->name ?? 'Unknown',
+                'user_email' => $s->user?->email ?? '',
+                'plan'       => $s->plan,
+                'renews_at'  => $s->current_period_end?->toIso8601String(),
+                'price'      => round((float) $s->price, 2),
+            ])
+            ->all();
+
+        // ── Expiring trials (next 14 days) ──────────────────────────
+        $trials = Subscription::with('user:id,name,email')
+            ->where('status', 'trial')
+            ->whereBetween('trial_ends_at', [$now, $now->copy()->addDays(14)])
+            ->orderBy('trial_ends_at')
+            ->limit(20)
+            ->get()
+            ->map(fn ($s) => [
+                'id'            => $s->id,
+                'user_name'     => $s->user?->name ?? 'Unknown',
+                'user_email'    => $s->user?->email ?? '',
+                'plan'          => $s->plan,
+                'trial_ends_at' => $s->trial_ends_at?->toIso8601String(),
+            ])
+            ->all();
+
+        return response()->json([
+            'data' => [
+                'kpis'              => $kpis,
+                'plans'             => $planRows,
+                'charts'            => [
+                    'labels'        => $labels,
+                    'new_subs'      => $newSubs,
+                    'cancellations' => $cancellations,
+                ],
+                'upcoming_renewals' => $upcoming,
+                'expiring_trials'   => $trials,
+                'generated_at'      => $now->toIso8601String(),
+            ],
+        ]);
+    }
+
     public function subscriptions(Request $request): JsonResponse
     {
         $query = Subscription::with('user:id,name,email,company_id')->orderByDesc('created_at');

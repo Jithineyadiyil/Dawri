@@ -1,0 +1,147 @@
+<div class="vat-report">
+
+  <app-date-range-picker (rangeChange)="onRangeChange($event)"></app-date-range-picker>
+
+  <div class="toolbar">
+    <div class="left">
+      <span class="muted small">
+        Saudi Arabia (ZATCA) · VAT rate {{ vatPct() }} ·
+        VAT on marketplace/sponsorships derived from VAT-inclusive totals
+      </span>
+    </div>
+    <div class="right">
+      <button class="btn-download" (click)="downloadPdf()" [disabled]="!payload()">📄 PDF</button>
+      <button class="btn-download" (click)="downloadXlsx()" [disabled]="!payload()">📊 Excel</button>
+    </div>
+  </div>
+
+  @if (loading() && !payload()) {
+    <p class="loading">Loading VAT report…</p>
+  }
+  @if (error(); as err) {
+    <div class="error-box">⚠️ {{ err }}</div>
+  }
+
+  @if (payload(); as p) {
+
+    <!-- Top tiles -->
+    <div class="kpi-grid">
+      <div class="kpi-tile">
+        <div class="kpi-label">Total gross</div>
+        <div class="kpi-value">{{ p.summary.total_gross | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR inc. VAT</div>
+      </div>
+      <div class="kpi-tile amber">
+        <div class="kpi-label">Total VAT (output)</div>
+        <div class="kpi-value">{{ p.summary.total_vat | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR due to ZATCA</div>
+      </div>
+      <div class="kpi-tile cyan">
+        <div class="kpi-label">Total net</div>
+        <div class="kpi-value">{{ p.summary.total_net | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR pre-VAT</div>
+      </div>
+    </div>
+
+    <!-- Summary by source -->
+    <div class="report-card">
+      <h3>Summary by source</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th class="r">Gross</th>
+            <th class="r">VAT</th>
+            <th class="r">Net</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="strong">Invoices (subscriptions)</td>
+            <td class="r mono">{{ p.summary.invoices_gross | number:'1.2-2' }}</td>
+            <td class="r mono">{{ p.summary.invoices_vat | number:'1.2-2' }}</td>
+            <td class="r mono">{{ p.summary.invoices_net | number:'1.2-2' }}</td>
+          </tr>
+          <tr>
+            <td class="strong">Marketplace (digital orders)</td>
+            <td class="r mono">{{ p.summary.marketplace_gross | number:'1.2-2' }}</td>
+            <td class="r mono">{{ p.summary.marketplace_vat | number:'1.2-2' }}</td>
+            <td class="r mono">{{ p.summary.marketplace_net | number:'1.2-2' }}</td>
+          </tr>
+          <tr>
+            <td class="strong">Sponsorships (cash)</td>
+            <td class="r mono">{{ p.summary.sponsorships_gross | number:'1.2-2' }}</td>
+            <td class="r mono">{{ p.summary.sponsorships_vat | number:'1.2-2' }}</td>
+            <td class="r mono">{{ p.summary.sponsorships_net | number:'1.2-2' }}</td>
+          </tr>
+          <tr class="total-row">
+            <td>TOTAL</td>
+            <td class="r mono">{{ p.summary.total_gross | number:'1.2-2' }}</td>
+            <td class="r mono">{{ p.summary.total_vat | number:'1.2-2' }}</td>
+            <td class="r mono">{{ p.summary.total_net | number:'1.2-2' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Monthly breakdown -->
+    <div class="report-card">
+      <h3>Monthly breakdown</h3>
+      @if (p.monthly.length === 0) {
+        <p class="empty">No VAT-bearing activity in this period.</p>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th class="r">Gross</th>
+              <th class="r">VAT</th>
+              <th class="r">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of p.monthly; track m.month) {
+              <tr>
+                <td class="mono">{{ m.month }}</td>
+                <td class="r mono">{{ m.gross | number:'1.2-2' }}</td>
+                <td class="r mono">{{ m.vat | number:'1.2-2' }}</td>
+                <td class="r mono">{{ m.net | number:'1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+
+    <!-- Invoice detail -->
+    @if (p.invoice_lines.length > 0) {
+      <div class="report-card">
+        <h3>Invoice-level VAT detail</h3>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Invoice #</th>
+              <th>Customer</th>
+              <th>Paid</th>
+              <th class="r">Net</th>
+              <th class="r">VAT</th>
+              <th class="r">Gross</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of p.invoice_lines; track line.invoice_number) {
+              <tr>
+                <td class="mono">{{ line.invoice_number }}</td>
+                <td>{{ line.customer }}</td>
+                <td class="muted small mono">{{ line.paid_at }}</td>
+                <td class="r mono">{{ line.net | number:'1.2-2' }}</td>
+                <td class="r mono">{{ line.vat | number:'1.2-2' }}</td>
+                <td class="r mono strong">{{ line.gross | number:'1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</div>

@@ -1,0 +1,125 @@
+<div class="admin-dashboard">
+
+  <!-- ═══════════ HEADER ═══════════ -->
+  <header class="page-header">
+    <div class="title-row">
+      <h1>📊 Admin Dashboard</h1>
+      @if (payload(); as p) {
+        <div class="meta">
+          <span class="muted">Updated {{ timeAgo(p.generated_at) }}</span>
+          <button class="btn-ghost" (click)="refreshManually()" title="Refresh now">⟳</button>
+        </div>
+      }
+    </div>
+    @if (criticalAlertsCount() > 0) {
+      <div class="critical-banner">
+        ⚠️ {{ criticalAlertsCount() }} critical alert(s) require attention
+      </div>
+    }
+  </header>
+
+  <!-- Loading / error states -->
+  @if (loading() && !payload()) {
+    <p class="loading">Loading dashboard…</p>
+  }
+  @if (error(); as err) {
+    <div class="error-box">
+      ⚠️ {{ err }}
+      <button class="btn-ghost" (click)="loadDashboard()">Retry</button>
+    </div>
+  }
+
+  @if (payload(); as p) {
+
+    <!-- ═══════════ KPI TILES ═══════════ -->
+    <section class="kpi-grid">
+      @for (tile of kpiTiles(); track tile.key) {
+        <div class="kpi-tile" [class.trend-up]="tile.data.trend === 'up'"
+                              [class.trend-down]="tile.data.trend === 'down'">
+          <div class="kpi-label">{{ tile.data.label }}</div>
+          <div class="kpi-value">{{ tile.data.value | number:'1.0-2' }}</div>
+          <div class="kpi-sub">
+            <span class="sub-text">{{ tile.data.sub }}</span>
+            @if (tile.data.delta_pct !== null) {
+              <span class="delta" [class.up]="tile.data.trend === 'up'"
+                                  [class.down]="tile.data.trend === 'down'">
+                {{ trendSymbol(tile.data.trend) }} {{ formatDelta(tile.data.delta_pct) }}
+              </span>
+            }
+          </div>
+        </div>
+      }
+    </section>
+
+    <!-- ═══════════ CHARTS ═══════════ -->
+    <section class="charts-row">
+      <div class="chart-card">
+        <h3>Orders (7 days)</h3>
+        <div class="chart-wrap">
+          <canvas #ordersCanvas></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Revenue (7 days)</h3>
+        <div class="chart-wrap">
+          <canvas #revenueCanvas></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>Signups (7 days)</h3>
+        <div class="chart-wrap">
+          <canvas #signupsCanvas></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ ACTIVITY + ALERTS ROW ═══════════ -->
+    <section class="bottom-row">
+
+      <!-- Activity stream -->
+      <div class="activity-card">
+        <h3>📋 Recent activity</h3>
+        @if (p.activity.length === 0) {
+          <p class="empty">No recent activity.</p>
+        } @else {
+          <ul class="activity-list">
+            @for (ev of p.activity; track ev.timestamp + ev.headline) {
+              <li class="activity-item">
+                <span class="activity-icon">{{ ev.icon }}</span>
+                <div class="activity-body">
+                  <a class="activity-headline" [routerLink]="ev.link">{{ ev.headline }}</a>
+                  <div class="activity-detail muted">{{ ev.detail }}</div>
+                </div>
+                <span class="activity-time muted">{{ timeAgo(ev.timestamp) }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <!-- Alerts panel -->
+      <div class="alerts-card">
+        <h3>🔔 Alerts</h3>
+        @if (p.alerts.length === 0) {
+          <p class="empty-ok">✓ No alerts. All systems normal.</p>
+        } @else {
+          <ul class="alerts-list">
+            @for (alert of p.alerts; track alert.title) {
+              <li class="alert-item" [class.severity-critical]="alert.severity === 'critical'"
+                                     [class.severity-warning]="alert.severity === 'warning'"
+                                     [class.severity-info]="alert.severity === 'info'">
+                <div class="alert-body">
+                  <a class="alert-title" [routerLink]="alert.link">{{ alert.title }}</a>
+                  <div class="alert-detail muted">{{ alert.detail }}</div>
+                </div>
+                <span class="alert-severity">{{ alert.severity }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+    </section>
+
+  }
+</div>

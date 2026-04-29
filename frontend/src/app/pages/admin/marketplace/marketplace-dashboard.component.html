@@ -1,0 +1,141 @@
+<div class="mp-dashboard">
+
+  <header class="page-header">
+    <div class="title-row">
+      <h2>📊 Marketplace overview</h2>
+      @if (payload(); as p) {
+        <div class="meta">
+          <span class="muted">Updated {{ timeAgo(p.generated_at) }}</span>
+          <button class="btn-ghost" (click)="refreshManually()" title="Refresh">⟳</button>
+        </div>
+      }
+    </div>
+    @if (criticalAlertsCount() > 0) {
+      <div class="critical-banner">⚠️ {{ criticalAlertsCount() }} critical alert(s) require attention</div>
+    }
+  </header>
+
+  @if (loading() && !payload()) {
+    <p class="loading">Loading marketplace dashboard…</p>
+  }
+  @if (error(); as err) {
+    <div class="error-box">
+      ⚠️ {{ err }}
+      <button class="btn-ghost" (click)="loadDashboard()">Retry</button>
+    </div>
+  }
+
+  @if (payload(); as p) {
+
+    <!-- KPI tiles -->
+    <section class="kpi-grid">
+      <div class="kpi-tile">
+        <div class="kpi-label">Orders today</div>
+        <div class="kpi-value">{{ p.kpis.orders_today | number }}</div>
+        <div class="kpi-sub">{{ p.kpis.revenue_today | number:'1.2-2' }} SAR revenue</div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-label">Orders this week</div>
+        <div class="kpi-value">{{ p.kpis.orders_week | number }}</div>
+        <div class="kpi-sub">7 day window</div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-label">Orders this month</div>
+        <div class="kpi-value">{{ p.kpis.orders_month | number }}</div>
+        <div class="kpi-sub">{{ p.kpis.revenue_month | number:'1.2-2' }} SAR revenue</div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-label">Completed (30d)</div>
+        <div class="kpi-value">{{ p.kpis.completed_30d | number }}</div>
+        <div class="kpi-sub">successful fulfillment</div>
+      </div>
+      <div class="kpi-tile warn">
+        <div class="kpi-label">Failed (30d)</div>
+        <div class="kpi-value">{{ p.kpis.failed_30d | number }}</div>
+        <div class="kpi-sub">fulfillment failures</div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-label">Refunded (30d)</div>
+        <div class="kpi-value">{{ p.kpis.refunded_30d | number }}</div>
+        <div class="kpi-sub">orders refunded</div>
+      </div>
+    </section>
+
+    <!-- Charts -->
+    <section class="charts-row">
+      <div class="chart-card">
+        <h3>Orders (last 7 days)</h3>
+        <div class="chart-wrap"><canvas #ordersCanvas></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Revenue (last 7 days)</h3>
+        <div class="chart-wrap"><canvas #revenueCanvas></canvas></div>
+      </div>
+    </section>
+
+    <!-- Top products + Distributors -->
+    <section class="bottom-row">
+
+      <div class="card">
+        <h3>🏆 Top-selling products (last 30 days)</h3>
+        @if (p.top_products.length === 0) {
+          <p class="empty">No completed orders in the last 30 days yet.</p>
+        } @else {
+          <table class="data-table">
+            <thead>
+              <tr><th>Product</th><th>Brand</th><th class="r">Units</th><th class="r">Revenue</th></tr>
+            </thead>
+            <tbody>
+              @for (row of p.top_products; track row.id) {
+                <tr>
+                  <td class="strong">{{ row.name }}</td>
+                  <td class="muted">{{ row.brand }}</td>
+                  <td class="r mono">{{ row.units_sold | number }}</td>
+                  <td class="r strong">{{ row.revenue | number:'1.2-2' }} SAR</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+
+      <div class="card">
+        <h3>🌐 Distributor health</h3>
+        <table class="data-table">
+          <thead>
+            <tr><th>Distributor</th><th>Circuit</th><th class="r">Products</th><th class="r">Codes</th></tr>
+          </thead>
+          <tbody>
+            @for (d of p.distributor_summary; track d.distributor) {
+              <tr>
+                <td class="strong">{{ d.distributor }}</td>
+                <td><span [class]="circuitPillClass(d)">{{ d.circuit_status }}</span></td>
+                <td class="r mono">{{ d.product_count }}</td>
+                <td class="r mono">{{ d.available_codes }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <!-- Alerts -->
+    @if (p.alerts.length > 0) {
+      <section class="alerts-card">
+        <h3>🔔 Alerts</h3>
+        <ul class="alerts-list">
+          @for (a of p.alerts; track a.title) {
+            <li class="alert-item severity-{{ a.severity }}">
+              <div class="alert-body">
+                <div class="alert-title">{{ a.title }}</div>
+                <div class="alert-detail muted">{{ a.detail }}</div>
+              </div>
+              <span class="alert-severity">{{ a.severity }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  }
+</div>

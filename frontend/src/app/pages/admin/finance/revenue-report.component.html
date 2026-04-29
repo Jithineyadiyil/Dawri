@@ -1,0 +1,116 @@
+<div class="revenue-report">
+
+  <app-date-range-picker (rangeChange)="onRangeChange($event)"></app-date-range-picker>
+
+  <div class="toolbar">
+    <div class="left">
+      <label class="chk">
+        <input type="checkbox" [checked]="sources().marketplace" (change)="toggleSource('marketplace')" />
+        <span>Marketplace</span>
+      </label>
+      <label class="chk">
+        <input type="checkbox" [checked]="sources().subscriptions" (change)="toggleSource('subscriptions')" />
+        <span>Subscriptions</span>
+      </label>
+      <label class="chk">
+        <input type="checkbox" [checked]="sources().sponsorships" (change)="toggleSource('sponsorships')" />
+        <span>Sponsorships</span>
+      </label>
+    </div>
+    <div class="right">
+      <button class="btn-download" (click)="downloadPdf()" [disabled]="!payload()">📄 PDF</button>
+      <button class="btn-download" (click)="downloadXlsx()" [disabled]="!payload()">📊 Excel</button>
+    </div>
+  </div>
+
+  @if (loading() && !payload()) {
+    <p class="loading">Loading revenue report…</p>
+  }
+  @if (error(); as err) {
+    <div class="error-box">⚠️ {{ err }}</div>
+  }
+
+  @if (payload(); as p) {
+
+    <!-- Totals tiles -->
+    <div class="kpi-grid">
+      <div class="kpi-tile">
+        <div class="kpi-label">Grand total</div>
+        <div class="kpi-value">{{ p.totals.grand_total | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR · {{ p.period.days }} days</div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-label">Marketplace</div>
+        <div class="kpi-value">{{ p.totals.marketplace | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR</div>
+      </div>
+      <div class="kpi-tile amber">
+        <div class="kpi-label">Subscriptions</div>
+        <div class="kpi-value">{{ p.totals.subscriptions | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR</div>
+      </div>
+      <div class="kpi-tile cyan">
+        <div class="kpi-label">Sponsorships</div>
+        <div class="kpi-value">{{ p.totals.sponsorships | number:'1.2-2' }}</div>
+        <div class="kpi-sub">SAR</div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="report-card">
+      <h3>Daily revenue trend</h3>
+      <div style="position:relative;height:240px">
+        <canvas #chartCanvas></canvas>
+      </div>
+    </div>
+
+    <!-- Detail table -->
+    <div class="report-card">
+      <h3>Monthly breakdown by source</h3>
+      @if (p.rows.length === 0) {
+        <p class="empty">No revenue in this period.</p>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th>Period</th>
+              <th class="r">Count</th>
+              <th class="r">Gross (SAR)</th>
+              <th class="r">VAT (SAR)</th>
+              <th class="r">Net (SAR)</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of p.rows; track row.source + row.period_label) {
+              <tr>
+                <td class="strong">{{ row.source | titlecase }}</td>
+                <td class="mono">{{ row.period_label }}</td>
+                <td class="r mono">{{ row.count }}</td>
+                <td class="r mono">{{ row.gross | number:'1.2-2' }}</td>
+                <td class="r mono muted">{{ row.vat | number:'1.2-2' }}</td>
+                <td class="r mono">{{ row.net | number:'1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  }
+</div>
+
+<style>
+  .chk {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #ccc;
+    cursor: pointer;
+    user-select: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    &:hover { background: #1a1a2a; }
+    input { cursor: pointer; }
+  }
+</style>

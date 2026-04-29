@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AdminFinanceController;
+use App\Http\Controllers\Api\AdminInventoryController;
+use App\Http\Controllers\Api\AdminMarketplaceController;
+use App\Http\Controllers\Api\AdminPlatformSponsorController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\DashboardController;
@@ -10,6 +14,7 @@ use App\Http\Controllers\Api\LeaderboardController;
 use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\PlayerController;
+use App\Http\Controllers\Api\PlatformSponsorController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\OrganizerSponsorController;
 use App\Http\Controllers\Api\SponsorController;
@@ -45,6 +50,24 @@ Route::prefix('v1')->group(function () {
     Route::get('/players/{user}',            [PlayerController::class, 'show']);
     Route::get('/players/{user}/matches',    [PlayerController::class, 'matches']);
     Route::get('/invoices/{id}/download',    [InvoiceController::class, 'download']);
+
+    // Sprint 14: platform sponsors — visible to all visitors
+    Route::get('/platform-sponsors', [PlatformSponsorController::class, 'index']);
+
+    // Sprint 13 Phase 1: Finance report downloads — token-in-query auth
+    // (handled inside AdminFinanceController::ensureAdminFromQueryToken)
+    // Placed outside auth:sanctum group so browser window.open works;
+    // controller enforces admin-only access internally.
+    Route::get('/admin/finance/revenue.pdf',   [AdminFinanceController::class, 'revenuePdf']);
+    Route::get('/admin/finance/revenue.xlsx',  [AdminFinanceController::class, 'revenueXlsx']);
+    Route::get('/admin/finance/invoices.pdf',  [AdminFinanceController::class, 'invoicesPdf']);
+    Route::get('/admin/finance/invoices.xlsx', [AdminFinanceController::class, 'invoicesXlsx']);
+    Route::get('/admin/finance/vat.pdf',       [AdminFinanceController::class, 'vatPdf']);
+    Route::get('/admin/finance/vat.xlsx',      [AdminFinanceController::class, 'vatXlsx']);
+
+    // Per-invoice PDF download (customer-facing invoice layout)
+    Route::get('/admin/finance/invoices/{id}.pdf', [AdminFinanceController::class, 'invoiceSinglePdf'])
+        ->where('id', '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
 
     // Sprint 8: public sponsors display on tournament detail page
     Route::get('/tournaments/{tournament}/sponsorships', [SponsorshipController::class, 'forTournament']);
@@ -139,6 +162,25 @@ Route::prefix('v1')->group(function () {
         // Admin
         Route::prefix('admin')->middleware('admin')->group(function () {
             Route::get ('/overview',               [AdminController::class, 'overview']);
+
+            // Sprint 13: Domain-focused dashboards (replaces old generic /admin/dashboard)
+            Route::get ('/subscriptions/dashboard', [AdminController::class, 'subscriptionsDashboard']);
+
+            // Sprint 14: platform-level sponsorships (Dawri brand sponsors)
+            Route::get   ('/platform-sponsorships',                                  [AdminPlatformSponsorController::class, 'index']);
+            Route::post  ('/platform-sponsorships',                                  [AdminPlatformSponsorController::class, 'store']);
+            Route::put   ('/platform-sponsorships/{platformSponsorship}',            [AdminPlatformSponsorController::class, 'update']);
+            Route::delete('/platform-sponsorships/{platformSponsorship}',            [AdminPlatformSponsorController::class, 'destroy']);
+            Route::post  ('/platform-sponsorships/{platformSponsorship}/toggle',     [AdminPlatformSponsorController::class, 'toggle']);
+
+            // Sprint 13 Phase 1: Financial reports (revenue, invoices, VAT)
+            // JSON endpoints — standard admin auth via header
+            Route::prefix('finance')->group(function () {
+                Route::get('/revenue',  [AdminFinanceController::class, 'revenue']);
+                Route::get('/invoices', [AdminFinanceController::class, 'invoices']);
+                Route::get('/vat',      [AdminFinanceController::class, 'vat']);
+            });
+
             Route::get ('/users',                  [AdminController::class, 'users']);
             Route::put ('/users/{user}',           [AdminController::class, 'updateUser']);
             Route::post('/users/{user}/suspend',   [AdminController::class, 'suspendUser']);
@@ -164,8 +206,50 @@ Route::prefix('v1')->group(function () {
             Route::post('sponsors/{sponsor}/promote', [SponsorController::class, 'promote']);
             Route::post('sponsors/{sponsor}/demote',  [SponsorController::class, 'demote']);
 
-            // Sprint 10: promote a private (organizer-created) sponsor to global
-            Route::post('sponsors/{sponsor}/promote', [SponsorController::class, 'promoteToGlobal']);
+            // ─ Sprint 11: Admin Marketplace ─────────────────────────────
+            Route::prefix('marketplace')->group(function () {
+                // Sprint 13: Marketplace-focused dashboard (lands on /admin/marketplace Dashboard tab)
+                Route::get('/dashboard', [AdminMarketplaceController::class, 'dashboard']);
+
+                Route::get('/stats', [AdminMarketplaceController::class, 'stats']);
+
+                Route::get   ('/products',            [AdminMarketplaceController::class, 'productsIndex']);
+                Route::post  ('/products',            [AdminMarketplaceController::class, 'productStore']);
+                Route::match (['put', 'patch'], '/products/{product}',
+                    [AdminMarketplaceController::class, 'productUpdate']);
+                Route::delete('/products/{product}',  [AdminMarketplaceController::class, 'productDestroy']);
+
+                Route::get ('/orders',                [AdminMarketplaceController::class, 'ordersIndex']);
+                Route::get ('/orders/{order}',        [AdminMarketplaceController::class, 'orderShow']);
+                Route::post('/orders/{order}/refund', [AdminMarketplaceController::class, 'orderRefund']);
+
+                Route::get   ('/distributors', [AdminMarketplaceController::class, 'distributorsIndex']);
+                Route::put   ('/distributors/{distributor}/credentials',
+                    [AdminMarketplaceController::class, 'credentialsUpdate']);
+                Route::delete('/distributors/{distributor}/credentials/{credential}',
+                    [AdminMarketplaceController::class, 'credentialsDestroy']);
+
+                Route::delete('/distributors/{distributor}/credentials',
+                    [AdminMarketplaceController::class, 'credentialsDestroyAll']);
+
+                Route::post('/distributors/{distributor}/test-connection',
+                    [AdminMarketplaceController::class, 'testConnection']);
+
+                Route::get ('/products/{product}/inventory',
+                    [AdminInventoryController::class, 'show']);
+                Route::post('/products/{product}/inventory/upload',
+                    [AdminInventoryController::class, 'upload']);
+                Route::get ('/products/{product}/inventory/codes',
+                    [AdminInventoryController::class, 'codes']);
+                Route::post('/products/{product}/fulfillment-mode',
+                    [AdminInventoryController::class, 'setFulfillmentMode']);
+                Route::post('/products/{product}/auto-hide',
+                    [AdminInventoryController::class, 'setAutoHide']);
+                Route::get   ('/batches/{batch}',
+                    [AdminInventoryController::class, 'batchShow']);
+                Route::delete('/batches/{batch}',
+                    [AdminInventoryController::class, 'batchDestroy']);
+            });
         });
     });
 });

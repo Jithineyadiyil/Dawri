@@ -1,0 +1,453 @@
+<div class="admin-marketplace">
+  <header class="page-header">
+    <h1>🛒 Marketplace</h1>
+  </header>
+
+  <nav class="tabs">
+    <button [class.active]="tab() === 'dashboard'" (click)="setTab('dashboard')">
+      📊 Dashboard
+    </button>
+    <button [class.active]="tab() === 'products'" (click)="setTab('products')">
+      Products ({{ products().length }})
+    </button>
+    <button [class.active]="tab() === 'orders'" (click)="setTab('orders')">
+      Orders
+    </button>
+    <button [class.active]="tab() === 'distributors'" (click)="setTab('distributors')">
+      Distributors &amp; Keys
+    </button>
+  </nav>
+
+  <!-- ═══════════ DASHBOARD TAB ═══════════ -->
+  @if (tab() === 'dashboard') {
+    <section class="tab-content dashboard-tab">
+      <app-marketplace-dashboard [isActive]="tab() === 'dashboard'"></app-marketplace-dashboard>
+    </section>
+  }
+
+  <!-- ═══════════ PRODUCTS TAB ═══════════ -->
+  @if (tab() === 'products') {
+    <section class="tab-content products-tab">
+      <div class="toolbar">
+        <input type="text" class="search" placeholder="Search products…"
+               [ngModel]="productSearch()" (ngModelChange)="setProductSearch($event)" />
+        <button class="primary" (click)="openCreateProduct()">+ Add product</button>
+      </div>
+      @if (productsLoading()) {
+        <p class="loading">Loading products…</p>
+      } @else if (filteredProducts().length === 0) {
+        <p class="empty">No products found.</p>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Image</th><th>Name</th><th>Brand</th><th>Category</th>
+              <th class="r">Face</th><th class="r">Cost</th><th class="r">Price</th><th class="r">Margin</th>
+              <th>Mode</th><th>Status</th><th class="r">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of filteredProducts(); track p.id) {
+              <tr>
+                <td class="img">
+                  @if (p.image_url) { <img [src]="p.image_url" [alt]="p.brand" /> }
+                  @else { <span class="no-img">—</span> }
+                </td>
+                <td>
+                  <div class="name">{{ p.name }}</div>
+                  @if (p.name_ar) { <div class="name-ar">{{ p.name_ar }}</div> }
+                </td>
+                <td>{{ p.brand }}</td>
+                <td class="muted">{{ p.category }}</td>
+                <td class="r">{{ p.face_value | number:'1.2-2' }}</td>
+                <td class="r muted">{{ p.our_cost !== null ? (p.our_cost | number:'1.2-2') : '—' }}</td>
+                <td class="r strong">{{ p.our_price | number:'1.2-2' }}</td>
+                <td class="r">{{ productMargin(p) }}</td>
+                <td>
+                  <span class="mode-chip mode-{{ p.fulfillment_mode || 'api' }}">
+                    {{ p.fulfillment_mode === 'inventory' ? '📦 Stock' : '🌐 API' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="status" [class.active]="p.is_active" [class.inactive]="!p.is_active">
+                    {{ p.is_active ? 'Active' : 'Hidden' }}
+                  </span>
+                </td>
+                <td class="r actions">
+                  <button class="btn-icon" (click)="openInventoryDrawer(p.id)" title="Inventory">📦</button>
+                  <button class="btn-icon" (click)="openEditProduct(p)" title="Edit">✎</button>
+                  <button class="btn-icon danger" (click)="deleteProduct(p)" title="Delete">🗑</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+  }
+
+  <!-- ═══════════ ORDERS TAB ═══════════ -->
+  @if (tab() === 'orders') {
+    <section class="tab-content orders-tab">
+      <div class="toolbar">
+        <input type="text" class="search" placeholder="Search orders by ID, user, product…"
+               [ngModel]="orderSearch()" (ngModelChange)="setOrderSearch($event)" />
+        <select [ngModel]="orderStatusFilter()" (ngModelChange)="setOrderStatusFilter($event)">
+          <option value="all">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="processing">Processing</option>
+          <option value="completed">Completed</option>
+          <option value="failed">Failed</option>
+          <option value="refunded">Refunded</option>
+        </select>
+      </div>
+      @if (ordersLoading()) {
+        <p class="loading">Loading orders…</p>
+      } @else if (filteredOrders().length === 0) {
+        <p class="empty">No orders match.</p>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Order ID</th><th>User</th><th>Product</th><th>Distributor</th>
+              <th class="r">Total</th><th>Status</th><th>Created</th><th class="r"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (o of filteredOrders(); track o.id) {
+              <tr>
+                <td class="mono">{{ o.id | slice:0:8 }}…</td>
+                <td>
+                  <div>{{ orderUserName(o) || 'Unknown' }}</div>
+                  <div class="muted">{{ orderUserEmail(o) }}</div>
+                </td>
+                <td>{{ orderProductName(o) }}</td>
+                <td class="muted">{{ o.distributor }}</td>
+                <td class="r strong">{{ o.total_price | number:'1.2-2' }}</td>
+                <td><span class="status-pill status-{{ o.status }}">{{ o.status }}</span></td>
+                <td class="muted">{{ o.created_at | date:'MMM d, y, h:mm a' }}</td>
+                <td class="r"><button class="btn-ghost" (click)="openOrderDetail(o)">View</button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+  }
+
+  <!-- ═══════════ DISTRIBUTORS TAB ═══════════ -->
+  @if (tab() === 'distributors') {
+    <section class="tab-content distributors-tab">
+      @if (distributorsLoading()) {
+        <p class="loading">Loading distributors…</p>
+      } @else if (distributors().length === 0) {
+        <p class="empty">No distributors configured.</p>
+      } @else {
+        <div class="distributor-grid">
+          @for (d of distributors(); track d.distributor) {
+            <div class="distributor-card" [class.configured]="d.has_active_creds">
+              <header>
+                <h3>{{ d.display_name }}</h3>
+                <span class="active-count">{{ d.product_count }} products</span>
+              </header>
+              @if (d.stock_summary; as ss) {
+                <div class="stock-grid">
+                  <div class="stock-stat"><span class="n">{{ ss.inventory_products }}</span><span class="l">📦 Inventory products</span></div>
+                  <div class="stock-stat"><span class="n">{{ ss.available_codes }}</span><span class="l">Available codes</span></div>
+                  <div class="stock-stat"><span class="n">{{ ss.delivered_30d }}</span><span class="l">Delivered 30d</span></div>
+                </div>
+              }
+              @if (d.has_active_creds && d.credential_info; as ci) {
+                <div class="creds-ok">
+                  <p class="creds-status">✓ Credentials configured. <span class="ok">Active</span></p>
+                  <p class="mono muted">API key: {{ ci.api_key_masked }}</p>
+                  <div class="cred-flags">
+                    <span class="flag">api_key</span>
+                    @if (ci.has_secret)        { <span class="flag">secret</span> }
+                    @if (ci.has_client_id)     { <span class="flag">client_id</span> }
+                    @if (ci.has_client_secret) { <span class="flag">client_secret</span> }
+                  </div>
+                  @if (ci.updated_at) { <p class="muted small">Updated {{ ci.updated_at | date:'MMM d, y, h:mm a' }}</p> }
+                </div>
+              } @else {
+                <p class="creds-missing">No credentials configured. Distributor will not route any requests.</p>
+              }
+              @if (testResults()[d.distributor]; as tr) {
+                <div class="test-result" [class.success]="tr.success" [class.error]="!tr.success">
+                  <p><strong>{{ tr.success ? '✓' : '✗' }}</strong> {{ tr.message }}</p>
+                  <button class="dismiss" (click)="dismissTestResult(d)" aria-label="Dismiss">✕</button>
+                </div>
+              }
+              <footer class="card-actions">
+                <button class="primary" (click)="openCredentialsModal(d)">
+                  {{ d.has_active_creds ? '✎ Edit credentials' : '+ Add credentials' }}
+                </button>
+                @if (d.has_active_creds) {
+                  <button class="ghost" (click)="testConnection(d)"
+                          [disabled]="testBusyKey() === d.distributor">
+                    {{ testBusyKey() === d.distributor ? '⟳ Testing…' : '⚡ Test' }}
+                  </button>
+                }
+              </footer>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+
+  <!-- ═══════════ PRODUCT MODAL (face value auto-copies to our_price) ═══════════ -->
+  @if (productModalMode(); as mode) {
+    <div class="overlay" (click)="closeProductModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <header>
+          <h2>{{ mode === 'edit' ? 'Edit product' : 'Create product' }}</h2>
+          <button class="close" (click)="closeProductModal()">✕</button>
+        </header>
+        <div class="body">
+          <div class="grid-2">
+            <label>Name <input [(ngModel)]="productForm.name" maxlength="200" /></label>
+            <label>Name (Arabic) <input [(ngModel)]="productForm.name_ar" maxlength="200" /></label>
+            <label>Distributor
+              <select [(ngModel)]="productForm.distributor">
+                <option value="likecard">LikeCard</option>
+                <option value="wupex">WUPEX</option>
+                <option value="reloadly">Reloadly</option>
+                <option value="jawaker">Jawaker</option>
+              </select>
+            </label>
+            <label>Distributor product ID <input [(ngModel)]="productForm.distributor_product_id" maxlength="120" /></label>
+            <label>Brand <input [(ngModel)]="productForm.brand" maxlength="100" /></label>
+            <label>Category <input [(ngModel)]="productForm.category" maxlength="50" /></label>
+            <label>Face value
+              <input type="number" step="0.01" min="0"
+                     [ngModel]="productForm.face_value"
+                     (ngModelChange)="onFaceValueChange($event)" />
+            </label>
+            <label>Currency <input [(ngModel)]="productForm.currency" maxlength="3" /></label>
+            <label>Our cost (SAR) <input type="number" step="0.01" min="0" [(ngModel)]="productForm.our_cost" /></label>
+            <label>
+              Our price (SAR)
+              <span class="hint-inline">defaults to face value</span>
+              <input type="number" step="0.01" min="0" [(ngModel)]="productForm.our_price" />
+            </label>
+            <label>Region <input [(ngModel)]="productForm.region" maxlength="10" /></label>
+            <label>Sort order <input type="number" min="0" [(ngModel)]="productForm.sort_order" /></label>
+            <label class="full">Image URL <input [(ngModel)]="productForm.image_url" maxlength="500" placeholder="/brands/apple.svg or https://…" /></label>
+            <label>Fulfillment mode
+              <select [(ngModel)]="productForm.fulfillment_mode">
+                <option value="api">API (distributor)</option>
+                <option value="inventory">Inventory (pre-loaded)</option>
+              </select>
+            </label>
+            <label>Low stock threshold <input type="number" min="0" [(ngModel)]="productForm.low_stock_threshold" /></label>
+            <label class="full inline">
+              <input type="checkbox" [(ngModel)]="productForm.is_active" /> Active (visible on storefront)
+            </label>
+          </div>
+        </div>
+        <footer>
+          <button class="ghost" (click)="closeProductModal()">Cancel</button>
+          <button class="primary" (click)="saveProduct()" [disabled]="productSaving()">
+            {{ productSaving() ? 'Saving…' : 'Save' }}
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+
+  <!-- ═══════════ ORDER DETAIL MODAL ═══════════ -->
+  @if (orderDetail(); as o) {
+    <div class="overlay" (click)="closeOrderDetail()">
+      <div class="modal wide" (click)="$event.stopPropagation()">
+        <header>
+          <h2>Order detail</h2>
+          @if (orderDetailLoading()) { <span class="muted small"> · loading full detail…</span> }
+          <button class="close" (click)="closeOrderDetail()">✕</button>
+        </header>
+        <div class="body">
+
+          <h3 class="section-head">Order</h3>
+          <dl class="kv">
+            <dt>Order ID</dt>     <dd class="mono">{{ o.id }}</dd>
+            <dt>Status</dt>       <dd><span class="status-pill status-{{ o.status }}">{{ o.status }}</span></dd>
+            <dt>User</dt>         <dd>{{ orderUserName(o) }} · <span class="muted">{{ orderUserEmail(o) }}</span></dd>
+            <dt>Product</dt>      <dd>{{ orderProductName(o) }}<span class="muted"> · {{ orderProductBrand(o) }}</span></dd>
+            <dt>Quantity</dt>     <dd>{{ o.quantity }}</dd>
+            <dt>Unit price</dt>   <dd>{{ o.unit_price | number:'1.2-2' }} SAR</dd>
+            <dt>Total</dt>        <dd class="strong">{{ o.total_price | number:'1.2-2' }} SAR</dd>
+            <dt>Distributor</dt>  <dd>{{ o.distributor }}</dd>
+            @if (o.distributor_order_id) {
+              <dt>Distributor order ID</dt>
+              <dd class="mono">{{ o.distributor_order_id }}</dd>
+            }
+            @if (o.idempotency_key) {
+              <dt>Idempotency key</dt>
+              <dd class="mono muted small">{{ o.idempotency_key }}</dd>
+            }
+            <dt>Payment method</dt> <dd>{{ o.payment_method }}</dd>
+            <dt>Payment ref</dt>    <dd class="mono">{{ o.payment_ref }}</dd>
+            <dt>Created</dt>        <dd>{{ o.created_at | date:'medium' }}</dd>
+            @if (o.fulfilled_at) { <dt>Fulfilled</dt> <dd>{{ o.fulfilled_at | date:'medium' }}</dd> }
+            @if (o.refunded_at) {
+              <dt>Refunded</dt>  <dd>{{ o.refunded_at | date:'medium' }}</dd>
+              <dt>Reason</dt>    <dd>{{ o.refund_reason }}</dd>
+            }
+          </dl>
+
+          @if (o.code; as c) {
+            <h3 class="section-head">Delivered code</h3>
+            <div class="code-panel">
+              <div class="code-row">
+                <span class="code-value mono">
+                  {{ codeRevealed() ? (c.full || c.masked) : c.masked }}
+                </span>
+                @if (c.full) {
+                  <button class="btn-ghost" (click)="toggleCodeReveal()">
+                    {{ codeRevealed() ? 'Hide' : 'Show full' }}
+                  </button>
+                }
+              </div>
+              <dl class="kv dense">
+                <dt>Delivered to user</dt>
+                <dd>
+                  @if (c.revealed_at) {
+                    <span class="ok">✓ Revealed</span> · {{ c.revealed_at | date:'medium' }}
+                  } @else {
+                    <span class="warn">Not yet revealed</span>
+                  }
+                </dd>
+                @if (c.expires_at) { <dt>Expires</dt> <dd>{{ c.expires_at | date:'medium' }}</dd> }
+              </dl>
+            </div>
+          }
+
+          @if (o.inventory_code; as ic) {
+            <h3 class="section-head">Inventory code (pool)</h3>
+            <dl class="kv dense">
+              <dt>Code ID</dt>      <dd class="mono small">{{ ic.id }}</dd>
+              <dt>Batch ID</dt>     <dd class="mono small">{{ ic.batch_id }}</dd>
+              @if (ic.serial_number) { <dt>Serial</dt> <dd class="mono">{{ ic.serial_number }}</dd> }
+              <dt>Pool status</dt>
+              <dd>
+                <span class="status-pill status-{{ ic.status }}">{{ ic.status }}</span>
+                @if (ic.status === 'expired' && o.refunded_at) {
+                  <span class="muted small"> · voided at refund</span>
+                }
+              </dd>
+              @if (ic.delivered_at) { <dt>Delivered</dt> <dd>{{ ic.delivered_at | date:'medium' }}</dd> }
+            </dl>
+          }
+
+          @if (o.admin_notes) {
+            <h3 class="section-head">Admin notes</h3>
+            <pre class="admin-notes">{{ o.admin_notes }}</pre>
+          }
+
+          @if (o.status === 'completed' && !o.refunded_at) {
+            <h3 class="section-head">Refund</h3>
+            <div class="refund-box">
+              <label>Reason <span class="required">*</span>
+                <input type="text" placeholder="Required" [(ngModel)]="refundReason" />
+              </label>
+              <label>Internal note (optional)
+                <input type="text" placeholder="Visible in admin audit trail" [(ngModel)]="refundNotes" />
+              </label>
+              @if (o.inventory_code?.can_void) {
+                <label class="inline void-option">
+                  <input type="checkbox" [(ngModel)]="refundVoidCode" />
+                  <div>
+                    <strong>Also void the delivered code</strong>
+                    <p class="muted small">
+                      Marks the inventory code as expired. Use when the code was never revealed by the user
+                      or when compensating for a duplicate delivery. The code will NOT be returned to the pool.
+                    </p>
+                  </div>
+                </label>
+              }
+              <button class="danger" (click)="refundOrder()" [disabled]="refundBusy()">
+                {{ refundBusy() ? 'Refunding…' : 'Refund to wallet' }}
+              </button>
+            </div>
+          }
+        </div>
+        <footer>
+          <button class="ghost" (click)="closeOrderDetail()">Close</button>
+        </footer>
+      </div>
+    </div>
+  }
+
+  <!-- ═══════════ CREDENTIALS MODAL ═══════════ -->
+  @if (credentialsModal(); as d) {
+    <div class="overlay" (click)="closeCredentialsModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <header>
+          <h2>{{ d.display_name }} credentials</h2>
+          <button class="close" (click)="closeCredentialsModal()">✕</button>
+        </header>
+        <div class="body">
+          <p class="hint">Leave a field empty to keep its existing value unchanged.</p>
+          <div class="cred-field">
+            <label>API key</label>
+            <div class="input-row">
+              <input [type]="revealField()['api_key'] ? 'text' : 'password'"
+                     [(ngModel)]="credentialForm.api_key" placeholder="sk_live_…" />
+              <button type="button" class="btn-ghost" (click)="toggleReveal('api_key')">
+                {{ revealField()['api_key'] ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+          </div>
+          <div class="cred-field">
+            <label>API secret</label>
+            <div class="input-row">
+              <input [type]="revealField()['api_secret'] ? 'text' : 'password'" [(ngModel)]="credentialForm.api_secret" />
+              <button type="button" class="btn-ghost" (click)="toggleReveal('api_secret')">
+                {{ revealField()['api_secret'] ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+          </div>
+          <div class="cred-field">
+            <label>Client ID</label>
+            <div class="input-row">
+              <input [type]="revealField()['client_id'] ? 'text' : 'password'" [(ngModel)]="credentialForm.client_id" />
+              <button type="button" class="btn-ghost" (click)="toggleReveal('client_id')">
+                {{ revealField()['client_id'] ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+          </div>
+          <div class="cred-field">
+            <label>Client secret</label>
+            <div class="input-row">
+              <input [type]="revealField()['client_secret'] ? 'text' : 'password'" [(ngModel)]="credentialForm.client_secret" />
+              <button type="button" class="btn-ghost" (click)="toggleReveal('client_secret')">
+                {{ revealField()['client_secret'] ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+          </div>
+          <label class="inline">
+            <input type="checkbox" [(ngModel)]="credentialForm.is_active" />
+            Active (route requests to this distributor)
+          </label>
+        </div>
+        <footer>
+          @if (d.has_active_creds) {
+            <button class="danger-ghost" (click)="clearCredentials()" [disabled]="credentialsSaving()">
+              Remove credentials
+            </button>
+          }
+          <div class="spacer"></div>
+          <button class="ghost" (click)="closeCredentialsModal()">Cancel</button>
+          <button class="primary" (click)="saveCredentials()" [disabled]="credentialsSaving()">
+            {{ credentialsSaving() ? 'Saving…' : 'Save' }}
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+
+  @if (inventoryDrawerProductId(); as pid) {
+    <app-product-inventory-drawer
+      [productId]="pid" (close)="closeInventoryDrawer()" (changed)="onInventoryChanged()" />
+  }
+</div>
