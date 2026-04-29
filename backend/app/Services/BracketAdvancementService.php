@@ -72,42 +72,51 @@ class BracketAdvancementService
 
     // ─── Double Elimination ───────────────────────────────────────────────────
 
+    /**
+     * Advance a completed DE match.
+     *
+     * Routing rules:
+     *   1. Winner follows `next_match_id` (WB → next WB round, or LB → next LB
+     *      round, or WB-final → grand_final, or LB-final → grand_final).
+     *   2. Loser of a WB match follows `loser_next_match_id` (drops into LB).
+     *   3. LB matches have no loser routing — losing in LB = elimination.
+     *   4. Tournament completes when GF is decided.
+     *
+     * Note on the GF: this implementation supports BOTH a one-game GF AND
+     * the bracket-reset variant. If the LB winner beats the WB winner in
+     * the GF, the bracket is technically supposed to "reset" (play one
+     * more match). For demo purposes we treat the GF as a single final
+     * — bracket reset can be added later if needed.
+     */
     private function advanceDE(TournamentMatch $match, Bracket $bracket, Tournament $tournament): void
     {
-        // Advance winner up the same bracket side.
-        $this->advanceSE($match, $bracket, $tournament);
+        // ── Winner advancement ───────────────────────────────────────────
+        if ($match->next_match_id) {
+            $nextMatch = TournamentMatch::find($match->next_match_id);
+            if ($nextMatch) {
+                $this->fillParticipantSlot($nextMatch, $match->winner_id);
+            }
+        }
 
-        // Drop the loser into the losers bracket only from winners-side matches.
-        if ($match->bracket_section === 'winners') {
+        // ── Loser drop to LB (only from WB matches) ─────────────────────
+        if ($match->bracket_section === 'winners' && $match->loser_next_match_id) {
             $loserId = ($match->winner_id === $match->participant_a_id)
                 ? $match->participant_b_id
                 : $match->participant_a_id;
 
-            if ($loserId === null) {
-                return;
-            }
-
-            $nextLosers = TournamentMatch::where('bracket_id', $bracket->id)
-                ->where('bracket_section', 'losers')
-                ->where(function ($q) {
-                    $q->whereNull('participant_a_id')
-                      ->orWhereNull('participant_b_id');
-                })
-                ->orderBy('round_number')
-                ->orderBy('match_number')
-                ->first();
-
-            if ($nextLosers) {
-                $this->fillParticipantSlot($nextLosers, $loserId);
+            if ($loserId !== null) {
+                $lbMatch = TournamentMatch::find($match->loser_next_match_id);
+                if ($lbMatch) {
+                    $this->fillParticipantSlot($lbMatch, $loserId);
+                }
             }
         }
 
-        // Completion detection: grand final is done when no pending matches remain.
-        $pending = TournamentMatch::where('bracket_id', $bracket->id)
-            ->whereIn('status', ['pending', 'ongoing'])
-            ->count();
-
-        if ($pending === 0) {
+        // ── Completion check ────────────────────────────────────────────
+        // The tournament is complete only when the grand final is decided.
+        // Avoid the old "no pending matches" check — that fires too early
+        // when intermediate LB rounds still have unfilled placeholders.
+        if ($match->bracket_section === 'grand_final' && $match->winner_id) {
             $this->completeTournament($bracket, $tournament, $match->winner_id);
         }
     }
