@@ -1,199 +1,265 @@
+<!--
+  Dawri — Home page template
+  Replace frontend/src/app/pages/home/home.component.html with this file.
+  Component class additions needed (already in your home.component.ts —
+  just confirm `players`, `games`, `formats`, `steps`, `b2bFeatures` arrays
+  exist; the template only changes structure, not the data).
+-->
 <div class="home">
 
-  <!-- ── HERO ──────────────────────────────────────────────────────── -->
+  <!-- ── HERO ─────────────────────────────────────────────────────── -->
   <section class="hero">
-    <div class="hero-orb hero-orb--1"></div>
-    <div class="hero-orb hero-orb--2"></div>
-    <div class="hero-orb hero-orb--3"></div>
+    <div class="hero-grid-bg"></div>
+    <div class="hero-glow g1"></div>
+    <div class="hero-glow g2"></div>
 
-    <!-- Hero background image with overlay -->
-    <div class="hero-bg">
-      <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1920&q=85&fit=crop&crop=center" alt="" aria-hidden="true" class="hero-bg__img" loading="eager"/>
-      <div class="hero-bg__overlay"></div>
-    </div>
-
-    <div class="hero-content">
-      <div class="hero-eyebrow">Saudi Arabia &amp; GCC Esports Platform</div>
-
-      <h1 class="hero-title">
-        Compete. Win.<br><em>Get Rewarded.</em>
-      </h1>
-
-      <p class="hero-sub">
-        The first Arabic-native tournament platform for EA FC 25, PUBG Mobile,
-        and Call of Duty Mobile. Join free. Win prizes from corporate prize pools.
-      </p>
-
-      <div class="hero-actions">
-        <a routerLink="/auth" class="btn btn-gold btn-lg">Join Free →</a>
-        <a routerLink="/tournaments" class="btn btn-ghost btn-lg">Browse Tournaments</a>
-      </div>
-
-      <!-- Social proof avatars -->
-      <div class="hero-social-proof">
-        <div class="proof-avatars">
-          @for (p of players; track p.name) {
-            <img [src]="p.img" [alt]="p.name" class="proof-avatar"/>
-          }
+    <div class="hero-wrap">
+      <div class="hero-left">
+        <div class="hero-eyebrow">
+          <span class="live-pill"><span class="dot"></span>Live · 12 tournaments</span>
+          <span>Saudi Arabia &amp; GCC</span>
         </div>
-        <div class="proof-text">
-          <strong>500+</strong> players competing this week
+        <h1 class="hero-title">
+          <span class="line">Compete.</span>
+          <span class="line outline">Win.</span>
+          <span class="line accent">Get paid.</span>
+        </h1>
+        <span class="hero-arabic">.تنافس. اربح. احصل على جائزتك</span>
+        <p class="hero-sub">
+          The first Arabic-native tournament platform for EA FC 25, PUBG Mobile,
+          and Call of Duty Mobile. Free to join. Corporate prize pools paid out automatically.
+        </p>
+        <div class="hero-actions">
+          <a routerLink="/auth" class="btn btn-primary btn-lg">Join free <span class="arrow">→</span></a>
+          <a routerLink="/tournaments" class="btn btn-ghost btn-lg">Browse tournaments</a>
         </div>
-      </div>
-
-      <div class="hero-stats">
-        <div class="hstat">
-          <span class="hstat-n">23M+</span>
-          <span class="hstat-l">Gamers in KSA</span>
-        </div>
-        <div class="hstat-sep"></div>
-        <div class="hstat">
-          <span class="hstat-n">4</span>
-          <span class="hstat-l">Bracket Formats</span>
-        </div>
-        <div class="hstat-sep"></div>
-        <div class="hstat">
-          <span class="hstat-n">3K+</span>
-          <span class="hstat-l">Prize Card Brands</span>
-        </div>
-        <div class="hstat-sep"></div>
-        <div class="hstat">
-          <span class="hstat-n">512</span>
-          <span class="hstat-l">Max Participants</span>
+        <div class="hero-meta">
+          <div class="hero-meta-item">
+            <div class="hero-meta-n">23M+</div>
+            <div class="hero-meta-l">Gamers in KSA</div>
+          </div>
+          <div class="hero-meta-item">
+            <div class="hero-meta-n">512</div>
+            <div class="hero-meta-l">Max participants</div>
+          </div>
+          <div class="hero-meta-item">
+            <div class="hero-meta-n">4</div>
+            <div class="hero-meta-l">Bracket formats</div>
+          </div>
+          <div class="hero-meta-item">
+            <div class="hero-meta-n">3K+</div>
+            <div class="hero-meta-l">Prize SKUs</div>
+          </div>
         </div>
       </div>
+
+      <aside class="hero-right">
+        <div class="feature-card">
+          <div class="fc-header">
+            <span class="fc-game">EA FC 25 · Single Elim</span>
+            <span class="live-pill"><span class="dot"></span>Quarter-finals</span>
+          </div>
+          <div class="fc-body">
+            <div class="fc-title">Riyadh Spring Cup</div>
+            <div class="fc-sub">Round 4 · 8 of 64 remaining</div>
+
+            <div class="mini-bracket">
+              <div class="mb-match">
+                <div class="mb-row win"><span class="mb-name"><span class="mb-flag">🇸🇦</span>FaisalA</span><span class="mb-score">3</span></div>
+                <div class="mb-row lose"><span class="mb-name"><span class="mb-flag">🇦🇪</span>OmarM_07</span><span class="mb-score">1</span></div>
+              </div>
+              <div class="mb-match">
+                <div class="mb-row win"><span class="mb-name"><span class="mb-flag">🇰🇼</span>NouraR</span><span class="mb-score">2</span></div>
+                <div class="mb-row lose"><span class="mb-name"><span class="mb-flag">🇶🇦</span>KhalidT</span><span class="mb-score">0</span></div>
+              </div>
+              <div class="mb-match">
+                <div class="mb-row win"><span class="mb-name"><span class="mb-flag">🇸🇦</span>SaraK</span><span class="mb-score">4</span></div>
+                <div class="mb-row lose"><span class="mb-name"><span class="mb-flag">🇧🇭</span>YousefL</span><span class="mb-score">2</span></div>
+              </div>
+              <div class="mb-match">
+                <div class="mb-row pending"><span class="mb-name"><span class="mb-flag">🇴🇲</span>HamadZ</span><span class="mb-score">—</span></div>
+                <div class="mb-row pending"><span class="mb-name"><span class="mb-flag">🇸🇦</span>AhmedB</span><span class="mb-score">—</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="fc-prize">
+            <div>
+              <div class="fc-prize-l">Prize pool</div>
+              <div class="fc-prize-n">15,000<span class="fc-prize-curr">SAR</span></div>
+            </div>
+            <a routerLink="/tournaments" class="fc-cta">Watch live <span class="arrow">→</span></a>
+          </div>
+        </div>
+      </aside>
     </div>
   </section>
 
-  <!-- ── PLATFORM SPONSORS (auto-hides if none active) ──────────────── -->
+  <!-- ── PLATFORM SPONSORS (auto-hides) ───────────────────────────── -->
   <app-platform-sponsors-strip variant="hero"></app-platform-sponsors-strip>
 
-  <!-- "See all" CTA for the sponsors page. Hidden when no partners
-       exist (so we don't show a link to an empty showcase). -->
   @if (hasPartners()) {
     <div class="see-all-partners">
       <a routerLink="/sponsors" class="see-all-partners__link">
-        See All Partners
-        <span aria-hidden="true">→</span>
+        See All Partners <span aria-hidden="true">→</span>
       </a>
     </div>
   }
 
-  <!-- ── GAMES ─────────────────────────────────────────────────────── -->
+  <!-- ── TICKER ───────────────────────────────────────────────────── -->
+  <div class="ticker">
+    <div class="ticker-track">
+      @for (i of [1,2]; track i) {
+        <span class="ticker-item"><span class="live">● LIVE</span> <span class="game">EA FC 25</span> <span class="name">Riyadh Spring Cup</span> <span class="score">FaisalA 3 – 1 OmarM_07</span></span>
+        <span class="ticker-item sep">/</span>
+        <span class="ticker-item"><span class="live">● LIVE</span> <span class="game">PUBG Mobile</span> <span class="name">Jeddah Open</span> <span class="score">Match 7 of 24</span></span>
+        <span class="ticker-item sep">/</span>
+        <span class="ticker-item"><span class="game">UPCOMING</span> <span class="name">CoD Mobile · GCC Invitational</span> <span class="score">Saturday 21:00 AST</span></span>
+        <span class="ticker-item sep">/</span>
+        <span class="ticker-item"><span class="game">PRIZE</span> <span class="name">Khobar Showdown</span> <span class="score">25,000 SAR</span></span>
+        <span class="ticker-item sep">/</span>
+        <span class="ticker-item"><span class="live">● LIVE</span> <span class="game">EA FC 25</span> <span class="name">Aramco Internal</span> <span class="score">Round of 16</span></span>
+        <span class="ticker-item sep">/</span>
+      }
+    </div>
+  </div>
+
+  <!-- ── GAMES ────────────────────────────────────────────────────── -->
   <section class="section">
     <div class="section-wrap">
-      <div class="section-label">Supported games</div>
-      <h2 class="section-title">Play what <span>you love</span></h2>
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Supported games</div>
+          <h2 class="section-title">Play what <em>you love</em></h2>
+        </div>
+        <p class="section-lede">Three flagship titles, every bracket format. More games rolling out across 2026 — vote inside the platform for what comes next.</p>
+      </div>
+
       <div class="games-grid">
         @for (g of games; track g.name) {
-          <div class="game-card reveal" [style.--accent]="g.color">
-            <div class="game-card__img-wrap">
-              <img [src]="g.img" [alt]="g.name" class="game-card__img"/>
-              <div class="game-card__img-overlay"></div>
+          <article class="game-card reveal">
+            <div class="game-cover">
+              <div class="game-cover-stripe"></div>
+              <div class="game-cover-glyph">{{ g.shortCode || g.name.substr(0,2) }}</div>
+              <span class="game-cover-tag">{{ g.badge }}</span>
+              <div class="game-cover-meta">{{ g.activeText || 'Active now' }}</div>
+              <div class="game-cover-placeholder">[ key art ]</div>
             </div>
-            <div class="game-card__body">
-              <div class="game-icon">{{ g.icon }}</div>
-              <div class="game-name">{{ g.name }}</div>
-              <div class="game-desc">{{ g.desc }}</div>
-              <div class="game-badge">{{ g.badge }}</div>
+            <div class="game-body">
+              <h3 class="game-name">{{ g.name }}</h3>
+              <p class="game-desc">{{ g.desc }}</p>
             </div>
-          </div>
+            <div class="game-foot">
+              <span>{{ g.formatsText || 'All formats' }}</span>
+              <span class="arrow">View tournaments →</span>
+            </div>
+          </article>
         }
       </div>
     </div>
   </section>
 
-  <!-- ── HOW IT WORKS ───────────────────────────────────────────────── -->
+  <!-- ── HOW IT WORKS ─────────────────────────────────────────────── -->
   <section class="section section--alt">
     <div class="section-wrap">
-      <div class="section-label">How it works</div>
-      <h2 class="section-title">Three steps to <span>winning</span></h2>
-      <div class="steps-grid">
-        @for (s of steps; track s.n) {
-          <div class="step-card reveal" [attr.data-num]="s.n">
-            <div class="step-card__img-wrap">
-              <img [src]="s.img" [alt]="s.title" class="step-card__img"/>
-              <div class="step-num">{{ s.n }}</div>
-            </div>
-            <div class="step-card__body">
-              <div class="step-title">{{ s.title }}</div>
-              <div class="step-desc">{{ s.desc }}</div>
-            </div>
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">How it works</div>
+          <h2 class="section-title">Three steps to <em>winning</em></h2>
+        </div>
+        <p class="section-lede">From signup to payout in under five minutes. The platform handles brackets, scoring, and prize distribution.</p>
+      </div>
+
+      <div class="steps">
+        @for (s of steps; track s.n; let i = $index) {
+          <div class="step reveal" [class.active]="i === 0">
+            <div class="step-num">{{ s.n }}</div>
+            <h3 class="step-title">{{ s.title }}</h3>
+            <p class="step-desc">{{ s.desc }}</p>
           </div>
         }
       </div>
     </div>
   </section>
 
-  <!-- ── FORMATS ────────────────────────────────────────────────────── -->
+  <!-- ── FORMATS ──────────────────────────────────────────────────── -->
   <section class="section">
     <div class="section-wrap">
-      <div class="section-label">Tournament formats</div>
-      <h2 class="section-title">Four ways to <span>compete</span></h2>
-      <div class="formats-grid">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Tournament formats</div>
+          <h2 class="section-title">Four ways to <em>compete</em></h2>
+        </div>
+        <p class="section-lede">Every bracket type the IOC and ESL use, configurable in a click. Pick what fits your event size and time budget.</p>
+      </div>
+
+      <div class="formats">
         @for (f of formats; track f.name) {
-          <div class="format-card reveal">
-            <div class="format-icon">{{ f.icon }}</div>
-            <div class="format-badge">{{ f.badge }}</div>
-            <div class="format-name">{{ f.name }}</div>
-            <div class="format-desc">{{ f.desc }}</div>
+          <div class="format reveal">
+            <span class="format-tag">{{ f.badge }}</span>
+            <h3 class="format-name">{{ f.name }}</h3>
+            <p class="format-desc">{{ f.desc }}</p>
           </div>
         }
       </div>
     </div>
   </section>
 
-  <!-- ── B2B CTA ────────────────────────────────────────────────────── -->
+  <!-- ── B2B ──────────────────────────────────────────────────────── -->
   <section class="section section--alt">
     <div class="section-wrap">
-      <div class="b2b-cta">
-        <div class="b2b-cta__content">
-          <div class="section-label">For companies</div>
-          <h2 class="section-title" style="margin-bottom:16px">
-            Run employee tournaments with <span>zero admin overhead</span>
-          </h2>
-          <p class="b2b-desc">
-            HR Directors across Saudi Arabia use Dawri to run engagement programs
-            for employees. Set up a company tournament in under 10 minutes, fund
-            the prize pool, and let the platform handle everything else.
+      <div class="b2b">
+        <div class="b2b-content">
+          <div class="eyebrow">For companies</div>
+          <h2 class="section-title">Run employee tournaments with <em>zero admin overhead</em></h2>
+          <p class="b2b-lede">
+            HR teams across Saudi Arabia and the GCC use Dawri to run engagement programs for their employees.
+            Set up a company tournament in under 10 minutes, fund the prize pool, and let the platform handle everything else.
           </p>
-          <a routerLink="/pricing" class="btn btn-gold" style="margin-top:28px;display:inline-flex">
-            View Enterprise Plans →
-          </a>
-          <div class="b2b-cta__features" style="margin-top:32px">
+          <div class="b2b-feats">
             @for (f of b2bFeatures; track f) {
-              <div class="b2b-feat reveal">{{ f }}</div>
+              <div class="b2b-feat reveal">
+                <span class="b2b-feat-check">✓</span>{{ f.replace('✓ ', '') }}
+              </div>
             }
           </div>
+          <a routerLink="/pricing" class="btn btn-violet btn-lg" style="margin-top:32px">
+            View enterprise plans <span class="arrow">→</span>
+          </a>
         </div>
-        <div class="b2b-cta__img-wrap reveal">
-          <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=700&q=80&fit=crop" alt="Team gaming" class="b2b-img"/>
-          <div class="b2b-img__badge">
-            <span class="b2b-img__badge-n">10 min</span>
-            <span class="b2b-img__badge-l">to set up a tournament</span>
+
+        <div class="b2b-visual reveal">
+          <div class="b2b-visual-stripe"></div>
+          <span class="b2b-visual-tag">[ team event photo ]</span>
+          <div class="b2b-visual-glyph">HR<br>+<br>FUN</div>
+          <div class="b2b-badge">
+            <div>
+              <div class="b2b-badge-n">10 min</div>
+              <div class="b2b-badge-l">to set up a tournament</div>
+            </div>
+            <div style="text-align:right">
+              <div class="b2b-badge-n" style="color:var(--text)">200+</div>
+              <div class="b2b-badge-l">companies onboarded</div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ── FINAL CTA ──────────────────────────────────────────────────── -->
-  <section class="section cta-section">
-    <div class="cta-bg">
-      <img src="https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1800&q=80&fit=crop" alt="" aria-hidden="true" class="cta-bg__img"/>
-      <div class="cta-bg__overlay"></div>
-    </div>
-    <div class="section-wrap cta-content">
-      <div class="section-label" style="justify-content:center;display:flex">Ready to play?</div>
-      <h2 class="section-title" style="margin-bottom:16px;text-align:center">
-        Join the <span>GCC's #1</span> esports platform
-      </h2>
-      <p class="hero-sub" style="margin-bottom:36px;text-align:center">
+  <!-- ── FINAL CTA ────────────────────────────────────────────────── -->
+  <section class="cta">
+    <div class="cta-grid-bg"></div>
+    <div class="cta-glow"></div>
+    <div class="cta-wrap">
+      <div class="eyebrow" style="display:inline-flex">Ready to play</div>
+      <h2 class="cta-title">Join the <em>GCC's #1</em><br>esports platform</h2>
+      <p class="cta-sub">
         Thousands of players across Saudi Arabia and the GCC are already competing.
-        It's completely free.
+        It's completely free to join.
       </p>
-      <div style="display:flex;justify-content:center">
-        <a routerLink="/auth" class="btn btn-gold btn-lg">Create Your Free Account →</a>
+      <div class="cta-actions">
+        <a routerLink="/auth" class="btn btn-primary btn-lg">Create free account <span class="arrow">→</span></a>
+        <a routerLink="/contact" class="btn btn-ghost btn-lg">Talk to sales</a>
       </div>
     </div>
   </section>
