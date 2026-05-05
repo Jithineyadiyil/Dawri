@@ -1,65 +1,68 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap');
-
 /* ═══════════════════════════════════════════════════════════════════════════
-   Palette v3 — Electric violet + amber
-   Sprint 5: --gold and --cyan variable NAMES are preserved for backwards
-   compatibility with every component .scss that references them, but the
-   VALUES now point to the new palette. This lets us ship the sweep without
-   touching ~20 component files.
+   Dawri — global styles
+   Replace frontend/src/styles.scss with this file.
+
+   Palette: Saudi Green + Gold on near-black (editorial / broadcast direction).
+   Backwards-compat: the legacy --gold / --cyan variable NAMES are preserved
+   so existing component .scss files keep compiling. Their VALUES point to
+   the new palette.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+Arabic:wght@500;700&display=swap');
+
 :root {
-  /* Primary (was gold) → electric violet */
-  --gold:           #a855f7;
-  --gold-soft:      #c084fc;
-  --gold-dark:      #7e22ce;
-  --gg:             rgba(168, 85, 247, 0.14);
-  --gold-border:    rgba(168, 85, 247, 0.35);
-
-  /* Accent (was cyan) → amber */
-  --cyan:           #fbbf24;
-  --cyan-soft:      #fcd34d;
-  --cyan-dark:      #d97706;
-  --gc:             rgba(251, 191, 36, 0.10);
-
-  /* Backgrounds — slightly darker + violet-undertoned */
-  --bg:             #0a0a14;
-  --bg2:            #13132a;
-  --bg3:            #1d1d3a;
-  --bg4:            #2a2a4d;
+  /* Backgrounds — near-black, slight cool undertone */
+  --bg:        #0a0a12;
+  --bg2:       #10101c;
+  --bg3:       #181826;
+  --bg4:       #21212e;
 
   /* Borders */
-  --br:             rgba(255, 255, 255, 0.10);
-  --br2:            rgba(255, 255, 255, 0.18);
+  --br:        rgba(255,255,255,0.08);
+  --br2:       rgba(255,255,255,0.14);
 
   /* Text */
-  --text:           #e8e6f5;
-  --mu:             #8b88aa;
-  --dim:            #4a4566;
+  --text:      #ececf1;
+  --mu:        #8a8aa0;
+  --dim:       #55556e;
 
-  /* Status colours */
-  --green:          #22c55e;
-  --red:            #ef4444;
-  --purple:         #c084fc;
-  --amber:          #fbbf24;
+  /* Saudi palette */
+  --primary:       #006c35;          /* Saudi green */
+  --primary-soft:  #2d8c5e;
+  --primary-dark:  #004a23;
+  --gg:            rgba(0,108,53,0.14);
+  --gold-border:   rgba(0,108,53,0.35);
 
-  /* Semantic aliases for newer components (tournaments listing, marketplace) */
-  --primary:        var(--gold);
-  --primary-soft:   var(--gold-soft);
-  --primary-dark:   var(--gold-dark);
-  --accent:         var(--cyan);
-  --accent-soft:    var(--cyan-soft);
-  --accent-dark:    var(--cyan-dark);
+  --accent:        #d4af37;          /* gold */
+  --accent-soft:   #e8c965;
+  --accent-dark:   #a37d1e;
+  --gc:            rgba(212,175,55,0.10);
+
+  /* LEGACY ALIASES — keep so old component scss compiles */
+  --gold:        var(--primary);
+  --gold-soft:   var(--primary-soft);
+  --gold-dark:   var(--primary-dark);
+  --cyan:        var(--accent);
+  --cyan-soft:   var(--accent-soft);
+  --cyan-dark:   var(--accent-dark);
+
+  /* Status */
+  --green:       #4ade80;
+  --red:         #f87171;
+  --purple:      #a78bfa;
+  --amber:       #f5b942;
 
   /* Typography */
-  --fh: 'Bebas Neue', sans-serif;
-  --fb: 'Rajdhani', sans-serif;
-  --fa: 'Noto Sans Arabic', sans-serif;
-  --fm: 'Space Mono', monospace;
+  --fh: 'Anton', 'Bebas Neue', sans-serif;     /* display */
+  --fb: 'Archivo', system-ui, sans-serif;       /* body */
+  --fa: 'Noto Sans Arabic', sans-serif;         /* arabic */
+  --fm: 'JetBrains Mono', ui-monospace, monospace;
 
-  /* Layout tokens */
-  --r: 8px;
-  --e: 0.15s;
+  /* Layout */
+  --r:   10px;
+  --r-sm: 6px;
+  --r-lg: 18px;
+  --e: 0.18s;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,44 +72,46 @@ body {
   background: var(--bg);
   color: var(--text);
   font-size: 16px;
-  line-height: 1.7;
+  line-height: 1.55;
   font-weight: 500;
+  -webkit-font-smoothing: antialiased;
 }
+::selection { background: var(--accent); color: #000; }
 
 /* Form globals */
-.form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
-.form-label { font-size: .72rem; color: var(--mu); letter-spacing: 1px; text-transform: uppercase; }
+.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.form-label { font-family: var(--fm); font-size: .72rem; color: var(--mu); letter-spacing: 1.2px; text-transform: uppercase; }
 .input {
   background: var(--bg3);
   border: 1px solid var(--br2);
   border-radius: var(--r);
-  padding: 10px 14px;
+  padding: 11px 14px;
   color: var(--text);
   font-family: var(--fb);
   font-size: .95rem;
   outline: none;
-  transition: border-color var(--e);
+  transition: border-color var(--e), box-shadow var(--e);
 
   &::placeholder { color: var(--dim); }
-  &:focus        { border-color: rgba(168, 85, 247, 0.45); box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1); }
+  &:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--gg); }
 }
 select.input option { background: var(--bg3); }
-.error-msg    { color: #f87171; font-size: .82rem; }
-.input-error  { border-color: rgba(239, 68, 68, 0.4) !important; }
+.error-msg   { color: var(--red); font-size: .82rem; }
+.input-error { border-color: rgba(248,113,113,0.45) !important; }
 
 /* Spinner */
 .spinner {
   display: inline-block;
   width: 20px; height: 20px;
-  border: 2px solid rgba(168, 85, 247, 0.25);
-  border-top-color: var(--gold);
+  border: 2px solid var(--gg);
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Scrollbar */
-::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar        { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track  { background: var(--bg); }
 ::-webkit-scrollbar-thumb  { background: var(--bg4); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }

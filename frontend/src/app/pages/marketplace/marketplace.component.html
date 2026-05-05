@@ -1,40 +1,42 @@
 <div class="mp-page">
 
-  <!-- Animated mesh backdrop -->
-  <div class="mesh-bg" aria-hidden="true"></div>
+  <div class="mp-bg" aria-hidden="true">
+    <div class="mp-bg__orb mp-bg__orb--gold"></div>
+    <div class="mp-bg__orb mp-bg__orb--green"></div>
+  </div>
 
   <div class="mp-inner">
 
-    <!-- Hero + tabs + cart -->
+    <!-- ═════════════════════════════════ HERO HEADER ═════════════════════════ -->
     <header class="mp-hero">
       <div class="mp-hero__text">
-        <span class="mp-eyebrow">⚡ Marketplace · المتجر</span>
-        <h1 class="mp-title">Digital Goods</h1>
-        <p class="mp-sub">Gaming cards, streaming subscriptions, and top-ups — delivered instantly.</p>
+        <span class="mp-eyebrow">Marketplace · المتجر</span>
+        <h1 class="mp-title">Digital<br><em>Goods.</em></h1>
+        <p class="mp-sub">Gaming cards, streaming subscriptions, and instant top-ups — delivered to your wallet, redeemable in seconds.</p>
       </div>
 
       <div class="mp-hero__actions">
         @if (auth.isLoggedIn()) {
           <button type="button" class="wallet-badge" (click)="openTopUp()">
             <span class="wallet-icon">👛</span>
-            <span class="wallet-val">{{ walletBalance() | number:'1.2-2' }} SAR</span>
+            <span class="wallet-val">{{ walletBalance() | number:'1.2-2' }} <small>SAR</small></span>
             <span class="wallet-plus">＋</span>
           </button>
         }
         <button type="button" class="cart-btn" (click)="openCart()" [disabled]="!cartCount()">
-          🛒 Cart
+          <span class="cart-icon">🛒</span> Cart
           @if (cartCount()) { <span class="cart-count">{{ cartCount() > 99 ? '99+' : cartCount() }}</span> }
         </button>
       </div>
     </header>
 
-    <!-- Tabs -->
+    <!-- ═════════════════════════════════ TABS ═════════════════════════ -->
     <nav class="mp-tabs" role="tablist">
-      <button type="button" role="tab"
+      <button type="button" role="tab" class="mp-tab"
               [class.active]="activeTab() === 'store'"
               (click)="switchTab('store')">Store</button>
       @if (auth.isLoggedIn()) {
-        <button type="button" role="tab"
+        <button type="button" role="tab" class="mp-tab"
                 [class.active]="activeTab() === 'orders'"
                 (click)="switchTab('orders')">My Orders</button>
       }
@@ -43,75 +45,64 @@
     <!-- ═════════════════════════════════ STORE TAB ═════════════════════════ -->
     @if (activeTab() === 'store') {
 
-      <!-- ── Hero carousel — Featured Brands ────────────────────────────
-           Rotates through real brands (no fabricated banners). Pauses
-           on hover, manual nav via dots and arrows, auto-advances every
-           6 seconds. Hides itself when there are no products yet. -->
+      <!-- ── Featured Brands carousel ─────────────────────────── -->
       @if (currentSlide(); as slide) {
         <section class="hero-carousel"
                  (mouseenter)="pauseSlides(true)"
                  (mouseleave)="pauseSlides(false)"
                  aria-roledescription="carousel"
                  aria-label="Featured brands">
-          <div class="hero-carousel__bg" aria-hidden="true">
-            <div class="hero-carousel__orb hero-carousel__orb--gold"></div>
-            <div class="hero-carousel__orb hero-carousel__orb--violet"></div>
-          </div>
-
-          <div class="hero-carousel__inner">
-            <div class="hero-carousel__text">
-              <div class="hero-carousel__chips">
-                <span class="hero-carousel__chip">Featured</span>
-                <span class="hero-carousel__chip hero-carousel__chip--cat">{{ categoryLabel(slide.category) }}</span>
-                <span class="hero-carousel__chip hero-carousel__chip--count">{{ slide.itemCount }} variants</span>
+          <div class="hero-card">
+            <div class="hero-card__text">
+              <div class="hero-chips">
+                <span class="hero-chip">Featured</span>
+                <span class="hero-chip hero-chip--cat">{{ categoryLabel(slide.category) }}</span>
+                <span class="hero-chip hero-chip--count">{{ slide.itemCount }} variants</span>
               </div>
-              <h2 class="hero-carousel__title">{{ slide.brand }}</h2>
-              <p class="hero-carousel__desc">
-                Instant digital delivery · Saudi Arabia
-              </p>
+              <h2 class="hero-name">{{ slide.brand }}</h2>
+              <p class="hero-desc">Instant digital delivery · Saudi Arabia</p>
 
-              <!-- Real denomination chips drawn from this brand's actual face values.
-                   Capped at 5 in the computed signal. -->
               @if (slide.denominations.length > 0) {
-                <div class="hero-carousel__denoms" aria-label="Available denominations">
+                <div class="hero-denoms" aria-label="Available denominations">
                   @for (d of slide.denominations; track d) {
                     <span class="denom-chip">{{ d }} <small>SAR</small></span>
                   }
                 </div>
               }
 
-              <div class="hero-carousel__row">
-                <div class="hero-carousel__from">
+              <div class="hero-row">
+                <div class="hero-from">
                   <span class="from-label">From</span>
                   <span class="from-num">{{ slide.fromPrice | number:'1.0-2' }}</span>
                   <span class="from-ccy">SAR</span>
                 </div>
-                <button type="button" class="hero-carousel__cta" (click)="shopBrand(slide)">
+                <button type="button" class="hero-cta" (click)="shopBrand(slide)">
                   Shop {{ slide.brand }}
                   <span aria-hidden="true">→</span>
                 </button>
               </div>
             </div>
-            <div class="hero-carousel__art">
-              <span class="hero-carousel__art-badge" aria-hidden="true">⚡ Instant</span>
-              <img [src]="slide.logo"
-                   [alt]="slide.brand"
-                   loading="eager"
-                   (error)="onImgError($event)"/>
+            <div class="hero-card__art">
+              <div class="hero-art-frame">
+                <span class="hero-art-badge" aria-hidden="true">⚡ Instant</span>
+                <img [src]="slide.logo"
+                     [alt]="slide.brand"
+                     loading="eager"
+                     (error)="onImgError($event)"/>
+              </div>
             </div>
           </div>
 
-          <!-- Manual nav -->
           @if (featuredBrands().length > 1) {
-            <button type="button" class="hero-carousel__arrow hero-carousel__arrow--prev"
+            <button type="button" class="hero-arrow hero-arrow--prev"
                     (click)="nudgeSlide(-1)" aria-label="Previous slide">‹</button>
-            <button type="button" class="hero-carousel__arrow hero-carousel__arrow--next"
+            <button type="button" class="hero-arrow hero-arrow--next"
                     (click)="nudgeSlide(1)" aria-label="Next slide">›</button>
 
-            <div class="hero-carousel__dots" role="tablist">
+            <div class="hero-dots" role="tablist">
               @for (b of featuredBrands(); track b.brand; let i = $index) {
                 <button type="button"
-                        class="hero-carousel__dot"
+                        class="hero-dot"
                         role="tab"
                         [class.active]="i === slideIndex()"
                         [attr.aria-label]="'Go to slide ' + (i + 1)"
@@ -123,7 +114,7 @@
         </section>
       }
 
-      <!-- ── Search bar (full width above the sidebar+grid split) ──── -->
+      <!-- ── Search ─────────────────────────── -->
       <div class="mp-search">
         <div class="search-box">
           <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -137,27 +128,24 @@
         </div>
       </div>
 
-      <!-- ── Two-column layout: category sidebar + product grid ─────── -->
+      <!-- ── Sidebar + grid ─────────────────────────── -->
       <div class="mp-layout">
 
-        <!-- Sidebar: vertical category nav with icons.
-             Sticky on desktop. On mobile, falls back to horizontal scroll. -->
         <aside class="mp-sidebar" aria-label="Categories">
           <h3 class="mp-sidebar__title">Categories</h3>
-          <nav class="mp-sidebar__nav">
+          <nav class="cat-nav">
             @for (cat of categories; track cat) {
               <button type="button"
                       class="cat-card"
                       [class.active]="activeCategory() === cat"
                       (click)="activeCategory.set(cat)">
-                <span class="cat-card__icon" aria-hidden="true">{{ categoryIcon(cat) }}</span>
-                <span class="cat-card__label">{{ categoryLabel(cat) }}</span>
+                <span class="cat-icon" aria-hidden="true">{{ categoryIcon(cat) }}</span>
+                <span class="cat-label">{{ categoryLabel(cat) }}</span>
               </button>
             }
           </nav>
         </aside>
 
-        <!-- Main content area — product grid OR loading/empty states. -->
         <div class="mp-main">
           @if (loading()) {
             <div class="mp-skeleton">
@@ -185,7 +173,7 @@
                 <div class="product-grid">
                   @for (p of grouped()[brand]; track p.id) {
                     <article class="product-card">
-                      <div class="product-card__art">
+                      <div class="product-art">
                         <img [src]="p.image_url || '/brands/generic.svg'"
                              [alt]="p.brand"
                              loading="lazy"
@@ -193,22 +181,23 @@
                       </div>
 
                       <div class="product-card__body">
-                        <h3 class="product-card__name">{{ p.name }}</h3>
+                        <h3 class="product-name">{{ p.name }}</h3>
                         @if (p.name_ar) {
-                          <p class="product-card__name-ar" dir="rtl" lang="ar">{{ p.name_ar }}</p>
+                          <p class="product-name-ar" dir="rtl" lang="ar">{{ p.name_ar }}</p>
                         }
-                        <div class="product-card__price">
+                        <div class="product-price">
                           <span class="price-num">{{ p.our_price | number:'1.0-2' }}</span>
                           <span class="price-ccy">SAR</span>
                         </div>
                       </div>
 
                       <button type="button"
-                              class="product-card__cta"
+                              class="product-cta"
+                              [class.added]="cartQty(p.id)"
                               (click)="addToCart(p, $event)"
                               [attr.aria-label]="'Add ' + p.name + ' to cart'">
                         @if (cartQty(p.id)) {
-                          <span class="added">✓ {{ cartQty(p.id) }} in cart</span>
+                          <span>✓ {{ cartQty(p.id) }} in cart</span>
                         } @else {
                           Add to cart
                         }
@@ -227,11 +216,11 @@
     @if (activeTab() === 'orders') {
 
       @if (ordersLoading()) {
-        <div class="mp-skeleton">
+        <div class="orders-list">
           @for (i of [1,2,3,4]; track i) { <div class="skel-row"></div> }
         </div>
       } @else if (orders().length === 0) {
-        <div class="mp-empty">
+        <div class="mp-empty mp-empty--orders">
           <span class="empty-icon">📦</span>
           <h3>No orders yet</h3>
           <p>Your purchase history will appear here after checkout.</p>
@@ -246,12 +235,10 @@
                    (error)="onImgError($event)"/>
 
               <div class="order-main">
-                <div class="order-names">
-                  <p class="order-name">{{ o.product?.name || 'Product' }}</p>
-                  @if (o.product?.name_ar) {
-                    <p class="order-name-ar" dir="rtl" lang="ar">{{ o.product?.name_ar }}</p>
-                  }
-                </div>
+                <p class="order-name">{{ o.product?.name || 'Product' }}</p>
+                @if (o.product?.name_ar) {
+                  <p class="order-name-ar" dir="rtl" lang="ar">{{ o.product?.name_ar }}</p>
+                }
                 <p class="order-meta">
                   {{ o.created_at | date:'d MMM yyyy, HH:mm' }}
                   <span class="dot"></span>
@@ -310,23 +297,23 @@
         <div class="cart-items">
           @for (item of cart(); track item.product.id) {
             <div class="cart-item">
-              <img class="cart-item__img"
+              <img class="cart-item-img"
                    [src]="item.product.image_url || '/brands/generic.svg'"
                    [alt]="item.product.brand"
                    (error)="onImgError($event)"/>
-              <div class="cart-item__info">
-                <p class="cart-item__name">{{ item.product.name }}</p>
+              <div class="cart-item-info">
+                <p class="cart-item-name">{{ item.product.name }}</p>
                 @if (item.product.name_ar) {
-                  <p class="cart-item__name-ar" dir="rtl" lang="ar">{{ item.product.name_ar }}</p>
+                  <p class="cart-item-name-ar" dir="rtl" lang="ar">{{ item.product.name_ar }}</p>
                 }
-                <p class="cart-item__price">{{ item.product.our_price | number:'1.0-2' }} SAR each</p>
+                <p class="cart-item-price">{{ item.product.our_price | number:'1.0-2' }} SAR each</p>
               </div>
-              <div class="cart-item__qty">
+              <div class="cart-item-qty">
                 <button type="button" (click)="updateQty(item.product.id, -1)">−</button>
                 <span>{{ item.qty }}</span>
                 <button type="button" (click)="updateQty(item.product.id, +1)">+</button>
               </div>
-              <button type="button" class="cart-item__rm" (click)="removeFromCart(item.product.id)" aria-label="Remove">🗑</button>
+              <button type="button" class="cart-item-rm" (click)="removeFromCart(item.product.id)" aria-label="Remove">🗑</button>
             </div>
           }
         </div>
@@ -334,14 +321,11 @@
         <div class="cart-foot">
           <div class="cart-total">
             <span>Total</span>
-            <strong>{{ cartTotal() | number:'1.2-2' }} SAR</strong>
+            <strong>{{ cartTotal() | number:'1.2-2' }} <small>SAR</small></strong>
           </div>
 
           <div class="pay-chips">
             @for (m of payMethods; track m.id) {
-              <!-- Wallet only makes sense for logged-in users.
-                   Guests still see Card / Mada / STC Pay; they'll be
-                   prompted to sign in when they hit Checkout below. -->
               @if (m.id !== 'wallet' || auth.isLoggedIn()) {
                 <button type="button"
                         class="pay-chip"
@@ -381,15 +365,15 @@
       </header>
       <div class="modal-body">
         <div class="card-visual" [attr.data-brand]="cardBrand()">
-          <div class="card-visual__chip"></div>
-          <p class="card-visual__num">{{ cardDisplay() }}</p>
-          <div class="card-visual__row">
+          <div class="card-visual-chip"></div>
+          <p class="card-visual-num">{{ cardDisplay() }}</p>
+          <div class="card-visual-row">
             <div>
-              <span>NAME</span>
+              <span>Name</span>
               <p>{{ cardName || 'CARDHOLDER' }}</p>
             </div>
             <div>
-              <span>EXPIRES</span>
+              <span>Expires</span>
               <p>{{ cardExpiry || 'MM/YY' }}</p>
             </div>
           </div>
@@ -503,9 +487,7 @@
     </div>
   }
 
-  <!-- ═════════════════════════════════════ GUEST LOGIN PROMPT ═════════════════════
-       Shown when a logged-out user tries to check out. Guests can browse
-       and build a cart freely; this only blocks the final purchase step. -->
+  <!-- ═════════════════════════════════════ GUEST LOGIN PROMPT ═════════════════════ -->
   @if (showLoginPrompt()) {
     <div class="modal-back" (click)="showLoginPrompt.set(false)"></div>
     <div class="modal modal--prompt" role="dialog" aria-label="Sign in required">
