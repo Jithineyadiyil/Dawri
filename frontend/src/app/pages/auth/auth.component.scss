@@ -1,27 +1,294 @@
-.auth-page{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
-.auth-left{background:var(--bg2);border-right:1px solid var(--br);display:flex;align-items:center;justify-content:center;padding:60px 5vw}
-.auth-brand{max-width:420px}
-.auth-logo{display:flex;align-items:center;gap:10px;font-family:var(--fh);font-size:1.8rem;letter-spacing:.1em;color:var(--gold);margin-bottom:24px}
-.logo-ar{font-family:var(--fa);font-size:.85rem;color:var(--mu)}
-.auth-headline{font-family:var(--fh);font-size:2.2rem;letter-spacing:.04em;margin-bottom:32px;line-height:1.1}
-.auth-features{display:flex;flex-direction:column;gap:14px;margin-bottom:36px}
-.auth-feat{display:flex;align-items:flex-start;gap:14px}
-.af-icon{font-size:1.2rem;flex-shrink:0}
-.auth-feat span:last-child{font-size:.88rem;color:var(--mu);line-height:1.5}
-.auth-stats{display:flex;gap:28px}
-.as-item{display:flex;flex-direction:column}
-.as-val{font-family:var(--fh);font-size:1.6rem;color:var(--gold);letter-spacing:.04em}
-.as-label{font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.1em}
-.auth-right{display:flex;align-items:center;justify-content:center;padding:40px 5vw;background:var(--bg3)}
-.auth-box{width:min(440px,100%)}
-.auth-tabs{display:flex;border-bottom:1px solid var(--br2);margin-bottom:28px}
-.auth-tab{flex:1;padding:12px;background:none;border:none;border-bottom:2px solid transparent;font-family:var(--fb);font-weight:700;font-size:.85rem;letter-spacing:.06em;color:var(--mu);cursor:pointer;transition:all .15s}
-.auth-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
-.terms-check{display:flex;align-items:flex-start;gap:10px;font-size:.82rem;color:var(--mu);cursor:pointer}
-.terms-check input{margin-top:3px;accent-color:var(--gold)}
-.otp-panel{text-align:center}
-.otp-icon{font-size:3rem;margin-bottom:16px}
-.otp-panel h3{font-family:var(--fh);font-size:1.8rem;letter-spacing:.04em;color:var(--gold);margin-bottom:8px}
-.otp-sub{color:var(--mu);font-size:.88rem;margin-bottom:28px}
-.resend-btn{background:none;border:none;color:var(--cyan);font-size:.82rem;cursor:pointer;font-family:var(--fb);font-weight:700}
-@media(max-width:768px){.auth-page{grid-template-columns:1fr}.auth-left{display:none}}
+/* ────────────────────────────────────────────────────────────────────────
+ * Auth page — Sign In / Create Account / OTP
+ *
+ * Design notes:
+ *   - Two-column desktop layout (brand panel left, forms right).
+ *   - On viewports below 768px the brand panel hides and forms take over.
+ *   - The submit button (.auth-submit) and inputs (.input) are styled
+ *     locally rather than via global .btn-gold, because earlier the
+ *     globals were missing rules and the form rendered as native browser
+ *     widgets.
+ *   - Tab indicator animates between tabs via a sliding ::after on the
+ *     tabs container instead of border swapping per-tab.
+ *   - Animations respect prefers-reduced-motion.
+ * ────────────────────────────────────────────────────────────────────── */
+
+/* ── Page shell ──────────────────────────────────────────────────────── */
+.auth-page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  background: var(--bg);
+}
+.auth-left {
+  background: linear-gradient(160deg, var(--bg2) 0%, rgba(168, 85, 247, 0.06) 100%);
+  border-right: 1px solid var(--br);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 5vw;
+}
+.auth-brand { max-width: 420px; }
+.auth-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--fh); font-size: 1.8rem;
+  letter-spacing: .1em; color: var(--gold);
+  margin-bottom: 24px;
+}
+.logo-ar { font-family: var(--fa); font-size: .85rem; color: var(--mu); }
+.auth-headline {
+  font-family: var(--fh);
+  font-size: 2.2rem;
+  letter-spacing: .04em;
+  margin-bottom: 32px;
+  line-height: 1.1;
+}
+.auth-features {
+  display: flex; flex-direction: column;
+  gap: 14px; margin-bottom: 36px;
+}
+.auth-feat { display: flex; align-items: flex-start; gap: 14px; }
+.af-icon { font-size: 1.2rem; flex-shrink: 0; }
+.auth-feat span:last-child {
+  font-size: .88rem; color: var(--mu); line-height: 1.5;
+}
+.auth-stats { display: flex; gap: 28px; }
+.as-item { display: flex; flex-direction: column; }
+.as-val {
+  font-family: var(--fh); font-size: 1.6rem;
+  color: var(--gold); letter-spacing: .04em;
+}
+.as-label {
+  font-size: .68rem; color: var(--mu);
+  text-transform: uppercase; letter-spacing: .1em;
+}
+
+/* ── Right side: forms ──────────────────────────────────────────────── */
+.auth-right {
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 5vw;
+  background: var(--bg);
+}
+.auth-box { width: min(440px, 100%); }
+
+/* ── Tabs with sliding indicator ─────────────────────────────────────
+   The container has a ::after bar that moves between the tabs based
+   on a [data-tab="..."] attribute set inline by the template. We use
+   a simpler approach: per-tab .on class still drives the colour, and
+   the sliding bar is achieved by absolute positioning of the bar from
+   each tab's bottom — animated via transform, not width tricks. */
+.auth-tabs {
+  display: flex;
+  position: relative;
+  border-bottom: 1px solid var(--br2);
+  margin-bottom: 28px;
+}
+.auth-tab {
+  flex: 1;
+  padding: 14px 12px;
+  background: none;
+  border: none;
+  font-family: var(--fb);
+  font-weight: 700;
+  font-size: .88rem;
+  letter-spacing: .06em;
+  color: var(--mu);
+  cursor: pointer;
+  position: relative;
+  transition: color .25s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  &:hover { color: var(--text); }
+  &.on    { color: var(--gold); }
+
+  /* Per-tab underline — only the active tab grows it. */
+  &::after {
+    content: '';
+    position: absolute;
+    left: 12px; right: 12px; bottom: -1px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), #c084fc);
+    border-radius: 2px;
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform .3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  &.on::after { transform: scaleX(1); }
+}
+
+/* ── Inputs — frosted dark to fit the dark theme ─────────────────────
+   Override the global .input's background colour because var(--bg3)
+   resolves to a near-white on this surface and produces the jarring
+   white-box look in the screenshot. Local override keeps other pages
+   intact. */
+.auth-box {
+  .input {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+
+    &::placeholder { color: var(--dim); }
+    &:hover { background: rgba(255, 255, 255, 0.06); }
+    &:focus {
+      border-color: rgba(168, 85, 247, 0.55);
+      background: rgba(168, 85, 247, 0.05);
+      box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
+    }
+  }
+}
+
+/* ── Remember me + (future) forgot row ───────────────────────────── */
+.auth-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -4px 0 18px;
+}
+.auth-remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .82rem;
+  color: var(--mu);
+  cursor: pointer;
+  user-select: none;
+
+  input[type='checkbox'] {
+    width: 16px; height: 16px;
+    accent-color: var(--gold);
+    cursor: pointer;
+  }
+  &:hover { color: var(--text); }
+}
+
+/* ── Inline error panel ──────────────────────────────────────────── */
+.auth-error {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 10px;
+  color: #fca5a5;
+  font-size: .85rem;
+  line-height: 1.4;
+}
+
+/* ── Submit button — violet gradient pill, full width ─────────────
+   Replaces the previous .btn .btn-gold reference (which had no global
+   rules, so the browser was rendering native button styling). */
+.auth-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px 22px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+  color: #fff;
+  font-family: var(--fh);
+  font-size: .95rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  cursor: pointer;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 8px 24px rgba(168, 85, 247, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: transform .25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow .25s, filter .25s;
+
+  /* Shimmer sweep on hover. */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left .6s;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
+    box-shadow:
+      0 14px 32px rgba(168, 85, 247, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+  &:hover:not(:disabled)::before { left: 100%; }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+/* Inline spinner shown inside the submit button while loading. */
+.auth-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: auth-spin .7s linear infinite;
+}
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+
+/* ── Terms checkbox (registration) ───────────────────────────────── */
+.terms-check {
+  display: flex; align-items: flex-start;
+  gap: 10px; font-size: .82rem;
+  color: var(--mu); cursor: pointer;
+  margin: 6px 0 14px;
+
+  input { margin-top: 3px; accent-color: var(--gold); }
+  &:hover { color: var(--text); }
+}
+
+/* ── OTP panel ───────────────────────────────────────────────────── */
+.otp-panel { text-align: center; }
+.otp-icon { font-size: 3rem; margin-bottom: 16px; }
+.otp-panel h3 {
+  font-family: var(--fh); font-size: 1.8rem;
+  letter-spacing: .04em; color: var(--gold);
+  margin-bottom: 8px;
+}
+.otp-sub { color: var(--mu); font-size: .88rem; margin-bottom: 28px; }
+.resend-btn {
+  background: none; border: none;
+  color: var(--cyan); font-size: .82rem;
+  cursor: pointer;
+  font-family: var(--fb); font-weight: 700;
+  &:hover { text-decoration: underline; }
+}
+
+/* ── Accessibility: kill animations on request ───────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .auth-tab::after,
+  .auth-submit,
+  .auth-submit::before,
+  .auth-spinner {
+    transition: none !important;
+    animation: none !important;
+  }
+  /* If the spinner is critical, keep it animated even with reduced-motion;
+     swap the rule above to `only the shimmer` if that becomes desired. */
+}
+
+/* ── Mobile: collapse the brand panel ────────────────────────────── */
+@media (max-width: 768px) {
+  .auth-page { grid-template-columns: 1fr; }
+  .auth-left { display: none; }
+  .auth-right { padding: 32px 20px; }
+}

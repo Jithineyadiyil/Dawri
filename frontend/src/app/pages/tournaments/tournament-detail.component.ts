@@ -12,6 +12,7 @@ import { BrandingService } from '../../core/services/branding.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TournamentSponsorsComponent } from '../../shared/tournament-sponsors/tournament-sponsors.component';
 import { TournamentSponsorsManageComponent } from '../../shared/tournament-sponsors-manage/tournament-sponsors-manage.component';
+import { StreamEmbedComponent } from '../../shared/components/stream-embed/stream-embed.component';
 
 /**
  * Bracket match shape used by the template. Sprint 2 adds scheduling and
@@ -40,6 +41,12 @@ export interface BracketMatch {
   scheduled_by_id?: string | null;
   pending_reschedule?: MatchRescheduleRequest | null;
   evidence_count?: number;
+
+  // Sprint: live streaming (Option A)
+  // Canonical Twitch/YouTube URL (server-validated). null = no stream.
+  // Frontend renders an embed when present and shows an editor for
+  // organizers/participants when modify permission is granted.
+  stream_url?: string | null;
 }
 
 export interface BracketRound {
@@ -53,7 +60,7 @@ export interface BracketRound {
 @Component({
   selector: 'app-tournament-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, TournamentSponsorsComponent, TournamentSponsorsManageComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, TournamentSponsorsComponent, TournamentSponsorsManageComponent, StreamEmbedComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tournament-detail.component.html',
   styleUrls: ['./tournament-detail.component.scss'],
@@ -73,7 +80,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   readonly generating    = signal(false);
   readonly registering   = signal(false);
   readonly submitting    = signal(false);
-  readonly activeTab     = signal<'bracket' | 'leaderboard' | 'prize'>('bracket');
+  readonly activeTab     = signal<'bracket' | 'standings' | 'matches' | 'live' | 'leaderboard' | 'prize'>('bracket');
   readonly selectedMatch = signal<BracketMatch | null>(null);
   readonly disputeMode   = signal(false);
 
@@ -180,6 +187,13 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   readonly loadingMatchDetails   = signal(false);
   readonly uploadingEvidence     = signal(false);
 
+  // ── Stream editor state (Sprint: live streaming Option A) ────────────
+  // Modal-local UI state. The actual stream URL lives on the match
+  // (m.stream_url); these signals only control the editor's open/closed
+  // and saving state.
+  readonly showStreamEditor      = signal(false);
+  readonly savingStream          = signal(false);
+
   // ── Forms ────────────────────────────────────────────────────────────
   readonly resultForm = this.fb.group({
     winner_participant_id: ['', Validators.required],
@@ -204,6 +218,15 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     caption: ['', Validators.maxLength(255)],
   });
   readonly evidenceFile = signal<File | null>(null);
+
+  /**
+   * Stream URL editor form. The URL is validated server-side too — this
+   * client-side check is just for early UX feedback (disable submit when
+   * empty / clearly malformed). 500-char max matches the DB column.
+   */
+  readonly streamForm = this.fb.group({
+    stream_url: ['', [Validators.required, Validators.maxLength(500)]],
+  });
 
   // ── Computed ─────────────────────────────────────────────────────────
   readonly rounds = computed<BracketRound[]>(() => {
@@ -262,6 +285,250 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         points: p.points ?? 0, buchholz: p.buchholz ?? 0,
       }));
   });
+
+  // ── Bracket layout helpers (Sprint: Swiss standings + rounds filter) ──
+  //
+  // Flat-format = no tree structure, every round is its own independent
+  // column. Swiss and round-robin behave this way. For these formats
+  // we surface a standings table at the top of the Bracket tab and
+  // allow the user to filter the columns to a single round.
+  //
+  // Tree formats (single_elimination, double_elimination) keep the
+  // existing column-with-`]`-connectors rendering — adding a standings
+  // table there would be redundant since the tree itself shows progression.
+
+  /**
+   * True when the tournament's format is column-based with no tree
+   * connections between rounds. Drives both the standings-table
+   * visibility and the round-filter chip availability.
+   */
+  readonly isFlatFormat = computed(() => {
+    const fmt = this.tournament()?.format ?? '';
+    return fmt === 'swiss' || fmt === 'round_robin';
+  });
+
+  /**
+   * True when the leaderboard's #1 player has clearly clinched the
+   * tournament — used to drive the "Champion" banner. Same logic as
+   * the existing winner-of-final detection but works for Swiss too,
+   * where there's no single "final match" to look at.
+   */
+  readonly clearChampion = computed(() => {
+    const lb = this.leaderboard();
+    if (lb.length < 2) return null;
+    const t = this.tournament();
+    if (t?.status !== 'completed') return null;
+    return lb[0];
+  });
+
+  // ── Matches list (Sprint: list view) ─────────────────────────────────
+  // The Matches tab presents a flat, vertically scrollable list of every
+  // match in the tournament — easier to scan for "what's next?" or "show
+  // all completed matches" than the wide bracket diagram. Filterable by
+  // status group; reuses the same modal as the bracket view.
+
+  /**
+   * Status filter for the Matches tab. 'all' shows everything.
+   * Buckets are coarse on purpose: distinguishing 'pending' from 'scheduled'
+   * adds noise without value to a casual viewer.
+   */
+  readonly matchesFilter = signal<'all' | 'upcoming' | 'live' | 'completed'>('all');
+
+  /**
+   * Match buckets for the filter — kept stable so we can read counts cheaply.
+   *
+   * upcoming  = pending, scheduled       (no result yet, action TBD)
+   * live      = ongoing, submitted, disputed  (in flight, may need attention)
+   * completed = completed, walkover      (final, read-only)
+   */
+  private readonly MATCH_BUCKETS = {
+    upcoming:  ['pending', 'scheduled'],
+    live:      ['ongoing', 'submitted', 'disputed'],
+    completed: ['completed', 'walkover'],
+  } as const;
+
+  /**
+   * Flat list of matches to render under the Matches tab, respecting the
+   * current filter. Order: by round number (then by match_number within
+   * a round) so the list reads chronologically from earliest to final.
+   * BYE-only "matches" are excluded — they aren't real matchups and just
+   * clutter the list.
+   */
+  readonly matchesList = computed<BracketMatch[]>(() => {
+    const t = this.tournament();
+    const all: BracketMatch[] = t?.bracket?.matches ?? t?.matches ?? [];
+    const filter = this.matchesFilter();
+    // Cast through ReadonlyArray<string> so .includes() accepts any
+    // m.status string. The `as const` on MATCH_BUCKETS narrows entries
+    // to literal-only tuples, which is too strict for filter-by-string.
+    const allowed: ReadonlyArray<string> | null =
+      filter === 'all' ? null : this.MATCH_BUCKETS[filter];
+    return all
+      .filter(m => !m.participant_a_is_bye && !m.participant_b_is_bye)
+      .filter(m => !allowed || allowed.includes(m.status))
+      .sort((a, b) => (a.round_number - b.round_number) || (a.match_number - b.match_number));
+  });
+
+  /**
+   * Counts per filter bucket — surfaced next to the chip labels so users
+   * see "Live (3)" instead of clicking blindly.
+   */
+  readonly matchCounts = computed(() => {
+    const t = this.tournament();
+    const all: BracketMatch[] = t?.bracket?.matches ?? t?.matches ?? [];
+    const real = all.filter(m => !m.participant_a_is_bye && !m.participant_b_is_bye);
+    const inBucket = (bucket: ReadonlyArray<string>) =>
+      real.filter(m => bucket.includes(m.status)).length;
+    return {
+      all:       real.length,
+      upcoming:  inBucket(this.MATCH_BUCKETS.upcoming),
+      live:      inBucket(this.MATCH_BUCKETS.live),
+      completed: inBucket(this.MATCH_BUCKETS.completed),
+    };
+  });
+
+  // ── Streams aggregator (Sprint: tournament Streams tab) ────────────
+  // Shows ALL matches that have a stream URL set, regardless of status.
+  // Renamed from "Live" → "Streams" because the tab now includes:
+  //   - LIVE       (ongoing/submitted matches)     — red pulsing badge
+  //   - STARTING   (scheduled within +2hr)         — blue dot
+  //   - REPLAY     (completed/walkover matches)    — grey badge
+  //   - SCHEDULED  (scheduled, not yet near time)  — neutral
+  //
+  // Sort: live first, then starting-soon, then scheduled, then replays
+  // (most recent replays first). Spectators care most about live > soon
+  // > replays, so the visual ordering matches the urgency of the content.
+  //
+  // Layout: uniform thumbnail grid for all stream counts. Earlier
+  // implementation switched between live-iframe mode (≤4) and thumbnail
+  // mode (5+), but the layout shift was jarring and even a single
+  // embedded stream took too much vertical space at desktop widths.
+  // Always-thumbnails gives a consistent grid and lets the page load
+  // light — iframes only spin up when the user clicks one.
+
+  /**
+   * Time-of-day buckets for visual labelling — derived per-match in
+   * streamCategory() rather than precomputed because tournament view
+   * may live for hours and we want labels to update naturally.
+   */
+  private readonly STARTING_SOON_MS = 2 * 60 * 60 * 1000; // +2 hours
+
+  /**
+   * All matches with a stream URL set, sorted by category priority
+   * then by time. This is what the Streams tab renders.
+   *
+   * Excludes BYE-only "matches" since they have no real participants
+   * and no real stream context.
+   */
+  readonly liveStreams = computed<BracketMatch[]>(() => {
+    const t = this.tournament();
+    const all: BracketMatch[] = t?.bracket?.matches ?? t?.matches ?? [];
+
+    return all
+      .filter(m => !m.participant_a_is_bye && !m.participant_b_is_bye)
+      .filter(m => !!m.stream_url)
+      .sort((a, b) => {
+        // Category priority: live=0, starting=1, scheduled=2, replay=3, other=4.
+        // Lower = shown first.
+        const oa = this.categoryRank(a);
+        const ob = this.categoryRank(b);
+        if (oa !== ob) return oa - ob;
+
+        // Tie-breakers within a category:
+        //   - Live/starting: earlier scheduled_at first (next-up reads first)
+        //   - Replay:       MOST RECENT first
+        if (oa === 3) {
+          const ta = this.completionTime(a);
+          const tb = this.completionTime(b);
+          return tb - ta;
+        }
+        const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+        const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+        return ta - tb;
+      });
+  });
+
+  /**
+   * Category rank for sorting. Lower = appears first in the list.
+   * Tied with streamCategory() string output below.
+   */
+  private categoryRank(m: BracketMatch): number {
+    const cat = this.streamCategory(m);
+    switch (cat) {
+      case 'live':      return 0;
+      case 'starting':  return 1;
+      case 'scheduled': return 2;
+      case 'replay':    return 3;
+      default:          return 4;
+    }
+  }
+
+  /** Best-available "when did this match end" timestamp for replay sort. */
+  private completionTime(m: BracketMatch): number {
+    return m.scheduled_at ? new Date(m.scheduled_at).getTime() : 0;
+  }
+
+  /**
+   * Public categoriser used by the template to pick a status badge.
+   *
+   *   live       — match is in flight (ongoing/submitted/disputed)
+   *   starting   — scheduled and within the next 2 hours
+   *   scheduled  — scheduled but more than 2 hours away
+   *   replay     — match has completed; embed shows the VOD or channel
+   *   pending    — has a stream URL but no schedule and not in flight
+   */
+  streamCategory(m: BracketMatch): 'live' | 'starting' | 'scheduled' | 'replay' | 'pending' {
+    if (m.status === 'ongoing' || m.status === 'submitted' || m.status === 'disputed') {
+      return 'live';
+    }
+    if (m.status === 'completed' || m.status === 'walkover') {
+      return 'replay';
+    }
+    if (m.scheduled_at) {
+      const ts = new Date(m.scheduled_at).getTime();
+      if (!Number.isNaN(ts)) {
+        const delta = ts - Date.now();
+        if (delta >= 0 && delta <= this.STARTING_SOON_MS) return 'starting';
+        return 'scheduled';
+      }
+    }
+    return 'pending';
+  }
+
+  /** Human label for the badge on each card. */
+  streamCategoryLabel(m: BracketMatch): string {
+    switch (this.streamCategory(m)) {
+      case 'live':      return 'Live';
+      case 'starting':  return 'Starting Soon';
+      case 'scheduled': return 'Scheduled';
+      case 'replay':    return 'Replay';
+      default:          return 'Stream';
+    }
+  }
+
+  /** Tab badge count — total streams visible in tab. */
+  readonly liveStreamsCount = computed(() => this.liveStreams().length);
+
+  /**
+   * Count of streams that are GENUINELY live right now. Used to decide
+   * whether the tab badge should pulse red. If only replays/scheduled
+   * exist, no pulsing — we don't want to mislead spectators about what's
+   * actually broadcasting.
+   */
+  readonly trulyLiveCount = computed(
+    () => this.liveStreams().filter(m => this.streamCategory(m) === 'live').length,
+  );
+
+  /**
+   * Build a per-stream display title for accessibility & overlay text.
+   * Shows participant display names so spectators know who's playing.
+   */
+  liveStreamTitle(m: BracketMatch): string {
+    const a = m.participant_a?.display_name ?? m.participant_a?.name ?? 'TBD';
+    const b = m.participant_b?.display_name ?? m.participant_b?.name ?? 'TBD';
+    return `Match #${m.match_number}: ${a} vs ${b}`;
+  }
+
 
   readonly isOrganizerOrAdmin = computed(() => {
     const role = this.auth.currentUser()?.role ?? '';
@@ -377,8 +644,21 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Whether a match cell should respond to clicks.
+   *
+   * Active statuses (pending/scheduled/ongoing/submitted/disputed) open the
+   * modal in editable mode for participants and organizers. Completed and
+   * walkover matches also open the modal but in a read-only view — the
+   * action forms inside (schedule editor, result form, dispute form) are
+   * already gated by their own m.status checks, so the same modal naturally
+   * presents as a read-only result panel for finished matches.
+   *
+   * BYE-only slots (no participant_b yet awaiting an opponent) stay
+   * non-clickable since there's nothing to view.
+   */
   matchIsClickable(m: BracketMatch): boolean {
-    return ['pending', 'scheduled', 'ongoing', 'submitted', 'disputed'].includes(m.status)
+    return ['pending', 'scheduled', 'ongoing', 'submitted', 'disputed', 'completed', 'walkover'].includes(m.status)
       && !!m.participant_a && !!m.participant_b;
   }
 
@@ -388,12 +668,14 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     this.disputeMode.set(false);
     this.showScheduleEditor.set(false);
     this.showRescheduleForm.set(false);
+    this.showStreamEditor.set(false);
     this.evidenceFile.set(null);
     this.resultForm.reset({ winner_participant_id: '', score_a: null, score_b: null });
     this.disputeForm.reset();
     this.scheduleForm.reset({ scheduled_at: this.toLocalIso(m.scheduled_at) });
     this.rescheduleForm.reset({ proposed_at: '', reason: '' });
     this.evidenceForm.reset();
+    this.streamForm.reset({ stream_url: m.stream_url ?? '' });
     this.loadMatchDetails(m.id);
   }
 
@@ -491,6 +773,77 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
       error: (err: any) => {
         this.submitting.set(false);
         this.toast.error(err.error?.message ?? 'Failed to update schedule.');
+      },
+    });
+  }
+
+  // ── Stream editor (Sprint: live streaming Option A) ────────────────────
+  //
+  // The stream URL is a Twitch or YouTube URL. Server-side validation is
+  // authoritative; the frontend just submits and reflects the response.
+  //
+  // ACL surfaces in canModifyStream(): organizers/admins always allowed,
+  // and either of the two participants can also set/clear (it's their
+  // match). Other viewers see the embed read-only.
+
+  /** Permission gate for the editor + edit buttons. */
+  canModifyStream(): boolean {
+    return this.canManageMatch() || this.currentUserIsParticipant();
+  }
+
+  toggleStreamEditor(): void {
+    const m = this.selectedMatch();
+    if (!m) return;
+    this.streamForm.reset({ stream_url: m.stream_url ?? '' });
+    this.showStreamEditor.update(v => !v);
+  }
+
+  /**
+   * Save the stream URL. The server normalises (canonicalises) the URL,
+   * so we update the local match with the SERVER's stored value rather
+   * than the raw input — keeps the embed in sync with what's persisted.
+   */
+  saveStream(): void {
+    if (this.streamForm.invalid) { this.streamForm.markAllAsTouched(); return; }
+    const m = this.selectedMatch();
+    if (!m) return;
+    const url = (this.streamForm.value.stream_url ?? '').trim();
+    if (!url) return;
+
+    this.savingStream.set(true);
+    this.api.setMatchStream(m.id, url).subscribe({
+      next: res => {
+        this.savingStream.set(false);
+        this.toast.success('Stream URL saved.');
+        this.showStreamEditor.set(false);
+        // Reflect the server-canonical URL on the modal-local match.
+        const canonical = res.data?.stream?.canonical_url ?? url;
+        this.selectedMatch.update(curr => curr ? ({ ...curr, stream_url: canonical }) : curr);
+        this.refresh();
+      },
+      error: (err: any) => {
+        this.savingStream.set(false);
+        this.toast.error(err.error?.message ?? 'Invalid stream URL.');
+      },
+    });
+  }
+
+  /** Remove the stream URL — embed disappears, editor stays available. */
+  removeStream(): void {
+    const m = this.selectedMatch();
+    if (!m) return;
+    this.savingStream.set(true);
+    this.api.clearMatchStream(m.id).subscribe({
+      next: () => {
+        this.savingStream.set(false);
+        this.toast.success('Stream removed.');
+        this.selectedMatch.update(curr => curr ? ({ ...curr, stream_url: null }) : curr);
+        this.streamForm.reset({ stream_url: '' });
+        this.refresh();
+      },
+      error: (err: any) => {
+        this.savingStream.set(false);
+        this.toast.error(err.error?.message ?? 'Failed to remove stream.');
       },
     });
   }

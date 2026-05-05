@@ -52,20 +52,12 @@
         <span>{{ t.format_label }}</span>
       </div>
 
-      <!-- ── Meta + actions row ──────────────────────────────────────
-           The tournament name is intentionally NOT rendered again here —
-           the hero banner above already carries it. Showing it twice in
-           the same viewport just steals attention from the page actions.
-           This row carries the format / game / registration badges and
-           any contextual action buttons (register, generate bracket). -->
       <div class="detail-header__top">
-        <div class="detail-badges">
-          <span class="badge" [class]="'badge--game-' + t.game">{{ t.game_label }}</span>
-          <span class="badge badge--format">{{ t.format_label }}</span>
-          <span class="badge" [class.badge--open]="t.is_registration_open"
-                [class.badge--closed]="!t.is_registration_open">
-            {{ t.is_registration_open ? 'Registration Open' : 'Registration Closed' }}
-          </span>
+        <div>
+          <h1 class="detail-title">{{ t.name }}</h1>
+          @if (t.name_ar) {
+            <p class="detail-title-ar" dir="rtl" lang="ar">{{ t.name_ar }}</p>
+          }
         </div>
         <div class="detail-header__cta">
           @if (t.is_registration_open && auth.isLoggedIn() && !t.is_registered) {
@@ -82,6 +74,15 @@
             </button>
           }
         </div>
+      </div>
+
+      <div class="detail-badges">
+        <span class="badge" [class]="'badge--game-' + t.game">{{ t.game_label }}</span>
+        <span class="badge badge--format">{{ t.format_label }}</span>
+        <span class="badge" [class.badge--open]="t.is_registration_open"
+              [class.badge--closed]="!t.is_registration_open">
+          {{ t.is_registration_open ? 'Registration Open' : 'Registration Closed' }}
+        </span>
       </div>
     </div>
 
@@ -196,13 +197,36 @@
     }
 
     <!-- ── Tabs ─────────────────────────────────────────────────── -->
+    <!-- Order: Bracket → [Standings, Swiss/RR only] → Matches →
+         Players → Prize Pool → Streams.
+         Streams sits last because it's the most peripheral concern
+         for an organizer/participant; spectators jump to it directly. -->
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" [class.tab--active]="activeTab()==='bracket'" (click)="activeTab.set('bracket')">Bracket</button>
+      @if (isFlatFormat()) {
+        <button class="tab" role="tab" [class.tab--active]="activeTab()==='standings'" (click)="activeTab.set('standings')">Standings</button>
+      }
+      <button class="tab" role="tab" [class.tab--active]="activeTab()==='matches'" (click)="activeTab.set('matches')">
+        Matches
+        @if (matchCounts().all) { <span class="tab__count">{{ matchCounts().all }}</span> }
+      </button>
       <button class="tab" role="tab" [class.tab--active]="activeTab()==='leaderboard'" (click)="activeTab.set('leaderboard')">
         {{ t.participants?.length ? 'Players (' + t.participants.length + ')' : 'Players' }}
       </button>
-      @if (normalizedPrizes().length) {
-        <button class="tab" role="tab" [class.tab--active]="activeTab()==='prize'" (click)="activeTab.set('prize')">Prize Pool</button>
+      <!-- Prize Pool tab is always visible. Even with no prizes configured,
+           it surfaces the section as a discoverable entry point — organizers
+           can use the empty state's CTA to set prizes from here. -->
+      <button class="tab" role="tab" [class.tab--active]="activeTab()==='prize'" (click)="activeTab.set('prize')">Prize Pool</button>
+      @if (liveStreamsCount() > 0) {
+        <button class="tab tab--live" role="tab" [class.tab--active]="activeTab()==='live'"
+                [class.tab--actually-live]="trulyLiveCount() > 0"
+                (click)="activeTab.set('live')">
+          @if (trulyLiveCount() > 0) {
+            <span class="tab__live-dot" aria-hidden="true"></span>
+          }
+          Streams
+          <span class="tab__count" [class.tab__count--live]="trulyLiveCount() > 0">{{ liveStreamsCount() }}</span>
+        </button>
       }
     </div>
 
@@ -300,14 +324,16 @@
                         </div>
 
                         <div class="b-match__divider">
-                          <span class="b-match__status" [class]="'b-match__status--' + m.status"
-                            [class.b-match__status--with-time]="m.status === 'scheduled' && m.scheduled_at">
-                            @if (m.status === 'scheduled' && m.scheduled_at) {
-                              {{ m.scheduled_at | date:'d MMM · HH:mm' }}
-                            } @else {
-                              {{ statusLabel(m.status) }}
-                            }
-                          </span>
+                          @if (m.status !== 'completed' && m.status !== 'walkover') {
+                            <span class="b-match__status" [class]="'b-match__status--' + m.status"
+                              [class.b-match__status--with-time]="m.status === 'scheduled' && m.scheduled_at">
+                              @if (m.status === 'scheduled' && m.scheduled_at) {
+                                {{ m.scheduled_at | date:'d MMM · HH:mm' }}
+                              } @else {
+                                {{ statusLabel(m.status) }}
+                              }
+                            </span>
+                          }
                           @if (m.status === 'disputed') {
                             <span class="b-match__disputed-flag">⚠</span>
                           }
@@ -357,6 +383,272 @@
     }
 
     <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- STANDINGS TAB — Swiss / Round-Robin formats only             -->
+    <!-- Sortable leaderboard with W-L-Pts (and Buchholz for Swiss).  -->
+    <!-- The bracket pairing grid is the sister tab; this answers     -->
+    <!-- "who's winning?" while Bracket answers "what are the         -->
+    <!-- pairings?". Tab is gated by isFlatFormat() in the tab row.   -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    @if (activeTab() === 'standings') {
+      @if (!t.bracket || leaderboard().length === 0) {
+        <div class="empty-state">
+          <div class="empty-state__icon">📊</div>
+          <p>Standings will appear once the bracket is generated.</p>
+        </div>
+      } @else {
+        <section class="bracket-standings">
+          <header class="bracket-standings__head">
+            <h3>Standings</h3>
+            <span class="bracket-standings__hint">
+              Sorted by wins, then points{{ t.format === 'swiss' ? ', then Buchholz' : '' }}
+            </span>
+          </header>
+          <div class="bracket-standings__table">
+            <div class="bracket-standings__row bracket-standings__row--head">
+              <span>#</span>
+              <span>Player</span>
+              <span class="bracket-standings__num">W</span>
+              <span class="bracket-standings__num">L</span>
+              <span class="bracket-standings__num">Pts</span>
+              @if (t.format === 'swiss') {
+                <span class="bracket-standings__num">Buchholz</span>
+              }
+            </div>
+            @for (p of leaderboard(); track p.name; let i = $index) {
+              <div class="bracket-standings__row"
+                   [class.bracket-standings__row--rank-1]="i === 0"
+                   [class.bracket-standings__row--rank-2]="i === 1"
+                   [class.bracket-standings__row--rank-3]="i === 2">
+                <span class="bracket-standings__rank">
+                  {{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) }}
+                </span>
+                <span class="bracket-standings__player">
+                  @if (p.avatar_url) {
+                    <img class="bracket-standings__avatar" [src]="p.avatar_url" [alt]="p.display_name"/>
+                  } @else {
+                    <span class="bracket-standings__avatar bracket-standings__avatar--placeholder">
+                      {{ (p.display_name ?? '?').charAt(0).toUpperCase() }}
+                    </span>
+                  }
+                  <span>{{ p.display_name }}</span>
+                </span>
+                <span class="bracket-standings__num">{{ p.wins }}</span>
+                <span class="bracket-standings__num">{{ p.losses }}</span>
+                <span class="bracket-standings__num bracket-standings__num--strong">{{ p.points }}</span>
+                @if (t.format === 'swiss') {
+                  <span class="bracket-standings__num">{{ p.buchholz }}</span>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
+    }
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- MATCHES TAB — flat list view                                -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    @if (activeTab() === 'matches') {
+      @if (!t.bracket || matchCounts().all === 0) {
+        <div class="empty-state">
+          <div class="empty-state__icon">⚔️</div>
+          <p>{{ t.bracket ? 'No matches yet.' : 'Bracket has not been generated yet.' }}</p>
+        </div>
+      } @else {
+
+        <!-- Status filter chips with live counts -->
+        <div class="matches-filter" role="tablist" aria-label="Filter matches by status">
+          <button type="button" class="match-chip"
+                  [class.match-chip--active]="matchesFilter() === 'all'"
+                  (click)="matchesFilter.set('all')">
+            All <span class="match-chip__count">{{ matchCounts().all }}</span>
+          </button>
+          <button type="button" class="match-chip match-chip--upcoming"
+                  [class.match-chip--active]="matchesFilter() === 'upcoming'"
+                  (click)="matchesFilter.set('upcoming')">
+            Upcoming <span class="match-chip__count">{{ matchCounts().upcoming }}</span>
+          </button>
+          <button type="button" class="match-chip match-chip--live"
+                  [class.match-chip--active]="matchesFilter() === 'live'"
+                  (click)="matchesFilter.set('live')">
+            Live <span class="match-chip__count">{{ matchCounts().live }}</span>
+          </button>
+          <button type="button" class="match-chip match-chip--completed"
+                  [class.match-chip--active]="matchesFilter() === 'completed'"
+                  (click)="matchesFilter.set('completed')">
+            Completed <span class="match-chip__count">{{ matchCounts().completed }}</span>
+          </button>
+        </div>
+
+        <!-- Empty state for the active filter -->
+        @if (matchesList().length === 0) {
+          <div class="matches-empty">
+            <p>No matches match the current filter.</p>
+            <button type="button" class="btn btn--ghost" (click)="matchesFilter.set('all')">Show all</button>
+          </div>
+        } @else {
+          <ul class="matches-list">
+            @for (m of matchesList(); track m.id) {
+              <li class="match-row"
+                  [class.match-row--clickable]="matchIsClickable(m)"
+                  [class]="'match-row--' + m.status"
+                  [attr.role]="matchIsClickable(m) ? 'button' : null"
+                  [attr.tabindex]="matchIsClickable(m) ? 0 : null"
+                  (click)="openMatch(m)"
+                  (keyup.enter)="openMatch(m)"
+                  (keyup.space)="openMatch(m); $event.preventDefault()">
+
+                <!-- Round label on the left -->
+                <div class="match-row__round">
+                  <span class="match-row__round-num">R{{ m.round_number }}</span>
+                  <span class="match-row__match-num">#{{ m.match_number }}</span>
+                </div>
+
+                <!-- VS card: player A | score | player B -->
+                <div class="match-row__vs">
+                  <div class="match-row__player"
+                       [class.match-row__player--winner]="m.winner_id === m.participant_a?.id && (m.status === 'completed' || m.status === 'walkover')">
+                    @if (m.participant_a?.avatar_url) {
+                      <img class="match-row__avatar" [src]="m.participant_a!.avatar_url" alt=""/>
+                    } @else {
+                      <span class="match-row__avatar match-row__avatar--placeholder">
+                        {{ (m.participant_a?.display_name ?? m.participant_a?.name ?? '?').charAt(0).toUpperCase() }}
+                      </span>
+                    }
+                    <span class="match-row__name">{{ m.participant_a?.display_name ?? m.participant_a?.name ?? 'TBD' }}</span>
+                  </div>
+
+                  <div class="match-row__score">
+                    @if (m.status === 'completed' || m.status === 'walkover') {
+                      <span class="match-row__score-num">{{ m.score_a ?? '–' }}</span>
+                      <span class="match-row__score-sep">vs</span>
+                      <span class="match-row__score-num">{{ m.score_b ?? '–' }}</span>
+                    } @else {
+                      <span class="match-row__score-vs">vs</span>
+                    }
+                  </div>
+
+                  <div class="match-row__player match-row__player--right"
+                       [class.match-row__player--winner]="m.winner_id === m.participant_b?.id && (m.status === 'completed' || m.status === 'walkover')">
+                    <span class="match-row__name">{{ m.participant_b?.display_name ?? m.participant_b?.name ?? 'TBD' }}</span>
+                    @if (m.participant_b?.avatar_url) {
+                      <img class="match-row__avatar" [src]="m.participant_b!.avatar_url" alt=""/>
+                    } @else {
+                      <span class="match-row__avatar match-row__avatar--placeholder">
+                        {{ (m.participant_b?.display_name ?? m.participant_b?.name ?? '?').charAt(0).toUpperCase() }}
+                      </span>
+                    }
+                  </div>
+                </div>
+
+                <!-- Right side: status + scheduled time -->
+                <div class="match-row__meta">
+                  <span class="match-row__status" [class]="'match-row__status--' + m.status">
+                    {{ statusLabel(m.status) }}
+                  </span>
+                  @if (m.scheduled_at) {
+                    <span class="match-row__time">
+                      {{ m.scheduled_at | date:'d MMM · HH:mm' }}
+                    </span>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      }
+    }
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- STREAMS TAB — all matches with a stream URL                  -->
+    <!-- Includes live, scheduled, and replays. Each card carries a   -->
+    <!-- category badge (Live / Starting Soon / Scheduled / Replay).  -->
+    <!-- Layout switches to thumbnail mode when more than 4 streams.  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    @if (activeTab() === 'live') {
+      @if (liveStreams().length === 0) {
+        <div class="empty-state">
+          <div class="empty-state__icon">📡</div>
+          <p>No streams yet.</p>
+          <p class="empty-state__hint">
+            Streams appear here once organizers or participants set a Twitch or YouTube link on a match.
+          </p>
+        </div>
+      } @else {
+
+        <!-- Header: live count if any, otherwise total stream count -->
+        <header class="live-header">
+          <div>
+            <h3 class="live-header__title">
+              @if (trulyLiveCount() > 0) {
+                <span class="live-header__dot" aria-hidden="true"></span>
+                {{ trulyLiveCount() }}
+                {{ trulyLiveCount() === 1 ? 'match' : 'matches' }} live now
+              } @else {
+                {{ liveStreams().length }}
+                {{ liveStreams().length === 1 ? 'stream' : 'streams' }} available
+              }
+            </h3>
+            @if (trulyLiveCount() === 0) {
+              <p class="live-header__hint">
+                No matches are live right now — these are upcoming streams and replays.
+              </p>
+            } @else if (liveStreams().length > trulyLiveCount()) {
+              <p class="live-header__hint">
+                Click a thumbnail to start watching.
+              </p>
+            }
+          </div>
+        </header>
+
+        <!-- Uniform thumbnail grid for ALL stream counts.
+             Click-to-play promotes the tile to a live iframe in-place.
+             Earlier hybrid (embedded for ≤4, thumbnails for 5+) caused
+             jarring layout shift and oversized single-stream tiles. -->
+        <div class="live-grid">
+          @for (m of liveStreams(); track m.id) {
+            <article class="live-card" [class]="'live-card--cat-' + streamCategory(m)">
+              <app-stream-embed
+                mode="thumbnail"
+                [streamUrl]="m.stream_url!"
+                [title]="liveStreamTitle(m)">
+              </app-stream-embed>
+              <div class="live-card__meta">
+                <div class="live-card__row live-card__row--top">
+                  <span class="live-card__cat-badge"
+                        [class]="'live-card__cat-badge--' + streamCategory(m)">
+                    @if (streamCategory(m) === 'live') {
+                      <span class="live-card__cat-dot" aria-hidden="true"></span>
+                    }
+                    {{ streamCategoryLabel(m) }}
+                  </span>
+                  @if (m.scheduled_at && streamCategory(m) !== 'live') {
+                    <span class="live-card__time">{{ m.scheduled_at | date:'d MMM · HH:mm' }}</span>
+                  }
+                </div>
+                <div class="live-card__players">
+                  <span class="live-card__name">{{ m.participant_a?.display_name ?? m.participant_a?.name ?? 'TBD' }}</span>
+                  <span class="live-card__vs">vs</span>
+                  <span class="live-card__name">{{ m.participant_b?.display_name ?? m.participant_b?.name ?? 'TBD' }}</span>
+                </div>
+                <div class="live-card__row">
+                  <span class="live-card__status" [class]="'live-card__status--' + m.status">
+                    {{ statusLabel(m.status) }}
+                  </span>
+                  <button type="button"
+                          class="live-card__open"
+                          (click)="openMatch(m)">
+                    Match →
+                  </button>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    }
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
     <!-- LEADERBOARD / PLAYERS TAB                                  -->
     <!-- ═══════════════════════════════════════════════════════════ -->
     @if (activeTab() === 'leaderboard') {
@@ -395,7 +687,22 @@
 
     @if (activeTab() === 'prize') {
       @if (!normalizedPrizes().length) {
-        <div class="empty-state">No prizes configured.</div>
+        <div class="empty-state">
+          <div class="empty-state__icon">🏆</div>
+          <p>No prize pool configured yet.</p>
+          @if (canManageMatch()) {
+            <p class="empty-state__hint">
+              Set up rewards for top finishers — gift cards, cash, hardware, anything.
+            </p>
+            <button type="button" class="btn btn--gold" (click)="openPrizeEditor()">
+              Set Prizes
+            </button>
+          } @else {
+            <p class="empty-state__hint">
+              The organizer hasn't published prize details for this tournament.
+            </p>
+          }
+        </div>
       } @else {
         <div class="prize-list">
           @for (p of normalizedPrizes(); track p.position) {
@@ -557,6 +864,87 @@
                 <button type="button" class="btn btn--ghost" (click)="toggleScheduleEditor()">Cancel</button>
                 <button type="submit" class="btn btn--gold" [disabled]="scheduleForm.invalid || submitting()">
                   {{ submitting() ? 'Saving…' : 'Save' }}
+                </button>
+              </div>
+            </form>
+          }
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- SECTION: LIVE STREAM (Option A — Twitch/YouTube embed)      -->
+      <!-- Renders an embed when m.stream_url is set. Editor allows    -->
+      <!-- organizers/admins and participants to set or clear the URL. -->
+      <!-- Other viewers see read-only.                                -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <section class="m-section m-section--stream">
+        <header class="m-section__head">
+          <span class="m-section__icon">📺</span>
+          <span class="m-section__title">Live Stream</span>
+          @if (canModifyStream() && !showStreamEditor()) {
+            <button type="button" class="m-section__action" (click)="toggleStreamEditor()">
+              {{ m.stream_url ? 'Change' : 'Add Stream' }}
+            </button>
+          }
+        </header>
+
+        <div class="m-section__body">
+          <!-- Display: live embed when URL is set -->
+          @if (m.stream_url && !showStreamEditor()) {
+            <app-stream-embed
+              [streamUrl]="m.stream_url"
+              [title]="'Match #' + m.match_number + ' — ' + (m.participant_a?.display_name ?? m.participant_a?.name ?? '') + ' vs ' + (m.participant_b?.display_name ?? m.participant_b?.name ?? '')">
+            </app-stream-embed>
+            @if (canModifyStream()) {
+              <div class="stream-actions">
+                <button type="button"
+                        class="btn btn--ghost btn--small"
+                        [disabled]="savingStream()"
+                        (click)="removeStream()">
+                  {{ savingStream() ? 'Removing…' : 'Remove stream' }}
+                </button>
+              </div>
+            }
+          }
+
+          <!-- Empty state for users who can't add (read-only viewers) -->
+          @if (!m.stream_url && !showStreamEditor() && !canModifyStream()) {
+            <p class="m-section__empty">No live stream for this match.</p>
+          }
+
+          <!-- Empty state for users who CAN add — encourages action -->
+          @if (!m.stream_url && !showStreamEditor() && canModifyStream()) {
+            <p class="m-section__empty">
+              No stream yet. Click <strong>Add Stream</strong> above to share a Twitch or YouTube live link.
+            </p>
+          }
+
+          <!-- Editor: paste URL form -->
+          @if (showStreamEditor()) {
+            <form (ngSubmit)="saveStream()" [formGroup]="streamForm" class="m-inline-form m-inline-form--stack">
+              <label class="form-label" for="stream-url-input">
+                Stream URL <span class="req">*</span>
+              </label>
+              <input
+                id="stream-url-input"
+                type="url"
+                class="input"
+                formControlName="stream_url"
+                placeholder="https://twitch.tv/yourchannel  or  https://youtube.com/watch?v=…"
+                inputmode="url"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <p class="m-inline-form__hint">
+                Paste a Twitch channel URL or a YouTube live/watch URL. Other links won't be accepted.
+              </p>
+              <div class="m-inline-form__actions">
+                <button type="button" class="btn btn--ghost"
+                        [disabled]="savingStream()"
+                        (click)="toggleStreamEditor()">Cancel</button>
+                <button type="submit" class="btn btn--gold"
+                        [disabled]="streamForm.invalid || savingStream()">
+                  {{ savingStream() ? 'Saving…' : 'Save Stream' }}
                 </button>
               </div>
             </form>

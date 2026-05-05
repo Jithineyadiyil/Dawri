@@ -182,6 +182,7 @@ class TournamentResource extends JsonResource
             'winner_id'            => $m->winner_id,
             'scheduled_at'         => $m->scheduled_at?->toIso8601String(),
             'scheduled_by_id'      => $m->scheduled_by_id ?? null,
+            'stream_url'           => $m->stream_url,
             'participant_a'        => $this->participantSummary($pA),
             'participant_b'        => $this->participantSummary($pB),
             'winner'               => $this->participantSummary($w),

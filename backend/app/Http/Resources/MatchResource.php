@@ -48,6 +48,9 @@ class MatchResource extends JsonResource
             'dispute_reason'        => $this->dispute_reason,
             'scheduled_at'          => $this->scheduled_at?->toIso8601String(),
             'completed_at'          => $this->completed_at?->toIso8601String(),
+            // Live streaming (Option A): null if no stream set; otherwise
+            // a normalised Twitch/YouTube URL the frontend can embed.
+            'stream_url'            => $this->stream_url,
         ];
     }
 }

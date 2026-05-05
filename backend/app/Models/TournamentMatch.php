@@ -58,6 +58,8 @@ class TournamentMatch extends Model
         'dispute_reason',
         'scheduled_at', 'scheduled_by_id',
         'completed_at',
+        // Live streaming (Option A): canonical Twitch/YouTube URL.
+        'stream_url',
     ];
 
     protected $casts = [

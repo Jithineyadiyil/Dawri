@@ -1756,3 +1756,731 @@ button.prize-showcase--empty {
     border: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * MATCHES TAB — list view
+ * Vertical scrollable alternative to the bracket diagram. Status
+ * filter chips + flat row layout with VS card and meta column.
+ * ─────────────────────────────────────────────────────────────────── */
+
+/* Tab badge — small count next to "Matches" label */
+.tab__count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 999px;
+  color: var(--gold);
+  vertical-align: middle;
+  letter-spacing: 0;
+}
+
+/* ── Filter chip row ─────────────────────────────────────────────── */
+.matches-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.match-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--bg3);
+  border: 1px solid var(--br);
+  color: var(--mu);
+  font-family: var(--fb);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: var(--gold);
+    color: var(--text);
+  }
+
+  &--active {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08));
+    border-color: var(--gold);
+    color: var(--text);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.18);
+  }
+
+  /* Status accent on the dot — only when active */
+  &--upcoming.match-chip--active  { border-color: #38bdf8; }
+  &--live.match-chip--active      { border-color: #fbbf24; }
+  &--completed.match-chip--active { border-color: #4ade80; }
+}
+.match-chip__count {
+  display: inline-block;
+  padding: 1px 7px;
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+/* ── Empty state for active filter ───────────────────────────────── */
+.matches-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--mu);
+  background: var(--bg2);
+  border: 1px dashed var(--br);
+  border-radius: 12px;
+
+  p { margin: 0 0 14px; }
+}
+
+/* ── Match list ──────────────────────────────────────────────────── */
+.matches-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.match-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--bg2);
+  border: 1px solid var(--br);
+  border-radius: 12px;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+  outline: none;
+
+  &--clickable {
+    cursor: pointer;
+    &:hover {
+      border-color: rgba(168, 85, 247, 0.45);
+      background: rgba(168, 85, 247, 0.04);
+      transform: translateY(-1px);
+    }
+    &:focus-visible {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.18);
+    }
+  }
+
+  /* Status-derived left accent stripe */
+  &--pending,
+  &--scheduled    { border-left: 3px solid #38bdf8; }
+  &--ongoing,
+  &--submitted    { border-left: 3px solid #fbbf24; }
+  &--disputed     { border-left: 3px solid #f87171; }
+  &--completed,
+  &--walkover     { border-left: 3px solid #4ade80; }
+}
+
+.match-row__round {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.match-row__round-num {
+  font-family: var(--fh);
+  font-size: 0.95rem;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+.match-row__match-num {
+  font-size: 0.72rem;
+  color: var(--mu);
+}
+
+.match-row__vs {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.match-row__player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+
+  &--right {
+    justify-content: flex-end;
+  }
+  &--winner .match-row__name { color: #4ade80; font-weight: 700; }
+}
+.match-row__avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: var(--bg3);
+
+  &--placeholder {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(168, 85, 247, 0.05));
+    color: var(--gold);
+    font-family: var(--fh);
+    font-size: 0.85rem;
+    border: 1px solid rgba(168, 85, 247, 0.25);
+  }
+}
+.match-row__name {
+  font-family: var(--fb);
+  font-size: 0.92rem;
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-row__score {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--bg3);
+  border-radius: 8px;
+  font-family: var(--fh);
+  flex-shrink: 0;
+}
+.match-row__score-num {
+  font-size: 1.1rem;
+  color: var(--text);
+  letter-spacing: 0.05em;
+  min-width: 16px;
+  text-align: center;
+}
+.match-row__score-sep,
+.match-row__score-vs {
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--mu);
+  text-transform: uppercase;
+}
+
+.match-row__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 90px;
+}
+.match-row__status {
+  display: inline-block;
+  padding: 3px 10px;
+  font-family: var(--fm);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  white-space: nowrap;
+
+  &--pending,
+  &--scheduled  { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
+  &--ongoing,
+  &--submitted  { background: rgba(251, 191, 36, 0.14); color: #fbbf24; }
+  &--disputed   { background: rgba(248, 113, 113, 0.14); color: #f87171; }
+  &--completed,
+  &--walkover   { background: rgba(74, 222, 128, 0.12); color: #4ade80; }
+}
+.match-row__time {
+  font-size: 0.72rem;
+  color: var(--mu);
+  white-space: nowrap;
+}
+
+/* ── Mobile: stack the row ───────────────────────────────────────── */
+@media (max-width: 720px) {
+  .match-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+  .match-row__round { flex-direction: row; gap: 8px; }
+  .match-row__vs {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    text-align: center;
+  }
+  .match-row__player {
+    justify-content: center;
+    &--right { flex-direction: row-reverse; }
+  }
+  .match-row__meta {
+    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-row,
+  .match-chip {
+    transition: none !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * MATCH MODAL — Live Stream section (Option A)
+ * Wraps StreamEmbedComponent with consistent spacing + hint styles.
+ * The actual iframe styling lives inside the embed component itself.
+ * ─────────────────────────────────────────────────────────────────── */
+.m-section--stream {
+  app-stream-embed {
+    display: block;
+    margin-top: 4px;
+  }
+}
+
+/* "Remove stream" action button under the embed */
+.stream-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.btn--small {
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+}
+
+/* URL editor hint text below the input */
+.m-inline-form__hint {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--mu);
+  line-height: 1.45;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * LIVE TAB — aggregated streams across all active matches.
+ * Hybrid layout: 1-4 streams embed live; 5+ render as click-to-play
+ * thumbnails to keep the page from loading 8+ iframes simultaneously.
+ * ─────────────────────────────────────────────────────────────────── */
+
+/* Live tab button accent — pulsing red dot, count badge in red */
+.tab--live {
+  position: relative;
+
+  .tab__live-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    margin-right: 6px;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+    animation: live-pulse 1.6s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  .tab__count--live {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #ef4444;
+  }
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Header inside the live tab */
+.live-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.live-header__title {
+  margin: 0;
+  font-family: var(--fh);
+  font-size: 1.2rem;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.live-header__dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+.live-header__hint {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--mu);
+  line-height: 1.5;
+}
+
+/* ── Uniform stream grid ─────────────────────────────────────────────
+   One layout for all stream counts. Tile sizing is decided by
+   auto-fill + minmax so 1 stream centers naturally and 8 streams pack
+   into rows without code changes. */
+.live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+  /* When there's only a couple of streams, prevent any single tile
+     from growing huge by capping the implicit row's column basis.
+     Without this, a 1400px-wide content area + 1 stream = 1400px tile. */
+  justify-content: start;
+}
+
+@media (max-width: 720px) {
+  .live-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Live card ───────────────────────────────────────────────────── */
+.live-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--bg2);
+  border: 1px solid var(--br);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+
+  &:hover {
+    border-color: rgba(168, 85, 247, 0.4);
+  }
+}
+
+.live-card__meta {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.live-card__players {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--fb);
+  font-size: 0.92rem;
+  color: var(--text);
+  font-weight: 600;
+  min-width: 0;
+}
+.live-card--compact .live-card__players { font-size: 0.85rem; }
+.live-card__name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.live-card__name:last-child { text-align: right; }
+.live-card__vs {
+  flex: 0 0 auto;
+  font-family: var(--fm);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--mu);
+  text-transform: uppercase;
+}
+.live-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.live-card__status {
+  display: inline-block;
+  padding: 3px 10px;
+  font-family: var(--fm);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 999px;
+
+  &--ongoing,
+  &--submitted    { background: rgba(251, 191, 36, 0.14); color: #fbbf24; }
+  &--scheduled,
+  &--pending      { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
+  &--disputed     { background: rgba(248, 113, 113, 0.14); color: #f87171; }
+}
+.live-card__open {
+  background: none;
+  border: none;
+  color: var(--gold);
+  font-family: var(--fb);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(168, 85, 247, 0.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab__live-dot,
+  .live-header__dot { animation: none !important; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * STREAMS TAB — category badges (live / starting / scheduled / replay)
+ * Layered on top of the existing live-tab styles. Pulsing animations
+ * only kick in for the genuine "live" category — see tab--actually-live
+ * gating to avoid misleading viewers when the tab only contains replays.
+ * ─────────────────────────────────────────────────────────────────── */
+
+/* Tab dot now only renders inside .tab--actually-live, but we keep the
+   keyframe + base styles so the existing tab--live structural rules
+   stay valid (they were also used by the live-header dot). */
+
+/* Per-card category badge — top-row of the card meta block */
+.live-card__row--top {
+  margin-bottom: 4px;
+}
+.live-card__cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-family: var(--fm);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  white-space: nowrap;
+
+  &--live {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+  }
+  &--starting {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+  }
+  &--scheduled {
+    background: rgba(168, 85, 247, 0.12);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+  }
+  &--replay {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--mu);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  &--pending {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--mu);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}
+.live-card__cat-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.7);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+.live-card__time {
+  font-size: 0.7rem;
+  color: var(--mu);
+  white-space: nowrap;
+}
+
+/* Subtle border accent on the card matching the category */
+.live-card--cat-live    { border-color: rgba(239, 68, 68, 0.25); }
+.live-card--cat-starting { border-color: rgba(56, 189, 248, 0.2); }
+.live-card--cat-replay   { opacity: 0.92; }
+.live-card--cat-replay:hover { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .live-card__cat-dot { animation: none !important; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * SWISS / ROUND-ROBIN STANDINGS TABLE
+ * Sits above the pairing grid in the Bracket tab when format is flat.
+ * ─────────────────────────────────────────────────────────────────── */
+.bracket-standings {
+  margin: 16px 0 24px;
+  background: var(--bg2);
+  border: 1px solid var(--br);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.bracket-standings__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  background: rgba(168, 85, 247, 0.06);
+  border-bottom: 1px solid var(--br);
+
+  h3 {
+    margin: 0;
+    font-family: var(--fh);
+    font-size: 1rem;
+    letter-spacing: 0.06em;
+    color: var(--text);
+    text-transform: uppercase;
+  }
+}
+.bracket-standings__hint {
+  font-size: 0.78rem;
+  color: var(--mu);
+}
+
+.bracket-standings__table {
+  display: flex;
+  flex-direction: column;
+}
+.bracket-standings__row {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) 50px 50px 60px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.92rem;
+  color: var(--text);
+  transition: background 0.15s;
+
+  /* Swiss adds a Buchholz column — extend grid */
+  &:has(> :nth-child(7)) {
+    grid-template-columns: 50px minmax(0, 1fr) 50px 50px 60px 80px;
+  }
+
+  &:hover { background: rgba(255, 255, 255, 0.02); }
+
+  &--head {
+    background: rgba(0, 0, 0, 0.18);
+    font-family: var(--fm);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mu);
+    border-top: none;
+  }
+
+  &--rank-1 {
+    background: linear-gradient(90deg, rgba(251, 191, 36, 0.08), transparent);
+  }
+  &--rank-2 {
+    background: linear-gradient(90deg, rgba(192, 192, 192, 0.06), transparent);
+  }
+  &--rank-3 {
+    background: linear-gradient(90deg, rgba(184, 115, 51, 0.06), transparent);
+  }
+}
+.bracket-standings__rank {
+  font-family: var(--fh);
+  font-size: 1.05rem;
+  text-align: center;
+}
+.bracket-standings__player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+
+  > span:last-child {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+.bracket-standings__avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: var(--bg3);
+
+  &--placeholder {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(168, 85, 247, 0.05));
+    color: var(--gold);
+    font-family: var(--fh);
+    font-size: 0.8rem;
+    border: 1px solid rgba(168, 85, 247, 0.25);
+  }
+}
+.bracket-standings__num {
+  text-align: right;
+  font-family: var(--fh);
+  font-size: 0.95rem;
+  color: var(--text-soft);
+
+  &--strong {
+    color: var(--gold);
+    font-weight: 700;
+  }
+}
+
+/* ── Bigger scores on completed matches in the bracket ────────────
+   The score badges were tiny circles next to player names — easily
+   missed on completed matches. Bumping the typography makes the
+   actual result readable at a glance, which is what spectators
+   scanning a Swiss column want. */
+.b-match__score {
+  font-family: var(--fh);
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  min-width: 22px !important;
+  padding: 2px 6px !important;
+}
+
+/* Completed-match divider is now empty (DONE label hidden in HTML) —
+   collapse it so there's less vertical noise between match pairs. */
+.b-match__divider:empty {
+  height: 0;
+  margin: 0;
+  border: none;
+}
+
+/* Mobile collapse for standings table — hide secondary columns */
+@media (max-width: 720px) {
+  .bracket-standings__row {
+    grid-template-columns: 40px minmax(0, 1fr) 40px 50px;
+    gap: 8px;
+    padding: 10px 12px;
+
+    &:has(> :nth-child(7)) {
+      grid-template-columns: 40px minmax(0, 1fr) 40px 50px;
+    }
+    > :nth-child(4),  /* Hide Losses column */
+    > :nth-child(6) { /* Hide Buchholz column */
+      display: none;
+    }
+  }
+  .bracket-standings__head h3 { font-size: 0.85rem; }
+  .bracket-standings__hint   { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bracket-standings__row { transition: none !important; }
+}

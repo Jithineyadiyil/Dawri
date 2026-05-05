@@ -4,7 +4,7 @@
  * ─────────────────────────────────────────────────────────────────────────── */
 
 .privacy-page {
-  max-width: 1140px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 48px 32px 96px;
   color: var(--tx);
@@ -138,6 +138,12 @@
   font-size: 0.95rem;
   line-height: 1.75;
   color: var(--tx);
+
+  // Cap the long-form text column at a comfortable reading measure
+  // (roughly 60–75 chars per line) even though the page wrapper is now
+  // wider. Without this, text lines stretch past readability when
+  // the viewport allows it.
+  max-width: 800px;
 
   section {
     margin-bottom: 44px;

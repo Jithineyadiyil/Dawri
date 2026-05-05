@@ -419,6 +419,43 @@ export class ApiService {
   }
 
   /**
+   * Set the live-stream URL for a match.
+   *
+   * Server validates Twitch/YouTube URL formats and returns the parsed
+   * provider + identifier so the caller can refresh the embed without a
+   * round-trip to GET /matches/{id}.
+   *
+   * @param matchId   Target match UUID.
+   * @param streamUrl Raw URL pasted by the user (any Twitch channel or
+   *                  YouTube live/watch URL). Server normalises before
+   *                  storage, so the response.data.stream.canonical_url
+   *                  may differ from what was sent.
+   */
+  setMatchStream(matchId: string, streamUrl: string): Observable<{
+    message: string;
+    data: {
+      id: string;
+      stream: { provider: string; identifier: string; canonical_url: string };
+    };
+  }> {
+    return this.http.post<any>(
+      `${API_BASE}/matches/${matchId}/stream`,
+      { stream_url: streamUrl },
+    );
+  }
+
+  /**
+   * Clear the live-stream URL for a match.
+   * Useful when the wrong URL was set or the stream has ended and the
+   * embed should be removed from the modal.
+   */
+  clearMatchStream(matchId: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(
+      `${API_BASE}/matches/${matchId}/stream`,
+    );
+  }
+
+  /**
    * Participant proposes a new match time.
    * @param matchId     Target match UUID
    * @param proposedAt  ISO-8601 datetime (must be future)

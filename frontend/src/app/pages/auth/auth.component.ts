@@ -28,6 +28,12 @@ export class AuthComponent {
   readonly loginForm = this.fb.group({
     email:    ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
+    // 'remember' currently always defaults to true. Toggling it off is
+    // tracked-only for now — the AuthService stores tokens in localStorage
+    // unconditionally (persistent across browser restarts). A future sprint
+    // will switch to sessionStorage when remember=false. For now we capture
+    // user intent so the UI matches expectation.
+    remember: [true],
   });
   readonly registerForm = this.fb.group({
     name: ['', [Validators.required]],
@@ -54,7 +60,13 @@ export class AuthComponent {
   login(): void {
     if (this.loginForm.invalid) { this.loginForm.markAllAsTouched(); return; }
     this.loading.set(true); this.errorMsg.set('');
-    this.api.login(this.loginForm.value as { email: string; password: string }).subscribe({
+    // Send only the API-expected payload — `remember` is a UI preference
+    // and not part of the backend login contract.
+    const payload = {
+      email:    this.loginForm.value.email!,
+      password: this.loginForm.value.password!,
+    };
+    this.api.login(payload).subscribe({
       next: (res: any) => {
         const token = res?.data?.token ?? res?.token;
         const user  = res?.data?.user  ?? res?.user;

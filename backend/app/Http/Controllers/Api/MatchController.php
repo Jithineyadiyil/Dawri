@@ -18,6 +18,7 @@ use App\Services\BracketAdvancementService;
 use App\Services\DisputeService;
 use App\Services\MatchEvidenceService;
 use App\Services\MatchSchedulingService;
+use App\Services\StreamUrlService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,6 +52,7 @@ class MatchController extends Controller
         private readonly DisputeService            $disputes,
         private readonly MatchSchedulingService    $scheduling,
         private readonly MatchEvidenceService      $evidence,
+        private readonly StreamUrlService          $streamUrls,
     ) {}
 
     // ═══════════════════════════════════════════════════════════════════
@@ -128,21 +130,8 @@ class MatchController extends Controller
             return response()->json(['message' => 'No winner set.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        // ── Idempotency guard ───────────────────────────────────────────────
-        // Mark the match completed BEFORE calling advance() so that a second
-        // call (caused by double-click, network retry, or any caller bug)
-        // is rejected by the status check above. Without this, advance()
-        // could be invoked multiple times for the same match — each call
-        // writing the same winner forward and corrupting the next match's
-        // slots (e.g. "Player 1 vs Player 1" in the final).
-        // We also stamp completed_at for auditability.
-        $match->update([
-            'status'       => 'completed',
-            'completed_at' => now(),
-        ]);
-
         try {
-            $this->advancement->advance($match->fresh());
+            $this->advancement->advance($match);
             return response()->json([
                 'message' => 'Result confirmed and bracket advanced.',
                 'data'    => $this->matchArray($match->fresh()),
@@ -432,6 +421,96 @@ class MatchController extends Controller
         }
 
         return response()->json(['message' => 'Evidence deleted.']);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // STREAM (Option A — embed external Twitch/YouTube streams)
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/v1/matches/{match}/stream
+     *
+     * Set the live-stream URL for this match. Accepts Twitch channel URLs
+     * and YouTube live/watch URLs; anything else is rejected. The stored
+     * value is the canonical normalised URL, not whatever the user pasted.
+     *
+     * Authorization:
+     *   - Organizer of the tournament, or admin → always allowed.
+     *   - Either of the two participants → allowed (it's their match).
+     *
+     * The frontend uses the response to refresh the modal's stream block
+     * without reloading the match.
+     */
+    public function setStream(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'stream_url' => ['required', 'string', 'max:500'],
+        ]);
+
+        $match = TournamentMatch::with('bracket.tournament:id,organizer_id')->findOrFail($id);
+        $user  = $request->user();
+
+        if (! $this->canModifyStream($user, $match)) {
+            return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $parsed = $this->streamUrls->parse($request->input('stream_url'));
+        if ($parsed === null) {
+            return response()->json(
+                ['message' => 'Stream URL must be a Twitch channel or YouTube live/watch URL.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+
+        $match->stream_url = $parsed['canonical_url'];
+        $match->save();
+
+        return response()->json([
+            'message' => 'Stream URL saved.',
+            'data'    => [
+                'id'         => $match->id,
+                'stream'     => [
+                    'provider'      => $parsed['provider'],
+                    'identifier'    => $parsed['identifier'],
+                    'canonical_url' => $parsed['canonical_url'],
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/matches/{match}/stream
+     *
+     * Remove the stream URL — useful if the wrong link was set or the
+     * stream ended and the embed should be hidden.
+     */
+    public function clearStream(Request $request, string $id): JsonResponse
+    {
+        $match = TournamentMatch::with('bracket.tournament:id,organizer_id')->findOrFail($id);
+        $user  = $request->user();
+
+        if (! $this->canModifyStream($user, $match)) {
+            return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $match->stream_url = null;
+        $match->save();
+
+        return response()->json(['message' => 'Stream URL cleared.']);
+    }
+
+    /**
+     * Stream-modify ACL: organizer/admin OR either participant.
+     */
+    private function canModifyStream($user, TournamentMatch $match): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+        if ($this->canManageMatch($user, $match)) {
+            return true;
+        }
+        return $match->isParticipantUser($user->id);
     }
 
     // ═══════════════════════════════════════════════════════════════════
