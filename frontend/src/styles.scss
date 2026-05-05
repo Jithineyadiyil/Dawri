@@ -63,6 +63,58 @@
   --r-sm: 6px;
   --r-lg: 18px;
   --e: 0.18s;
+
+  /* ═══════════════════════════════════════════════════════════════════
+     DESIGN-SYSTEM TOKEN ALIASES
+     The April redesign was authored against a different naming
+     convention (kebab-case for backgrounds/borders, semantic names
+     for text/typography/status). The original Dawri tokens use
+     compact names (`--bg2`, `--br`, `--mu`, `--fh`). Both sets
+     coexist here as aliases so:
+       - Legacy component SCSS keeps working with old names
+       - Redesigned component SCSS resolves with new names
+       - One source of truth for the Saudi green + gold values
+
+     If a future cleanup unifies on one convention, delete the half
+     that's no longer referenced — values come from the canonical
+     definitions above.
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /* Backgrounds — kebab-case alias of --bg2/--bg3/--bg4 */
+  --bg-2:        var(--bg2);
+  --bg-3:        var(--bg3);
+  --bg-4:        var(--bg4);
+
+  /* Borders — semantic alias of --br/--br2 */
+  --line:        var(--br);
+  --line-2:      var(--br2);
+
+  /* Text — semantic alias of --mu/--dim */
+  --text-dim:    var(--mu);
+  --text-mute:   var(--dim);
+
+  /* Typography — semantic alias of --fh/--fb/--fm/--fa.
+     Note: --display references the TYPEFACE stack, not a layout role. */
+  --display:     var(--fh);
+  --body:        var(--fb);
+  --mono:        var(--fm);
+  --arabic:      var(--fa);
+
+  /* Status — semantic alias of --green/--red/--amber */
+  --good:        var(--green);
+  --bad:         var(--red);
+  --warn:        var(--amber);
+
+  /* Live indicator — pulsing red used by status pills, stream cards,
+     match-in-progress badges. Was previously defined only locally on
+     tournaments.component.scss; promoted here so all pages resolve it. */
+  --live:        var(--red);
+
+  /* Layout containers — required by the redesign's hero/page widths.
+     1440px max content width with 32px outer gutter matches the
+     editorial design files. */
+  --maxw:        1440px;
+  --gutter:      32px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

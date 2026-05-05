@@ -179,6 +179,62 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     }).filter((p: { position: number; reward: string }) => p.reward.trim().length > 0);
   });
 
+  /**
+   * Aggregated total of all numeric prize rewards for the hero "Total
+   * Prize Pool" card. Returns the formatted number as a string (with
+   * thousands separators) or null when prizes are non-numeric / split
+   * across positions where summing wouldn't make sense.
+   *
+   * Why null when non-numeric?
+   *   Some tournaments offer in-kind rewards ("PS5", "Gaming chair")
+   *   that can't be summed. The template renders a "Multiple Tiers"
+   *   fallback when this is null instead of a misleading "$0".
+   *
+   * Currency detection:
+   *   Trailing-most currency code (SAR, USD, AED, EUR, INR, etc.)
+   *   appearing in any prize string wins. Mixed currencies → "MIXED"
+   *   so the UI doesn't misrepresent a sum across denominations.
+   */
+  readonly totalPrizeDisplay = computed<string | null>(() => {
+    const prizes = this.normalizedPrizes();
+    if (!prizes.length) return null;
+
+    let total = 0;
+    let any = false;
+    for (const p of prizes) {
+      // Strip currency codes / words and grab the first number we see.
+      const m = p.reward.match(/[\d][\d,\s.]*/);
+      if (!m) continue;
+      const n = Number(m[0].replace(/[,\s]/g, ''));
+      if (!Number.isFinite(n)) continue;
+      total += n;
+      any = true;
+    }
+    if (!any || total <= 0) return null;
+    // Locale 'en' for grouping commas; matches existing currency hint formatting.
+    return new Intl.NumberFormat('en').format(total);
+  });
+
+  /**
+   * Currency code(s) detected in the prize pool. Returns:
+   *   - The single currency code if all numeric prizes share one
+   *   - 'MIXED' if multiple distinct codes are present
+   *   - empty string if no currency was detected
+   */
+  readonly totalPrizeCurrency = computed<string>(() => {
+    const prizes = this.normalizedPrizes();
+    if (!prizes.length) return '';
+    const codes = new Set<string>();
+    const re = /\b(SAR|USD|AED|EUR|GBP|INR|KWD|QAR|BHD|OMR|JOD|EGP)\b/i;
+    for (const p of prizes) {
+      const m = p.reward.match(re);
+      if (m) codes.add(m[1].toUpperCase());
+    }
+    if (codes.size === 0) return '';
+    if (codes.size === 1) return [...codes][0];
+    return 'MIXED';
+  });
+
   // ── Sprint 2 modal state ─────────────────────────────────────────────
   readonly showScheduleEditor    = signal(false);
   readonly showRescheduleForm    = signal(false);
@@ -915,6 +971,16 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         this.toast.error(err.error?.message ?? 'Failed to override.');
       },
     });
+  }
+
+  /**
+   * Alias for the redesigned template's button bindings. The new HTML
+   * calls `organizerOverrideReschedule(r, true|false)`; older code/docs
+   * still reference `organizerOverride`. Both names point to the same
+   * implementation so neither breaks.
+   */
+  organizerOverrideReschedule(req: MatchRescheduleRequest, accept: boolean): void {
+    this.organizerOverride(req, accept);
   }
 
   cancelMyReschedule(req: MatchRescheduleRequest): void {

@@ -27,14 +27,40 @@ export class HomeComponent implements AfterViewInit {
   private destroyRef     = inject(DestroyRef);
   readonly hasPartners   = signal(false);
 
-  readonly games = [
+  /**
+   * Game catalogue shown in the "Featured games" carousel.
+   *
+   * Field notes:
+   *   - shortCode    Two- or three-letter glyph rendered on the cover when
+   *                  the artwork is missing. Falls back to name.substr(0,2)
+   *                  in the template, but Angular's strict template type-
+   *                  check requires the property to exist on the type.
+   *   - activeText   Mini stat badge ("12 active now") shown on the cover.
+   *   - formatsText  Bottom-row label ("All formats", "SE · DE · Swiss").
+   *                  Mirrors `badge` in current data — kept separate so
+   *                  designers can tweak either independently.
+   */
+  readonly games: Array<{
+    name: string;
+    icon: string;
+    badge: string;
+    color: string;
+    img: string;
+    desc: string;
+    shortCode?: string;
+    activeText?: string;
+    formatsText?: string;
+  }> = [
     {
       name: 'EA FC 25',
       icon: '⚽',
       badge: 'All formats',
       color: '#fbbf24',
       img: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=600&q=80&fit=crop',
-      desc: 'The world\'s biggest football game. Single Elimination, Double Elimination, Round Robin & Swiss.'
+      desc: 'The world\'s biggest football game. Single Elimination, Double Elimination, Round Robin & Swiss.',
+      shortCode: 'EA',
+      activeText: 'Active now',
+      formatsText: 'All formats',
     },
     {
       name: 'PUBG Mobile',
@@ -42,7 +68,10 @@ export class HomeComponent implements AfterViewInit {
       badge: 'SE · DE · Swiss',
       color: '#a855f7',
       img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80&fit=crop',
-      desc: 'Battle royale at its finest. Squad up and compete for the Chicken Dinner.'
+      desc: 'Battle royale at its finest. Squad up and compete for the Chicken Dinner.',
+      shortCode: 'PG',
+      activeText: 'Active now',
+      formatsText: 'SE · DE · Swiss',
     },
     {
       name: 'Call of Duty',
@@ -50,7 +79,10 @@ export class HomeComponent implements AfterViewInit {
       badge: 'SE · DE · Swiss',
       color: '#a78bfa',
       img: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?w=600&q=80&fit=crop',
-      desc: 'Fast-paced mobile FPS. Dominate the leaderboard across the GCC.'
+      desc: 'Fast-paced mobile FPS. Dominate the leaderboard across the GCC.',
+      shortCode: 'CD',
+      activeText: 'Active now',
+      formatsText: 'SE · DE · Swiss',
     },
   ];
 
