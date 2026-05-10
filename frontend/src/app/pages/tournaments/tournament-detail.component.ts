@@ -283,6 +283,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     return [...t.participants]
       .sort((a: any, b: any) => b.wins - a.wins || b.points - a.points || a.losses - b.losses)
       .map((p: any, i: number) => ({
+        id: p.id ?? null,
         rank: i + 1,
         name: p.name ?? '—',
         display_name: p.display_name ?? p.name ?? '—',
@@ -1097,6 +1098,62 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     this.evidenceFile.set(null);
     this.evidencePreview.set(null);
   }
+
+
+  // ── Recent form (last 5 results per player) ──────────────────────────────
+  readonly playerForm = computed<Record<string, ('W'|'L'|'D')[]>>(() => {
+    const t = this.tournament();
+    if (!t) return {};
+    const matches: BracketMatch[] = t?.bracket?.matches ?? t?.matches ?? [];
+    const completed = matches.filter(m => m.status === 'completed' && m.winner_id);
+    const form: Record<string, ('W'|'L'|'D')[]> = {};
+
+    // Sort by round ascending so form reads left=oldest, right=latest
+    const sorted = [...completed].sort((a, b) => a.round_number - b.round_number);
+
+    for (const m of sorted) {
+      const paId = (m as any).participant_a_id ?? m.participant_a?.id;
+      const pbId = (m as any).participant_b_id ?? m.participant_b?.id;
+      if (!paId || !pbId) continue;
+
+      if (!form[paId]) form[paId] = [];
+      if (!form[pbId]) form[pbId] = [];
+
+      form[paId].push(m.winner_id === paId ? 'W' : 'L');
+      form[pbId].push(m.winner_id === pbId ? 'W' : 'L');
+    }
+
+    // Keep last 5 only
+    for (const id of Object.keys(form)) {
+      form[id] = form[id].slice(-5);
+    }
+    return form;
+  });
+
+  getPlayerForm(participantId: string): ('W'|'L'|'D')[] {
+    return this.playerForm()[participantId] ?? [];
+  }
+
+  // ── Schedule timeline ────────────────────────────────────────────────────
+  readonly scheduleMatches = computed(() => {
+    const t = this.tournament();
+    if (!t) return [];
+    const matches: BracketMatch[] = t?.bracket?.matches ?? t?.matches ?? [];
+    return [...matches]
+      .filter(m => !m.participant_a_is_bye && !m.participant_b_is_bye)
+      .sort((a, b) => {
+        // Sort by scheduled_at if available, then round, then match number
+        const aTime = (a as any).scheduled_at ? new Date((a as any).scheduled_at).getTime() : 0;
+        const bTime = (b as any).scheduled_at ? new Date((b as any).scheduled_at).getTime() : 0;
+        if (aTime && bTime) return aTime - bTime;
+        if (a.round_number !== b.round_number) return a.round_number - b.round_number;
+        return a.match_number - b.match_number;
+      });
+  });
+
+  readonly scheduledCount = computed(() =>
+    this.scheduleMatches().filter(m => (m as any).scheduled_at).length
+  );
 
   // ── Game art helpers ──────────────────────────────────────────────────────
   gameArtUrl(game: string): string {

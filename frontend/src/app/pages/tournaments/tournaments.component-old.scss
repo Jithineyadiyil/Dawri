@@ -807,13 +807,3 @@
   letter-spacing: 1px !important;
   text-transform: uppercase !important;
 }
-
-/* ── Filter label visibility tweak ─────────────────────────────────────── */
-.chip-row-label {
-  color: #4b5563 !important;   /* slightly brighter than text-mute */
-  font-size: 9px !important;
-}
-
-.chip-rows {
-  gap: 8px !important;         /* tighter row spacing */
-}

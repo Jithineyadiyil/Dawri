@@ -226,6 +226,7 @@
         </button>
         <button class="tab" role="tab" [class.tab--active]="activeTab()==='prize'" (click)="activeTab.set('prize')">Prize Pool</button>
 
+
         @if (liveStreamsCount() > 0) {
           <button class="tab tab--live" role="tab" [class.tab--active]="activeTab()==='live'"
                   [class.tab--actually-live]="trulyLiveCount() > 0"
@@ -658,6 +659,7 @@
             <span class="lb-th lb-th--pts">Pts</span>
             @if (t.format === 'swiss') { <span class="lb-th lb-th--bh">BH</span> }
             <span class="lb-th lb-th--wr">Win rate</span>
+            <span class="lb-th lb-th--form">Form</span>
           </div>
 
           <!-- ── Player rows ─────────────────────────────────────── -->
@@ -718,6 +720,20 @@
                   } @else {
                     <span class="lb-wr__pct" style="color:var(--text-mute)">—</span>
                   }
+                </div>
+
+                <!-- Recent form dots -->
+                <div class="lb-cell lb-cell--form">
+                  <div class="form-dots">
+                    @for (r of getPlayerForm(p.id ?? ''); track $index) {
+                      <span class="form-dot" [class.form-dot--w]="r === 'W'" [class.form-dot--l]="r === 'L'">
+                        {{ r }}
+                      </span>
+                    }
+                    @if (getPlayerForm(p.id ?? '').length === 0) {
+                      <span style="color:var(--text-mute);font-size:11px">—</span>
+                    }
+                  </div>
                 </div>
               </div>
             }
@@ -786,6 +802,7 @@
     <!-- ═══════════════════════════════════════════════════════════ -->
     <!-- STREAMS TAB                                                -->
     <!-- ═══════════════════════════════════════════════════════════ -->
+
     @if (activeTab() === 'live') {
       <section class="tab-content">
         @if (liveStreams().length === 0) {

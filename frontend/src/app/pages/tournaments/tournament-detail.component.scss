@@ -20,7 +20,10 @@
 .skel--title { height: 64px; width: 60%; margin-bottom: 16px; }
 .skel--meta  { height: 24px; width: 40%; margin-bottom: 24px; }
 .skel--bracket { height: 360px; width: 100%; }
-@keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes skel {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 // ── Breadcrumbs ─────────────────────────────────────────────────────
 .breadcrumbs {
@@ -122,7 +125,10 @@
   font-family: var(--mono); font-size: 10px; color: var(--good);
   letter-spacing: 1.2px; text-transform: uppercase;
 }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
 
 .progress-bar {
   height: 6px; background: var(--bg-3); border-radius: 100px; overflow: hidden;
@@ -607,7 +613,10 @@
   }
   &--t1 &__amt { color: var(--accent); font-size: 44px; }
 }
-@keyframes prize-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes prize-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
 
 // ── Streams cards ───────────────────────────────────────────────────
 .streams-grid {
@@ -689,7 +698,10 @@
   padding: 60px 20px; overflow-y: auto;
   animation: modal-fade .15s ease;
 }
-@keyframes modal-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 .modal {
   width: 100%; max-width: 560px;
   background: var(--bg-2); border: 1px solid var(--line-2);
@@ -1453,4 +1465,531 @@
 /* Make game-bg use the art as backdrop when cover present */
 .hero--has-cover .hero__cover {
   opacity: 0.55;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Recent Form Dots (Cricbuzz-style)
+   ═══════════════════════════════════════════════════════════════ */
+
+.lb-table-head,
+.lb-row {
+  grid-template-columns: 48px 1fr 48px 48px 64px 100px 80px !important;
+}
+
+/* Swiss: extra BH column */
+.lb-table-head:has(.lb-th--bh),
+.lb-row:has(.lb-cell--bh) {
+  grid-template-columns: 48px 1fr 48px 48px 64px 56px 100px 80px !important;
+}
+
+.lb-th--form { text-align: center; }
+.lb-cell--form { display: flex; align-items: center; justify-content: center; }
+
+.form-dots {
+  display: flex; align-items: center; gap: 3px;
+}
+
+.form-dot {
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 9px; font-weight: 900;
+  letter-spacing: 0;
+  background: rgba(255,255,255,.06);
+  color: var(--text-mute);
+  transition: transform .15s;
+
+  &--w {
+    background: rgba(16,185,129,.2);
+    color: #10b981;
+    border: 1px solid rgba(16,185,129,.3);
+  }
+  &--l {
+    background: rgba(239,68,68,.15);
+    color: #ef4444;
+    border: 1px solid rgba(239,68,68,.25);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Schedule Timeline (Cricbuzz-style)
+   ═══════════════════════════════════════════════════════════════ */
+
+.schedule-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.schedule-item {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  transition: background .15s;
+  border-radius: var(--r);
+
+  &--clickable {
+    cursor: pointer;
+    &:hover { background: rgba(255,255,255,.03); padding-left: 8px; }
+  }
+  &--completed { opacity: .85; }
+  &--live { border-color: rgba(239,68,68,.2); }
+  &--disputed { border-color: rgba(245,185,66,.2); }
+}
+
+.schedule-round {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 8px;
+  text-align: center;
+}
+.schedule-round__label {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--accent);
+}
+.schedule-round__num {
+  font-family: var(--mono); font-size: 10px; color: var(--text-mute);
+}
+
+.schedule-card {
+  background: var(--bg-2, rgba(255,255,255,.04));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.schedule-card__header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px;
+  background: rgba(255,255,255,.02);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.schedule-card__status {
+  font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+  letter-spacing: .5px;
+  display: inline-flex; align-items: center; gap: 5px;
+
+  &--live { color: #ef4444;
+    .dot { width: 5px; height: 5px; border-radius: 50%; background: #ef4444;
+           animation: pulse 1.4s ease-in-out infinite; display: inline-block; } }
+  &--done { color: #10b981; }
+  &--disputed { color: #f5b942; }
+}
+.schedule-card__format {
+  font-family: var(--mono); font-size: 10px; color: var(--text-mute); letter-spacing: .5px;
+}
+
+/* VS row */
+.schedule-vs {
+  display: grid;
+  grid-template-columns: 1fr 44px 1fr;
+  align-items: center;
+  padding: 12px 14px;
+  gap: 8px;
+}
+.schedule-sep {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  color: var(--text-mute); text-align: center;
+}
+.schedule-player {
+  display: flex; align-items: center; gap: 10px;
+  &--right { flex-direction: row-reverse; }
+  &--winner .schedule-player__name { color: var(--text); font-weight: 700; }
+  &--winner .schedule-player__avatar { box-shadow: 0 0 0 2px var(--accent); }
+}
+.schedule-player__avatar {
+  width: 32px; height: 32px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  background: var(--bg-3, #111827);
+  border: 1px solid rgba(255,255,255,.1);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--display); font-size: 13px; color: var(--accent);
+  img { width: 100%; height: 100%; object-fit: cover; }
+}
+.schedule-player__name {
+  font-size: 13px; font-weight: 500; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  &--right { text-align: right; }
+}
+.schedule-player__score {
+  font-family: var(--display); font-size: 22px; line-height: 1;
+  color: var(--text-dim); flex-shrink: 0;
+  &--win { color: var(--accent); }
+}
+.schedule-winner-crown { font-size: 14px; flex-shrink: 0; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .schedule-item { grid-template-columns: 56px 1fr; gap: 8px; }
+  .schedule-player__score { font-size: 18px; }
+}
+
+/* ── Form dot size polish ────────────────────────────────────────────────── */
+.form-dot {
+  width: 22px !important;
+  height: 22px !important;
+  font-size: 10px !important;
+  border-radius: 5px !important;
+}
+
+/* Hide BH column when all values are 0 */
+.lb-cell--bh:empty,
+.lb-th--bh { opacity: .5; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Challonge-style Bracket Redesign
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Bracket tree layout ─────────────────────────────────────── */
+.bracket-tree {
+  display: flex;
+  gap: 0;            /* remove gap — we handle spacing in b-slot connector */
+  min-width: min-content;
+  align-items: flex-start;
+}
+
+/* ── Round column ───────────────────────────────────────────── */
+.b-round {
+  flex: 0 0 240px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  padding-right: 40px;  /* space for connector lines */
+  position: relative;
+
+  &:last-child { padding-right: 0; }
+
+  &__header {
+    margin-bottom: 10px;
+    padding: 6px 8px;
+    background: rgba(255,255,255,.03);
+    border-radius: 6px;
+    border-left: 2px solid var(--accent);
+  }
+  &__label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    &--losers { color: var(--bad, #ef4444); border-left-color: var(--bad, #ef4444); }
+    &--final  { color: #fbbf24; }
+  }
+  &__matches {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    justify-content: space-around;
+    gap: 0;
+  }
+}
+
+/* ── Match slot with connectors ─────────────────────────────── */
+.b-slot {
+  display: flex;
+  align-items: center;
+  position: relative;
+  box-sizing: border-box;
+
+  /* Horizontal line OUT (right side → into gap toward next round) */
+  &::after {
+    content: '';
+    position: absolute;
+    right: -40px;       /* extends into the 40px padding-right gap */
+    top: 50%;
+    width: 40px;
+    height: 2px;
+    background: var(--line, rgba(255,255,255,.1));
+    transition: background .3s;
+  }
+
+  /* Last round has no connector out */
+  .b-round:last-child &::after { display: none; }
+
+  /* Vertical connector — top slot of a pair draws the down stroke */
+  &:nth-child(odd)::before {
+    content: '';
+    position: absolute;
+    right: -2px;         /* right edge of column, left edge of the gap */
+    top: 50%;
+    width: 2px;
+    /* Height = distance from center of this slot to center of next slot */
+    height: calc(var(--slot-h, 88px) + 0px);
+    background: var(--line, rgba(255,255,255,.1));
+    transition: background .3s;
+  }
+
+  /* Last round: no vertical connector */
+  .b-round:last-child &::before { display: none; }
+
+  /* Single match (grand final) — no vertical connector needed */
+  &:only-child::before { display: none; }
+}
+
+/* ── Winner path highlight ──────────────────────────────────── */
+.b-slot:has(.b-match--completed)::after {
+  background: rgba(240,165,0,.5);
+}
+.b-slot:nth-child(odd):has(.b-match--completed)::before {
+  background: rgba(240,165,0,.35);
+}
+
+/* ── Improved match card design ─────────────────────────────── */
+.b-match {
+  width: 100%;
+  background: #0f1623;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  overflow: hidden;
+  tran
+
+/* ═══════════════════════════════════════════════════════════════
+   Challonge-style Bracket Redesign
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Bracket tree layout ──────────────────────────────────────── */
+.bracket-tree {
+  display: flex;
+  gap: 0;
+  min-width: min-content;
+  align-items: flex-start;
+}
+
+.b-round {
+  flex: 0 0 240px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  padding-right: 40px;
+  position: relative;
+
+  &:last-child { padding-right: 0; }
+
+  &__header {
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    background: rgba(255,255,255,.03);
+    border-radius: 6px;
+    border-left: 2px solid var(--accent);
+  }
+  &__label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    &--losers { color: #ef4444; }
+    &--final  { color: #fbbf24; }
+  }
+  &__matches {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    justify-content: space-around;
+    gap: 0;
+  }
+}
+
+/* ── Connector lines ──────────────────────────────────────────── */
+.b-slot {
+  display: flex;
+  align-items: center;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Horizontal line out right side (into the 40px gap) */
+.b-slot::after {
+  content: '';
+  position: absolute;
+  right: -40px;
+  top: 50%;
+  width: 40px;
+  height: 2px;
+  background: rgba(255,255,255,.12);
+  transition: background .3s;
+}
+.b-round:last-child .b-slot::after { display: none; }
+
+/* Vertical connector — odd slot draws downward stroke */
+.b-slot:nth-child(odd)::before {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  width: 2px;
+  height: calc(var(--slot-h, 88px) + 0px);
+  background: rgba(255,255,255,.12);
+  transition: background .3s;
+}
+.b-round:last-child .b-slot:nth-child(odd)::before { display: none; }
+.b-slot:only-child::before { display: none; }
+
+/* Winner path — gold connectors */
+.b-slot:has(.b-match--completed)::after {
+  background: rgba(240,165,0,.45);
+}
+.b-slot:nth-child(odd):has(.b-match--completed)::before {
+  background: rgba(240,165,0,.3);
+}
+
+/* ── Match card redesign ──────────────────────────────────────── */
+.b-match {
+  width: 100%;
+  background: #0d1526;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color .18s, transform .18s, box-shadow .18s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+
+  &--clickable {
+    cursor: pointer;
+    &:hover {
+      border-color: rgba(255,255,255,.22);
+      transform: translateX(2px);
+      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+    }
+  }
+  &--bye   { opacity: .4; }
+  &--live, &--in_progress {
+    border-color: rgba(239,68,68,.5) !important;
+    box-shadow: 0 0 0 1px rgba(239,68,68,.15), 0 4px 20px rgba(0,0,0,.4);
+  }
+  &--disputed { border-color: rgba(245,185,66,.5) !important; }
+  &--completed { border-color: rgba(240,165,0,.2); }
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 10px;
+    background: rgba(255,255,255,.025);
+    border-bottom: 1px solid rgba(255,255,255,.05);
+    font-family: var(--mono);
+    font-size: 9px;
+    color: rgba(255,255,255,.25);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  &__head-live {
+    color: #ef4444;
+    display: inline-flex; align-items: center; gap: 5px;
+    .dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: #ef4444;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+  }
+  &__head-time { color: rgba(255,255,255,.35); }
+  &__head-status { color: rgba(255,255,255,.2); }
+
+  &__p {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    font-size: 12px;
+    transition: background .15s;
+
+    & + & { border-top: 1px solid rgba(255,255,255,.05); }
+
+    &--winner {
+      color: #fff;
+      font-weight: 700;
+      background: rgba(240,165,0,.05);
+    }
+    &--loser { color: rgba(255,255,255,.28); }
+  }
+
+  /* Gold accent bar on winner */
+  &__p--winner { position: relative; }
+  &__p--winner::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--accent);
+    border-radius: 0 1px 1px 0;
+  }
+
+  &__avatar {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 auto;
+    margin-right: 7px;
+    &--placeholder {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.1);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: var(--display); font-size: 9px; color: var(--text-dim);
+    }
+  }
+
+  &__name { flex: 1; display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+  &__name-text {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    &--tbd { color: rgba(255,255,255,.18); font-style: italic; font-size: 10px; }
+  }
+  &__bye { font-style: italic; color: rgba(255,255,255,.2); font-size: 11px; }
+
+  &__score {
+    font-family: var(--mono);
+    font-weight: 900;
+    font-size: 14px;
+    color: rgba(255,255,255,.2);
+    min-width: 16px;
+    text-align: right;
+    flex-shrink: 0;
+    margin-left: 4px;
+    &--win { color: var(--accent); }
+  }
+
+  &__disputed-flag {
+    padding: 4px 10px;
+    background: rgba(245,185,66,.08);
+    border-top: 1px solid rgba(245,185,66,.2);
+    font-family: var(--mono); font-size: 9px; color: #f5b942;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+}
+
+/* ── Losers bracket ───────────────────────────────────────────── */
+.b-round--losers {
+  .b-round__header { border-left-color: #ef4444; }
+  .b-match--completed .b-match__p--winner { background: rgba(239,68,68,.06); }
+  .b-match--completed .b-match__p--winner::before { background: #ef4444; }
+  .b-slot::after,
+  .b-slot:nth-child(odd)::before { background: rgba(239,68,68,.2) !important; }
+}
+
+/* ── Grand final ──────────────────────────────────────────────── */
+.b-round--grand_final {
+  .b-round__header { border-left-color: #fbbf24; background: rgba(251,191,36,.04); }
+  .b-match { border-color: rgba(251,191,36,.2); box-shadow: 0 0 24px rgba(251,191,36,.06); }
+}
+
+/* ── Champion banner ──────────────────────────────────────────── */
+.champion-banner {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(240,165,0,.15), rgba(240,165,0,.04));
+  border: 1px solid rgba(240,165,0,.3);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  animation: championIn .5s ease;
+
+  &__trophy { font-size: 2.5rem; }
+  &__label { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; }
+  &__name { font-family: var(--display); font-size: 28px; color: #fff; letter-spacing: 1px; }
+}
+@keyframes championIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: none; }
 }
