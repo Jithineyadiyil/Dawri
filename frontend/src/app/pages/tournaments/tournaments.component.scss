@@ -337,3 +337,26 @@
   text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px;
 }
 .empty-sub { color: var(--text-dim); font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
+
+/* ── My Tournaments toggle ─────────────────────────────────── */
+.mine-toggle {
+  padding: 8px 16px;
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--r, 8px); cursor: pointer;
+  font-size: 13px; font-family: var(--body);
+  color: var(--text-dim); white-space: nowrap;
+  transition: border-color .15s, color .15s, background .15s;
+  &.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(212,175,55,.08);
+  }
+  &:hover:not(.active) { border-color: var(--line-2); color: var(--text); }
+}
+
+/* ── Organizer name on card ────────────────────────────────── */
+.card-organizer {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text-mute); letter-spacing: .5px;
+  display: block; margin-top: 2px;
+}

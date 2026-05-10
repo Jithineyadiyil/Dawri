@@ -30,6 +30,12 @@
         </div>
 
         <div class="field">
+          <label class="label">Short Description (optional)</label>
+          <input class="input" formControlName="description" placeholder="A brief description shown on the tournament card…" maxlength="500"/>
+          <small class="hint">Shown on the tournament listing page. Max 500 characters.</small>
+        </div>
+
+        <div class="field">
           <label class="label">Game <span class="req">*</span></label>
           <div class="game-picker">
             @for (g of games(); track g.value) {
@@ -88,6 +94,14 @@
               <input class="input" type="number" min="1" max="15" formControlName="swiss_rounds"/>
             </div>
           }
+          <div class="field">
+            <label class="label">Timezone</label>
+            <select class="input" formControlName="timezone">
+              @for (tz of timezones; track tz.value) {
+                <option [value]="tz.value">{{ tz.label }}</option>
+              }
+            </select>
+          </div>
           <div class="field">
             <label class="label">Entry Fee (SAR)</label>
             <input class="input" type="number" min="0" formControlName="entry_fee_sar"/>
@@ -237,6 +251,14 @@
         <div class="field">
           <label class="label">🥉 3rd Place</label>
           <input class="input" formControlName="prize_3" placeholder="e.g. 150 SAR"/>
+        </div>
+        <div class="field">
+          <label class="label">4th Place (optional)</label>
+          <input class="input" formControlName="prize_4" placeholder="e.g. 100 SAR"/>
+        </div>
+        <div class="field">
+          <label class="label">5th Place (optional)</label>
+          <input class="input" formControlName="prize_5" placeholder="e.g. 50 SAR"/>
         </div>
       </div>
     </section>

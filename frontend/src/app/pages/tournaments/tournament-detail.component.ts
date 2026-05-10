@@ -82,6 +82,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   readonly unregistering   = signal(false);
   readonly activeTab       = signal<'bracket' | 'standings' | 'matches' | 'live' | 'leaderboard' | 'prize' | 'players'>('bracket');
   readonly countdown       = signal<{ days: number; hours: number; mins: number; secs: number } | null>(null);
+  readonly selectedRound   = signal<number>(1);
+  readonly playerSearch    = signal('');
   readonly linkCopied      = signal(false);
   private countdownHandle: ReturnType<typeof setInterval> | null = null;
   readonly submitting    = signal(false);
@@ -261,7 +263,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
       if (format === 'single_elimination' || (format === 'double_elimination' && section === 'winners')) {
         slotHeight = (MATCH_H + GAP) * Math.pow(2, idx) - GAP;
       } else {
-        slotHeight = MATCH_H;
+        // Swiss / Round Robin: no artificial slot height — CSS gap handles spacing
+        slotHeight = 0;
       }
       const totalRounds = t?.bracket?.total_rounds ?? sorted.length;
       return {
@@ -719,6 +722,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  disputeResult(): void { this.submitDispute(); }
+
   submitDispute(): void {
     if (this.disputeForm.invalid) return;
     this.submitting.set(true);
@@ -1053,6 +1058,173 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         this.startCountdown();
       },
     });
+  }
+
+
+  // ── Result submission helpers ────────────────────────────────────────────
+  readonly evidencePreview = signal<string | null>(null);
+
+  canSubmitResult(m: BracketMatch): boolean {
+    const userId = this.auth.currentUser()?.id;
+    if (!userId) return false;
+    if (m.status === 'completed' || m.status === 'walkover') return false;
+    const pa = m.participant_a as any;
+    const pb = m.participant_b as any;
+    const isParticipant = pa?.user_id === userId || pb?.user_id === userId;
+    return isParticipant || this.canManageMatch();
+  }
+
+  canConfirmResult(m: BracketMatch): boolean {
+    const userId = this.auth.currentUser()?.id;
+    if (!userId) return false;
+    if (m.status !== 'submitted') return false;
+    const pa = m.participant_a as any;
+    const pb = m.participant_b as any;
+    return pa?.user_id === userId || pb?.user_id === userId;
+  }
+
+  onEvidenceSelected(e: Event): void {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    this.evidenceFile.set(file);
+    const reader = new FileReader();
+    reader.onload = () => this.evidencePreview.set(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  clearEvidence(): void {
+    this.evidenceFile.set(null);
+    this.evidencePreview.set(null);
+  }
+
+  // ── Round picker helpers ──────────────────────────────────────────────────
+  isRoundFormat(): boolean {
+    const t = this.tournament();
+    return t?.format === 'swiss' || t?.format === 'round_robin';
+  }
+
+  readonly currentRoundMatches = computed(() => {
+    const round = this.rounds().find(r => r.num === this.selectedRound());
+    return round?.matches ?? [];
+  });
+
+  readonly roundStats = computed(() => {
+    return this.rounds().map(r => ({
+      num: r.num,
+      label: r.label,
+      completed: r.matches.filter(m => m.status === 'completed').length,
+      total: r.matches.length,
+    }));
+  });
+
+  readonly filteredLeaderboard = computed(() => {
+    const q = this.playerSearch().toLowerCase().trim();
+    if (!q) return this.leaderboard();
+    return this.leaderboard().filter(p =>
+      (p.display_name ?? p.name ?? '').toLowerCase().includes(q)
+    );
+  });
+
+  selectRound(num: number): void {
+    this.selectedRound.set(num);
+  }
+
+  
+  // ── Edit Tournament ──────────────────────────────────────────────────────
+  readonly showEditModal  = signal(false);
+  readonly savingEdit     = signal(false);
+  readonly editForm       = this.fb.group({
+    name:                   [''],
+    name_ar:                [''],
+    description:            [''],
+    rules:                  [''],
+    registration_closes_at: [''],
+    starts_at:              [''],
+    max_participants:       [0],
+    entry_fee_sar:          [0],
+  });
+
+  openEditModal(): void {
+    const t = this.tournament();
+    if (!t) return;
+    this.editForm.patchValue({
+      name:                   t.name ?? '',
+      name_ar:                t.name_ar ?? '',
+      description:            t.description ?? '',
+      rules:                  t.rules ?? '',
+      registration_closes_at: t.registration_closes_at ? t.registration_closes_at.slice(0,16) : '',
+      starts_at:              t.starts_at ? t.starts_at.slice(0,16) : '',
+      max_participants:       t.max_participants ?? 0,
+      entry_fee_sar:          t.entry_fee_sar ?? 0,
+    });
+    this.showEditModal.set(true);
+  }
+
+  saveEdit(): void {
+    const t = this.tournament();
+    if (!t) return;
+    this.savingEdit.set(true);
+    const v = this.editForm.value;
+    this.api.updateTournament(t.id, {
+      name:                   v.name,
+      name_ar:                v.name_ar || null,
+      description:            v.description || null,
+      rules:                  v.rules || null,
+      registration_closes_at: v.registration_closes_at || null,
+      starts_at:              v.starts_at || null,
+      max_participants:       v.max_participants,
+      entry_fee_sar:          v.entry_fee_sar,
+    }).subscribe({
+      next: () => {
+        this.savingEdit.set(false);
+        this.showEditModal.set(false);
+        this.refresh();
+        this.toast.success('Tournament updated.');
+      },
+      error: (err: any) => {
+        this.savingEdit.set(false);
+        this.toast.error(err?.error?.message ?? 'Update failed.');
+      },
+    });
+  }
+
+  // ── Delete Tournament ─────────────────────────────────────────────────────
+  readonly showDeleteConfirm = signal(false);
+  readonly deleting          = signal(false);
+
+  deleteTournament(): void {
+    const t = this.tournament();
+    if (!t) return;
+    this.deleting.set(true);
+    this.api.deleteTournament(t.id).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        this.showDeleteConfirm.set(false);
+        this.toast.success('Tournament deleted.');
+        window.history.back();
+      },
+      error: (err: any) => {
+        this.deleting.set(false);
+        this.toast.error(err?.error?.message ?? 'Delete failed.');
+      },
+    });
+  }
+
+  // ── Jump to my match ─────────────────────────────────────────────────────
+  jumpToMyMatch(): void {
+    const t = this.tournament();
+    const userId = this.auth.currentUser()?.id;
+    if (!t || !userId) return;
+    const matches: any[] = t?.bracket?.matches ?? t?.matches ?? [];
+    const mine = matches.find((m: any) =>
+      ((m.participant_a?.user_id === userId || m.participant_b?.user_id === userId)) &&
+      !['completed', 'walkover'].includes(m.status)
+    );
+    if (mine) {
+      this.openMatch(mine);
+    } else {
+      this.toast.info('No active match found for you.');
+    }
   }
 
   // ── Unregister ─────────────────────────────────────────────────────────────

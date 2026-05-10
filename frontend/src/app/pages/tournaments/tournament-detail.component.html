@@ -92,6 +92,12 @@
               }
             }
 
+            <!-- Organizer actions -->
+            @if (isOrganizerOrAdmin()) {
+              <button class="btn btn--ghost" (click)="openEditModal()">✏ Edit</button>
+              <button class="btn btn--ghost btn--danger" (click)="showDeleteConfirm.set(true)">🗑 Delete</button>
+            }
+
             <!-- Share button -->
             <button class="btn btn--ghost share-btn" (click)="shareLink()">
               @if (linkCopied()) { ✓ Link copied! } @else { 🔗 Share }
@@ -207,9 +213,7 @@
     <div class="tab-bar-wrap">
       <div class="tab-bar" role="tablist">
         <button class="tab" role="tab" [class.tab--active]="activeTab()==='bracket'" (click)="activeTab.set('bracket')">Bracket</button>
-        @if (isFlatFormat()) {
-          <button class="tab" role="tab" [class.tab--active]="activeTab()==='standings'" (click)="activeTab.set('standings')">Standings</button>
-        }
+
         <button class="tab" role="tab" [class.tab--active]="activeTab()==='matches'" (click)="activeTab.set('matches')">
           Matches
           @if (matchCounts().all) { <span class="tab-badge">{{ matchCounts().all }}</span> }
@@ -258,6 +262,11 @@
               <h2 class="section-title">{{ t.format_label }}</h2>
             </div>
             <div class="bracket-toolbar__right">
+              @if (currentUserIsParticipant() && t.status !== 'completed') {
+                <button type="button" class="btn btn--ghost btn--sm" (click)="jumpToMyMatch()">
+                  ⚡ My Match
+                </button>
+              }
               <span class="bracket-stat">
                 @if (b.status === 'completed') { Tournament Complete }
                 @else { Round {{ b.current_round }} of {{ b.total_rounds }} }
@@ -276,28 +285,28 @@
             </div>
           }
 
-          <div class="bracket-scroll">
-            <div class="bracket-tree"
-              [class.bracket-tree--rr]="t.format === 'round_robin'"
-              [class.bracket-tree--swiss]="t.format === 'swiss'">
-
-              @for (round of rounds(); track round.num + round.section;
-                    let last = $last; let roundIdx = $index) {
-                <div class="b-round" [class]="'b-round--' + round.section" [class.b-round--last]="last">
-                  <div class="b-round__header">
-                    <span class="b-round__label"
-                      [class.b-round__label--losers]="round.section === 'losers'"
-                      [class.b-round__label--final]="round.section === 'grand_final'">
-                      {{ round.label }}
+          @if (isRoundFormat()) {
+            <!-- ── Round picker for Swiss / Round Robin ── -->
+            <div class="round-picker">
+              <div class="round-picker__tabs">
+                @for (rs of roundStats(); track rs.num) {
+                  <button type="button"
+                          class="round-tab"
+                          [class.active]="selectedRound() === rs.num"
+                          (click)="selectRound(rs.num)">
+                    <span class="round-tab__label">{{ rs.label }}</span>
+                    <span class="round-tab__progress">
+                      <span class="round-tab__done" [style.width.%]="(rs.completed / rs.total) * 100"></span>
                     </span>
-                  </div>
+                    <span class="round-tab__count">{{ rs.completed }}/{{ rs.total }}</span>
+                  </button>
+                }
+              </div>
+            </div>
 
-                  <div class="b-round__matches">
-                    @for (m of round.matches; track m.id; let matchIdx = $index) {
-                      <div class="b-slot"
-                           [style.height.px]="round.slotHeight"
-                           [style.--slot-h.px]="round.slotHeight"
-                           [style.--delay.ms]="(matchIdx * 60) + (roundIdx * 120)">
+            <div class="round-matches-grid">
+              @for (m of currentRoundMatches(); track m.id; let matchIdx = $index) {
+                <div class="b-slot" [style.--delay.ms]="matchIdx * 40">
 
                         <div class="b-match"
                           [class]="'b-match--' + m.status"
@@ -373,12 +382,61 @@
                           }
                         </div>
                       </div>
-                    }
-                  </div>
-                </div>
-              }
+                }
             </div>
-          </div>
+
+          } @else {
+            <!-- ── SE / DE horizontal bracket ── -->
+            <div class="bracket-scroll">
+              <div class="bracket-tree"
+                [class.bracket-tree--rr]="t.format === 'round_robin'"
+                [class.bracket-tree--swiss]="t.format === 'swiss'">
+                @for (round of rounds(); track round.num + round.section;
+                      let last = $last; let roundIdx = $index) {
+                  <div class="b-round" [class]="'b-round--' + round.section" [class.b-round--last]="last">
+                    <div class="b-round__header">
+                      <span class="b-round__label"
+                        [class.b-round__label--losers]="round.section === 'losers'"
+                        [class.b-round__label--final]="round.section === 'grand_final'">
+                        {{ round.label }}
+                      </span>
+                    </div>
+                    <div class="b-round__matches">
+                      @for (m of round.matches; track m.id; let matchIdx = $index) {
+                        <div class="b-slot"
+                             [style.height.px]="round.slotHeight || null"
+                             [style.--slot-h.px]="round.slotHeight || null"
+                             [style.--delay.ms]="(matchIdx * 60) + (roundIdx * 120)">
+                          <div class="b-match"
+                            [class]="'b-match--' + m.status"
+                            [class.b-match--clickable]="matchIsClickable(m)"
+                            (click)="openMatch(m)"
+                            [attr.role]="matchIsClickable(m) ? 'button' : null">
+                            <div class="b-match__head">
+                              <span class="b-match__num">Match #{{ m.match_number }}</span>
+                              <span class="b-match__head-status">{{ statusLabel(m.status) }}</span>
+                            </div>
+                            <div class="b-match__p" [class.b-match__p--winner]="m.winner_id === m.participant_a?.id && m.status === 'completed'">
+                              <span class="b-match__name"><span class="b-match__name-text">{{ m.participant_a?.display_name || m.participant_a?.name || 'TBD' }}</span></span>
+                              @if (m.score_a !== null && m.score_a !== undefined) {
+                                <span class="b-match__score" [class.b-match__score--win]="m.winner_id === m.participant_a?.id">{{ m.score_a }}</span>
+                              }
+                            </div>
+                            <div class="b-match__p" [class.b-match__p--winner]="m.winner_id === m.participant_b?.id && m.status === 'completed'">
+                              <span class="b-match__name"><span class="b-match__name-text">{{ m.participant_b?.display_name || m.participant_b?.name || 'TBD' }}</span></span>
+                              @if (m.score_b !== null && m.score_b !== undefined) {
+                                <span class="b-match__score" [class.b-match__score--win]="m.winner_id === m.participant_b?.id">{{ m.score_b }}</span>
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
 
           <div class="bracket-legend">
             <div class="legend-item"><span class="legend-dot ld--pending"></span>Pending</div>
@@ -387,84 +445,6 @@
             <div class="legend-item"><span class="legend-dot ld--completed"></span>Completed</div>
             <div class="legend-item legend-item--click">Click any match to view or submit a result.</div>
           </div>
-        }
-      </section>
-    }
-
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    <!-- STANDINGS TAB                                              -->
-    <!-- ═══════════════════════════════════════════════════════════ -->
-    @if (activeTab() === 'standings') {
-      <section class="tab-content">
-        @if (!t.bracket || leaderboard().length === 0) {
-          <div class="empty-state">
-            <div class="empty-state__icon">📊</div>
-            <p>Standings will appear once the bracket is generated.</p>
-          </div>
-        } @else {
-          <div class="bracket-toolbar">
-            <div>
-              <div class="section-eyebrow">Standings · Live</div>
-              <h2 class="section-title">Tournament Leaderboard</h2>
-              <p class="section-hint">
-                Sorted by wins, then points{{ t.format === 'swiss' ? ', then Buchholz' : '' }}
-              </p>
-            </div>
-          </div>
-
-          <table class="standings-table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Player</th>
-                <th class="standings-table__num">W</th>
-                <th class="standings-table__num">L</th>
-                <th class="standings-table__num">Pts</th>
-                @if (t.format === 'swiss') {
-                  <th class="standings-table__num">Buchholz</th>
-                }
-              </tr>
-            </thead>
-            <tbody>
-              @for (p of leaderboard(); track p.name; let i = $index) {
-                <tr [class.standings-table__row--rank-1]="i === 0"
-                    [class.standings-table__row--rank-2]="i === 1"
-                    [class.standings-table__row--rank-3]="i === 2">
-                  <td>
-                    <span class="rank"
-                      [class.rank--gold]="i === 0"
-                      [class.rank--silver]="i === 1"
-                      [class.rank--bronze]="i === 2">
-                      {{ (i + 1) | number:'2.0-0' }}
-                    </span>
-                  </td>
-                  <td>
-                    <div class="player-cell">
-                      @if (p.avatar_url) {
-                        <img class="player-avatar" [src]="p.avatar_url" [alt]="p.display_name"/>
-                      } @else {
-                        <span class="player-avatar player-avatar--placeholder">
-                          {{ (p.display_name ?? '?').charAt(0).toUpperCase() }}
-                        </span>
-                      }
-                      <div>
-                        <div class="player-name">{{ p.display_name }}</div>
-                        @if (p.seed) {
-                          <div class="player-seed">SEED #{{ p.seed }}</div>
-                        }
-                      </div>
-                    </div>
-                  </td>
-                  <td><span class="stat-num">{{ p.wins }}</span></td>
-                  <td><span class="stat-num stat-num--dim">{{ p.losses }}</span></td>
-                  <td><span class="stat-num">{{ p.points }}</span></td>
-                  @if (t.format === 'swiss') {
-                    <td><span class="stat-num stat-num--dim">{{ p.buchholz }}</span></td>
-                  }
-                </tr>
-              }
-            </tbody>
-          </table>
         }
       </section>
     }
@@ -600,53 +580,146 @@
         @if (!t.participants?.length) {
           <div class="empty-state"><div class="empty-state__icon">👥</div><p>No players registered yet.</p></div>
         } @else {
-          <div class="bracket-toolbar">
-            <div>
-              <div class="section-eyebrow">Players · {{ t.participants.length }} of {{ t.max_participants }}</div>
-              <h2 class="section-title">Registered Players</h2>
+          <!-- ── Leaderboard Header ─────────────────────────────────── -->
+          <div class="lb-header">
+            <div class="lb-header__left">
+              <div class="lb-title">Leaderboard</div>
+              <div class="lb-subtitle">{{ leaderboard().length }} / {{ t.max_participants }} players · sorted by rank</div>
+            </div>
+            <div class="lb-search-box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" placeholder="Search player…"
+                     [value]="playerSearch()"
+                     (input)="playerSearch.set($any($event.target).value)" />
             </div>
           </div>
 
-          <div class="players-grid">
-            @for (p of leaderboard(); track p.name; let i = $index) {
-              <div class="player-card"
-                [class.player-card--gold]="i === 0"
-                [class.player-card--silver]="i === 1"
-                [class.player-card--bronze]="i === 2">
-                <div class="player-card__top">
-                  @if (p.avatar_url) {
-                    <img class="player-card__avatar" [src]="p.avatar_url" [alt]="p.display_name ?? ''"/>
+          <!-- ── Top 3 Podium ─────────────────────────────────────── -->
+          @if (t.status === 'completed' && leaderboard().length >= 3) {
+            <div class="lb-podium">
+              <div class="lb-podium__bg"></div>
+
+              <!-- 2nd place -->
+              <div class="lb-podium__slot lb-podium__slot--2">
+                <div class="lb-podium__crown">🥈</div>
+                <div class="lb-podium__ring lb-podium__ring--silver">
+                  @if (leaderboard()[1].avatar_url) {
+                    <img [src]="leaderboard()[1].avatar_url" [alt]="leaderboard()[1].display_name ?? ''" />
                   } @else {
-                    <span class="player-card__avatar player-card__avatar--placeholder">{{ (p.display_name ?? p.name ?? '?').charAt(0).toUpperCase() }}</span>
+                    <span>{{ (leaderboard()[1].display_name ?? leaderboard()[1].name ?? '?').charAt(0).toUpperCase() }}</span>
                   }
-                  <div>
-                    <div class="player-card__name">{{ p.display_name ?? p.name }}</div>
-                    @if (p.seed) {
-                      <div class="player-card__handle">SEED #{{ p.seed }}</div>
+                </div>
+                <div class="lb-podium__name">{{ leaderboard()[1].display_name ?? leaderboard()[1].name }}</div>
+                <div class="lb-podium__score">{{ leaderboard()[1].wins }}W · {{ leaderboard()[1].points }}pts</div>
+                <div class="lb-podium__plinth lb-podium__plinth--2">2<sup>nd</sup></div>
+              </div>
+
+              <!-- 1st place -->
+              <div class="lb-podium__slot lb-podium__slot--1">
+                <div class="lb-podium__crown">👑</div>
+                <div class="lb-podium__ring lb-podium__ring--gold">
+                  @if (leaderboard()[0].avatar_url) {
+                    <img [src]="leaderboard()[0].avatar_url" [alt]="leaderboard()[0].display_name ?? ''" />
+                  } @else {
+                    <span>{{ (leaderboard()[0].display_name ?? leaderboard()[0].name ?? '?').charAt(0).toUpperCase() }}</span>
+                  }
+                </div>
+                <div class="lb-podium__name">{{ leaderboard()[0].display_name ?? leaderboard()[0].name }}</div>
+                <div class="lb-podium__score">{{ leaderboard()[0].wins }}W · {{ leaderboard()[0].points }}pts</div>
+                <div class="lb-podium__plinth lb-podium__plinth--1">Champion</div>
+              </div>
+
+              <!-- 3rd place -->
+              <div class="lb-podium__slot lb-podium__slot--3">
+                <div class="lb-podium__crown">🥉</div>
+                <div class="lb-podium__ring lb-podium__ring--bronze">
+                  @if (leaderboard()[2].avatar_url) {
+                    <img [src]="leaderboard()[2].avatar_url" [alt]="leaderboard()[2].display_name ?? ''" />
+                  } @else {
+                    <span>{{ (leaderboard()[2].display_name ?? leaderboard()[2].name ?? '?').charAt(0).toUpperCase() }}</span>
+                  }
+                </div>
+                <div class="lb-podium__name">{{ leaderboard()[2].display_name ?? leaderboard()[2].name }}</div>
+                <div class="lb-podium__score">{{ leaderboard()[2].wins }}W · {{ leaderboard()[2].points }}pts</div>
+                <div class="lb-podium__plinth lb-podium__plinth--3">3<sup>rd</sup></div>
+              </div>
+            </div>
+          }
+
+          <!-- ── Table header ─────────────────────────────────────── -->
+          <div class="lb-table-head">
+            <span class="lb-th lb-th--rank">#</span>
+            <span class="lb-th lb-th--player">Player</span>
+            <span class="lb-th lb-th--w">W</span>
+            <span class="lb-th lb-th--l">L</span>
+            <span class="lb-th lb-th--pts">Pts</span>
+            @if (t.format === 'swiss') { <span class="lb-th lb-th--bh">BH</span> }
+            <span class="lb-th lb-th--wr">Win rate</span>
+          </div>
+
+          <!-- ── Player rows ─────────────────────────────────────── -->
+          <div class="lb-table">
+            @for (p of filteredLeaderboard(); track p.name; let i = $index) {
+              <div class="lb-row"
+                   [class.lb-row--gold]="i === 0"
+                   [class.lb-row--silver]="i === 1"
+                   [class.lb-row--bronze]="i === 2">
+
+                <!-- Rank -->
+                <div class="lb-cell lb-cell--rank">
+                  @if (i === 0) { <span class="lb-medal lb-medal--gold">1</span> }
+                  @else if (i === 1) { <span class="lb-medal lb-medal--silver">2</span> }
+                  @else if (i === 2) { <span class="lb-medal lb-medal--bronze">3</span> }
+                  @else { <span class="lb-rank-num">{{ i + 1 }}</span> }
+                </div>
+
+                <!-- Player -->
+                <div class="lb-cell lb-cell--player">
+                  <div class="lb-avatar">
+                    @if (p.avatar_url) {
+                      <img [src]="p.avatar_url" [alt]="p.display_name ?? ''" />
+                    } @else {
+                      <span>{{ (p.display_name ?? p.name ?? '?').charAt(0).toUpperCase() }}</span>
                     }
                   </div>
+                  <div class="lb-player-info">
+                    <div class="lb-player-name">{{ p.display_name ?? p.name }}</div>
+                    @if (p.seed) { <div class="lb-player-seed">Seed {{ p.seed }}</div> }
+                  </div>
                 </div>
-                <div class="player-card__stats">
-                  <div>
-                    <div class="player-card__stat-l">Wins</div>
-                    <div class="player-card__stat-v">{{ p.wins }}</div>
-                  </div>
-                  <div>
-                    <div class="player-card__stat-l">Losses</div>
-                    <div class="player-card__stat-v">{{ p.losses }}</div>
-                  </div>
-                  <div>
-                    <div class="player-card__stat-l">Pts</div>
-                    <div class="player-card__stat-v">{{ p.points }}</div>
-                  </div>
-                  @if (t.format === 'swiss') {
-                    <div>
-                      <div class="player-card__stat-l">Buchholz</div>
-                      <div class="player-card__stat-v">{{ p.buchholz }}</div>
+
+                <!-- Stats -->
+                <div class="lb-cell lb-cell--w">{{ p.wins }}</div>
+                <div class="lb-cell lb-cell--l">{{ p.losses }}</div>
+                <div class="lb-cell lb-cell--pts">
+                  <span class="lb-pts-badge">{{ p.points }}</span>
+                </div>
+                @if (t.format === 'swiss') {
+                  <div class="lb-cell lb-cell--bh">{{ p.buchholz || '—' }}</div>
+                }
+
+                <!-- Win rate bar -->
+                <div class="lb-cell lb-cell--wr">
+                  @if (p.wins + p.losses > 0) {
+                    <div class="lb-wr">
+                      <div class="lb-wr__track">
+                        <div class="lb-wr__fill"
+                             [style.width.%]="(p.wins / (p.wins + p.losses)) * 100"
+                             [class.lb-wr__fill--high]="(p.wins / (p.wins + p.losses)) >= 0.6"
+                             [class.lb-wr__fill--mid]="(p.wins / (p.wins + p.losses)) >= 0.4 && (p.wins / (p.wins + p.losses)) < 0.6"
+                             [class.lb-wr__fill--low]="(p.wins / (p.wins + p.losses)) < 0.4">
+                        </div>
+                      </div>
+                      <span class="lb-wr__pct">{{ ((p.wins / (p.wins + p.losses)) * 100) | number:'1.0-0' }}%</span>
                     </div>
+                  } @else {
+                    <span class="lb-wr__pct" style="color:var(--text-mute)">—</span>
                   }
                 </div>
               </div>
+            }
+            @if (filteredLeaderboard().length === 0) {
+              <div class="lb-empty">No players match "{{ playerSearch() }}"</div>
             }
           </div>
         }
@@ -1118,10 +1191,193 @@
       }
 
       <!-- ═══ EVIDENCE / SUBMIT RESULT ═══ -->
-      <!-- NOTE: Keep your existing evidence + result submission template here.
-           This handoff focuses on chrome; the result-submission form's Angular
-           bindings are unchanged from the original. Paste yours back in below. -->
+      @if (selectedMatch(); as m) {
+        @if (canSubmitResult(m)) {
+          <section class="m-section">
+            <header class="m-section__head">
+              <span class="m-section__icon">⚔️</span>
+              <span class="m-section__title">Submit Result</span>
+            </header>
+            <div class="m-section__body">
+              <form [formGroup]="resultForm" (ngSubmit)="submitResult()" class="result-form">
 
+                <!-- Score input -->
+                <div class="score-input-row">
+                  <div class="score-player">
+                    <div class="score-player-name">{{ m.participant_a?.display_name || m.participant_a?.name || 'Player A' }}</div>
+                    <input type="number" class="score-input" formControlName="score_a" min="0" max="99" placeholder="0"/>
+                  </div>
+                  <div class="score-sep">—</div>
+                  <div class="score-player score-player--right">
+                    <div class="score-player-name">{{ m.participant_b?.display_name || m.participant_b?.name || 'Player B' }}</div>
+                    <input type="number" class="score-input" formControlName="score_b" min="0" max="99" placeholder="0"/>
+                  </div>
+                </div>
+
+                <!-- Winner selection -->
+                <div class="field">
+                  <label class="label">Winner <span class="req">*</span></label>
+                  <div class="winner-picker">
+                    @if (m.participant_a) {
+                      <label class="winner-opt" [class.active]="resultForm.value.winner_participant_id === m.participant_a.id">
+                        <input type="radio" formControlName="winner_participant_id" [value]="m.participant_a.id"/>
+                        <span>{{ m.participant_a.display_name || m.participant_a.name }}</span>
+                      </label>
+                    }
+                    @if (m.participant_b) {
+                      <label class="winner-opt" [class.active]="resultForm.value.winner_participant_id === m.participant_b.id">
+                        <input type="radio" formControlName="winner_participant_id" [value]="m.participant_b.id"/>
+                        <span>{{ m.participant_b.display_name || m.participant_b.name }}</span>
+                      </label>
+                    }
+                  </div>
+                </div>
+
+                <!-- Screenshot evidence -->
+                <div class="field">
+                  <label class="label">Screenshot Evidence</label>
+                  <div class="evidence-upload" [class.has-preview]="evidencePreview()">
+                    @if (evidencePreview()) {
+                      <div class="evidence-preview">
+                        <img [src]="evidencePreview()" alt="Evidence preview"/>
+                        <button type="button" class="evidence-remove" (click)="clearEvidence()">✕</button>
+                      </div>
+                    } @else {
+                      <label class="evidence-drop">
+                        <input type="file" accept="image/*" (change)="onEvidenceSelected($event)"/>
+                        <span class="evidence-icon">📸</span>
+                        <span>Upload screenshot</span>
+                      </label>
+                    }
+                  </div>
+                </div>
+
+                <div class="result-form__actions">
+                  <button type="submit" class="btn btn--primary"
+                          [disabled]="resultForm.invalid || submitting() || !resultForm.value.winner_participant_id">
+                    {{ submitting() ? 'Submitting…' : 'Submit Result' }}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        }
+
+        <!-- Confirm / Dispute (opponent) -->
+        @if (canConfirmResult(m)) {
+          <section class="m-section">
+            <header class="m-section__head">
+              <span class="m-section__icon">✅</span>
+              <span class="m-section__title">Confirm Result</span>
+            </header>
+            <div class="m-section__body">
+              <p class="m-section__hint">Your opponent submitted a result. Do you agree?</p>
+              <div class="result-form__actions">
+                <button type="button" class="btn btn--ghost" (click)="disputeMode.set(true)" [disabled]="submitting()">Dispute</button>
+                <button type="button" class="btn btn--primary" (click)="confirmResult()" [disabled]="submitting()">
+                  {{ submitting() ? 'Confirming…' : 'Confirm Win' }}
+                </button>
+              </div>
+              @if (disputeMode()) {
+                <form [formGroup]="disputeForm" (ngSubmit)="disputeResult()" class="dispute-form">
+                  <textarea class="input input--textarea" formControlName="reason" rows="3"
+                            placeholder="Explain why you disagree with this result…" maxlength="1000"></textarea>
+                  <div class="result-form__actions">
+                    <button type="button" class="btn btn--ghost" (click)="disputeMode.set(false)">Cancel</button>
+                    <button type="submit" class="btn btn--danger" [disabled]="disputeForm.invalid || submitting()">Submit Dispute</button>
+                  </div>
+                </form>
+              }
+            </div>
+          </section>
+        }
+      }
+
+    </div>
+  </div>
+}
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- EDIT TOURNAMENT MODAL                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+@if (showEditModal()) {
+  <div class="modal-overlay" (click)="showEditModal.set(false)" role="dialog">
+    <div class="modal modal--edit" (click)="$event.stopPropagation()">
+      <header class="modal__head">
+        <h3 class="modal__title">Edit Tournament</h3>
+        <button class="modal__close" (click)="showEditModal.set(false)">✕</button>
+      </header>
+      <div class="modal-body edit-form" [formGroup]="editForm">
+        <div class="edit-field-row">
+          <div class="field">
+            <label class="label">Tournament Name</label>
+            <input class="input" formControlName="name"/>
+          </div>
+          <div class="field">
+            <label class="label">Arabic Name</label>
+            <input class="input" formControlName="name_ar" dir="rtl"/>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Short Description</label>
+          <input class="input" formControlName="description" placeholder="Shown on the tournament card" maxlength="500"/>
+        </div>
+        <div class="edit-field-row">
+          <div class="field">
+            <label class="label">Registration Closes</label>
+            <input class="input" type="datetime-local" formControlName="registration_closes_at"/>
+          </div>
+          <div class="field">
+            <label class="label">Tournament Starts</label>
+            <input class="input" type="datetime-local" formControlName="starts_at"/>
+          </div>
+        </div>
+        <div class="edit-field-row">
+          <div class="field">
+            <label class="label">Max Participants</label>
+            <input class="input" type="number" formControlName="max_participants" min="2" max="512"/>
+          </div>
+          <div class="field">
+            <label class="label">Entry Fee (SAR)</label>
+            <input class="input" type="number" formControlName="entry_fee_sar" min="0"/>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Rules</label>
+          <textarea class="input input--textarea" formControlName="rules" rows="5" maxlength="10000"></textarea>
+        </div>
+      </div>
+      <footer class="modal-foot">
+        <button class="btn btn--ghost" (click)="showEditModal.set(false)" [disabled]="savingEdit()">Cancel</button>
+        <button class="btn btn--primary" (click)="saveEdit()" [disabled]="savingEdit()">
+          {{ savingEdit() ? 'Saving…' : 'Save Changes' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- DELETE CONFIRMATION MODAL                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+@if (showDeleteConfirm()) {
+  <div class="modal-overlay" (click)="showDeleteConfirm.set(false)" role="dialog">
+    <div class="modal modal--sm" (click)="$event.stopPropagation()">
+      <header class="modal__head">
+        <h3 class="modal__title">Delete Tournament?</h3>
+        <button class="modal__close" (click)="showDeleteConfirm.set(false)">✕</button>
+      </header>
+      <div class="modal-body">
+        <p class="modal__warn-text">
+          ⚠️ This will permanently delete <strong>{{ tournament()?.name }}</strong> and all its matches, brackets, and registrations. This cannot be undone.
+        </p>
+      </div>
+      <footer class="modal-foot">
+        <button class="btn btn--ghost" (click)="showDeleteConfirm.set(false)" [disabled]="deleting()">Cancel</button>
+        <button class="btn btn--danger" (click)="deleteTournament()" [disabled]="deleting()">
+          {{ deleting() ? 'Deleting…' : 'Yes, Delete' }}
+        </button>
+      </footer>
     </div>
   </div>
 }

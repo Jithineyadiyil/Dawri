@@ -63,6 +63,11 @@
         aria-label="Search tournaments" />
     </div>
 
+    @if (auth.isLoggedIn()) {
+      <button type="button" class="mine-toggle" [class.active]="showMine()" (click)="toggleMine()">
+        {{ showMine() ? '✓ My Tournaments' : 'My Tournaments' }}
+      </button>
+    }
     <div class="view-toggle" role="group" aria-label="View mode">
       <button type="button"
               [class.active]="view() === 'grid'"
@@ -214,6 +219,9 @@
           <div class="card-body">
             <h3 class="card-title">{{ t.name }}</h3>
             <span class="card-format">{{ t.format_label }}</span>
+            @if (t.organizer_name || t.organizer?.name) {
+              <span class="card-organizer">by {{ t.organizer_name || t.organizer?.name }}</span>
+            }
 
             <div class="card-progress">
               <div class="card-progress-row">
@@ -277,6 +285,7 @@
             <div class="row-title">{{ t.name }}</div>
             <div class="row-sub">
               {{ t.game_label }} · {{ t.format_label }} · {{ t.starts_at | date:'d MMM · HH:mm' }}
+              @if (t.organizer_name || t.organizer?.name) { · by {{ t.organizer_name || t.organizer?.name }} }
             </div>
           </div>
           <div class="row-prize">

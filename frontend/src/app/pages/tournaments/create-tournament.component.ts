@@ -51,6 +51,16 @@ export class CreateTournamentComponent implements OnInit {
     { value: 'cod_mobile',  label: 'Call of Duty Mobile', emoji: '🎯' },
   ]);
 
+  readonly timezones = [
+    { value: 'Asia/Riyadh', label: 'Riyadh (AST, UTC+3)' },
+    { value: 'Asia/Dubai',  label: 'Dubai (GST, UTC+4)' },
+    { value: 'Asia/Kuwait', label: 'Kuwait (AST, UTC+3)' },
+    { value: 'Asia/Qatar',  label: 'Qatar (AST, UTC+3)' },
+    { value: 'Asia/Bahrain',label: 'Bahrain (AST, UTC+3)' },
+    { value: 'Africa/Cairo',label: 'Egypt (EET, UTC+2)' },
+    { value: 'UTC',         label: 'UTC (UTC+0)' },
+  ];
+
   readonly formats = [
     { value: 'single_elimination', label: 'Single Elimination', desc: 'Lose once → out.' },
     { value: 'double_elimination', label: 'Double Elimination', desc: 'Losers get a second chance.' },
@@ -83,6 +93,8 @@ export class CreateTournamentComponent implements OnInit {
     prize_1:                [''],
     prize_2:                [''],
     prize_3:                [''],
+    prize_4:                [''],
+    prize_5:                [''],
     // Sprint 3
     rules:                  [''],
     brand_override:         [false],
@@ -144,6 +156,8 @@ export class CreateTournamentComponent implements OnInit {
     if (v.prize_1) prize_pool.push({ position: 1, reward: v.prize_1 });
     if (v.prize_2) prize_pool.push({ position: 2, reward: v.prize_2 });
     if (v.prize_3) prize_pool.push({ position: 3, reward: v.prize_3 });
+    if (v.prize_4) prize_pool.push({ position: 4, reward: v.prize_4 });
+    if (v.prize_5) prize_pool.push({ position: 5, reward: v.prize_5 });
 
     const payload: any = {
       name:                   v.name,

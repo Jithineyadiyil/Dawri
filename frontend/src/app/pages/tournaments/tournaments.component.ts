@@ -78,6 +78,8 @@ export class TournamentsComponent implements OnInit {
     { value: 'newest',        label: 'Sort: Newest' },
   ];
 
+  readonly showMine = signal(false);
+
   readonly filter = {
     game:   signal<string>(''),
     format: signal<string>(''),
@@ -92,7 +94,15 @@ export class TournamentsComponent implements OnInit {
     const st = this.filter.status();
     const stMatches = st ? (this.statuses.find(x => x.value === st)?.match ?? []) : [];
 
+    const mine = this.showMine();
+    const userId = this.auth.currentUser()?.id;
+
     const list = this.items().filter(t => {
+      if (mine && userId) {
+        const isOrg = t.organizer_id === userId || t.organizer?.id === userId;
+        const isParticipant = t.is_registered;
+        if (!isOrg && !isParticipant) return false;
+      }
       if (s  && !(`${t.name} ${t.name_ar ?? ''}`.toLowerCase().includes(s))) return false;
       if (g  && t.game   !== g)  return false;
       if (f  && t.format !== f)  return false;
@@ -159,6 +169,7 @@ export class TournamentsComponent implements OnInit {
   }
   setView(v: 'grid' | 'list' | 'calendar'): void { this.view.set(v); }
   setSort(v: string): void { this.sort.set(v as any); }
+  toggleMine(): void { this.showMine.set(!this.showMine()); }
 
   /** Prize pool total in SAR — supports prize_pool: [{amount}], prize_pool_sar: number, prize_pool_total. */
   prizeTotal(t: any): number {
