@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Contracts\DistributorInterface;
 use App\Models\DistributorHealth;
+use App\Services\Distributors\FazerCardsAdapter;
 use App\Services\Distributors\JawakerAdapter;
 use App\Services\Distributors\LikecardAdapter;
 use App\Services\Distributors\ReloadlyAdapter;
@@ -38,14 +39,15 @@ final class DistributorRouter
     private readonly Collection $adapters;
 
     public function __construct(
-        LikecardAdapter $likecard,
-        WupexAdapter    $wupex,
-        ReloadlyAdapter $reloadly,
-        JawakerAdapter  $jawaker,
+        LikecardAdapter    $likecard,
+        FazerCardsAdapter  $fazercards,
+        WupexAdapter       $wupex,
+        ReloadlyAdapter    $reloadly,
+        JawakerAdapter     $jawaker,
     ) {
         // Collection of all registered adapters, sorted by priority ascending
         // (lower number tried first). Brand-specific routing in selectChain().
-        $this->adapters = collect([$likecard, $wupex, $reloadly, $jawaker])
+        $this->adapters = collect([$likecard, $fazercards, $wupex, $reloadly, $jawaker])
             ->sortBy(fn (DistributorInterface $d) => $d->priority())
             ->values();
     }

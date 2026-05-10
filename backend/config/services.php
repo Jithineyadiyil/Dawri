@@ -53,6 +53,11 @@ return [
         'agent_code' => env('LIKECARD_AGENT_CODE', ''),
     ],
 
+    'fazercards' => [
+        'url'     => env('FAZERCARDS_URL',     'https://api.fazercards.com/v1'),
+        'api_key' => env('FAZERCARDS_API_KEY', ''),
+    ],
+
     'wupex' => [
         'url'     => env('WUPEX_URL',     'https://api.wupex.com/v1'),
         'api_key' => env('WUPEX_API_KEY', ''),

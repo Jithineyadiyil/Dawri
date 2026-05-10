@@ -374,6 +374,12 @@ export class ApiService {
    *                       tournament_participants.rules_accepted_at
    *                       with the current time when this is true.
    */
+  unregisterFromTournament(id: string): Observable<{ message: string; participants_count: number }> {
+    return this.http.delete<{ message: string; participants_count: number }>(
+      `${API_BASE}/tournaments/${id}/register`
+    );
+  }
+
   registerForTournamentWithRules(
     id: string,
     acceptedRules: boolean

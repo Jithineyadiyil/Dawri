@@ -178,6 +178,33 @@ class TournamentController extends Controller
         ], Response::HTTP_CREATED);
     }
 
+
+    public function unregister(Request $request, string $id): JsonResponse
+    {
+        $user       = $request->user();
+        $tournament = Tournament::findOrFail($id);
+
+        if (! $tournament->isRegistrationOpen()) {
+            return response()->json(
+                ['message' => 'Registration is closed — you cannot withdraw after it closes.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        $deleted = $tournament->participants()
+            ->where('user_id', $user->id)
+            ->delete();
+
+        if (! $deleted) {
+            return response()->json(['message' => 'You are not registered for this tournament.'], 404);
+        }
+
+        return response()->json([
+            'message'            => 'You have been unregistered.',
+            'participants_count' => $tournament->participants()->count(),
+        ]);
+    }
+
     // ── Sprint 3: Cover image ──────────────────────────────────────────
 
     public function uploadCover(UploadCoverRequest $request, string $id): JsonResponse

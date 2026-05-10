@@ -26,17 +26,22 @@ export class HomeComponent implements OnInit, AfterViewInit {
   private el             = inject(ElementRef);
 
   readonly hasPartners     = signal(false);
-  liveTournaments          = signal<Tournament[]>([]);
-  upcomingTournaments      = signal<Tournament[]>([]);
-  topPlayers               = signal<LeaderboardEntry[]>([]);
-  heroTournament           = signal<Tournament | null>(null);
-  tickerItems              = signal<string[]>([]);
-  statsLoading             = signal(true);
+  readonly liveTournaments = signal<Tournament[]>([]);
+  readonly topTournaments  = signal<Tournament[]>([]);
+  readonly topPlayers      = signal<LeaderboardEntry[]>([]);
+  readonly statsLoading    = signal(true);
+  readonly activeLiveCount = signal(0);
 
   readonly games = [
-    { name: 'EA FC 25',     icon: '⚽', badge: 'All formats',     color: '#fbbf24', desc: 'The world\'s biggest football game. Single Elimination, Double Elimination, Round Robin & Swiss.' },
-    { name: 'PUBG Mobile',  icon: '🔫', badge: 'SE · DE · Swiss', color: '#a855f7', desc: 'Battle royale at its finest. Squad up and compete for the Chicken Dinner.' },
-    { name: 'Call of Duty', icon: '💣', badge: 'SE · DE · Swiss', color: '#a78bfa', desc: 'Fast-paced mobile FPS. Dominate the leaderboard across the GCC.' },
+    { name: 'EA FC 25',     icon: '⚽', badge: 'All formats',    color: '#fbbf24',
+      shortCode: 'FC',  activeText: 'Active now', formatsText: 'All formats',
+      desc: 'The world\'s biggest football game. SE, DE, Round Robin & Swiss.' },
+    { name: 'PUBG Mobile',  icon: '🔫', badge: 'SE · DE · Swiss', color: '#a855f7',
+      shortCode: 'PB',  activeText: 'Active now', formatsText: 'SE · DE · Swiss',
+      desc: 'Battle royale at its finest. Squad up and compete for the Chicken Dinner.' },
+    { name: 'Call of Duty', icon: '💣', badge: 'SE · DE · Swiss', color: '#a78bfa',
+      shortCode: 'CoD', activeText: 'Active now', formatsText: 'SE · DE · Swiss',
+      desc: 'Fast-paced mobile FPS. Dominate the leaderboard across the GCC.' },
   ];
 
   readonly formats = [
@@ -53,25 +58,30 @@ export class HomeComponent implements OnInit, AfterViewInit {
   ];
 
   readonly b2bFeatures = [
-    'Automated bracket generation',
-    'HR system integration (SAP, Oracle, Workday)',
-    'Department-level engagement reports',
-    'White label on your company subdomain',
-    'Bulk digital prize distribution',
-    'Arabic RTL — native GCC experience',
+    '✓ Automated bracket generation',
+    '✓ HR system integration (SAP, Oracle, Workday)',
+    '✓ Department-level engagement reports',
+    '✓ White label on your company subdomain',
+    '✓ Bulk digital prize distribution',
+    '✓ Arabic RTL — native GCC experience',
+  ];
+
+  readonly players = [
+    { name: 'Faisal A.', role: 'PUBG Champion',  img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80&fit=crop&crop=face' },
+    { name: 'Sara K.',   role: 'EA FC Finalist',  img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80&fit=crop&crop=face' },
+    { name: 'Omar M.',   role: 'CoD Finalist',    img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=80&fit=crop&crop=face' },
+    { name: 'Noura R.',  role: 'Tournament Org',  img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&q=80&fit=crop&crop=face' },
+    { name: 'Khalid T.', role: 'Swiss Master',    img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&q=80&fit=crop&crop=face' },
   ];
 
   ngOnInit(): void {
-    this.loadLiveData();
     this.sponsorService.load()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (d) => this.hasPartners.set((d.title.length + d.standard.length) > 0),
         error: ()  => this.hasPartners.set(false),
       });
-  }
 
-  private loadLiveData(): void {
     forkJoin({
       tournaments: this.api.getTournaments({}).pipe(
         catchError(() => of({ data: [] as Tournament[], meta: null as any, links: null as any }))
@@ -80,32 +90,16 @@ export class HomeComponent implements OnInit, AfterViewInit {
         catchError(() => of({ data: [] as LeaderboardEntry[] }))
       ),
     }).subscribe(({ tournaments, leaderboard }) => {
-      const all      = tournaments.data ?? [];
-      const live     = all.filter(t => ['in_progress', 'ongoing'].includes(t.status));
-      const upcoming = all.filter(t => ['registration_open', 'registration'].includes(t.status));
-      const fallback = all.filter(t => !['completed', 'cancelled'].includes(t.status));
+      const all  = tournaments.data ?? [];
+      const live = all.filter(t => !['completed', 'cancelled'].includes(t.status));
+      const liveCount = all.filter(t => ['in_progress', 'ongoing'].includes(t.status)).length;
 
       this.liveTournaments.set(live);
-      this.upcomingTournaments.set(upcoming.length > 0 ? upcoming : fallback.filter(t => !live.includes(t)));
+      this.topTournaments.set(live.slice(0, 6));
       this.topPlayers.set(leaderboard.data ?? []);
-      this.heroTournament.set(live[0] ?? upcoming[0] ?? fallback[0] ?? null);
-
-      const ticker: string[] = [];
-      for (const t of live)     ticker.push(`● LIVE · ${t.game_label} · ${t.name} · ${t.participant_count}/${t.max_participants} players`);
-      for (const t of upcoming) ticker.push(`UPCOMING · ${t.game_label} · ${t.name} · Registration open`);
-      if (ticker.length === 0)  ticker.push('New tournaments added daily · Create a free account to get notified');
-      this.tickerItems.set([...ticker, ...ticker]);
-
+      this.activeLiveCount.set(liveCount);
       this.statsLoading.set(false);
     });
-  }
-
-  getPrizePool(t: Tournament): string {
-    if (!t.prize_pool) return 'TBA';
-    if (Array.isArray(t.prize_pool) && t.prize_pool.length > 0) {
-      return t.prize_pool[0]?.reward ?? 'TBA';
-    }
-    return typeof t.prize_pool === 'string' ? t.prize_pool : 'TBA';
   }
 
   getStatusClass(status: string): string {
@@ -120,8 +114,11 @@ export class HomeComponent implements OnInit, AfterViewInit {
     return status.replace(/_/g, ' ');
   }
 
-  allTournaments(): Tournament[] {
-    return [...this.liveTournaments(), ...this.upcomingTournaments()].slice(0, 6);
+  getPrizePool(t: Tournament): string {
+    if (!t.prize_pool) return '';
+    if (Array.isArray(t.prize_pool) && t.prize_pool.length > 0) return t.prize_pool[0]?.reward ?? '';
+    if (typeof t.prize_pool === 'string') return t.prize_pool;
+    return '';
   }
 
   ngAfterViewInit(): void {

@@ -78,9 +78,13 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   readonly loading       = signal(true);
   readonly error         = signal<string | null>(null);
   readonly generating    = signal(false);
-  readonly registering   = signal(false);
+  readonly registering     = signal(false);
+  readonly unregistering   = signal(false);
+  readonly activeTab       = signal<'bracket' | 'standings' | 'matches' | 'live' | 'leaderboard' | 'prize' | 'players'>('bracket');
+  readonly countdown       = signal<{ days: number; hours: number; mins: number; secs: number } | null>(null);
+  readonly linkCopied      = signal(false);
+  private countdownHandle: ReturnType<typeof setInterval> | null = null;
   readonly submitting    = signal(false);
-  readonly activeTab     = signal<'bracket' | 'standings' | 'matches' | 'live' | 'leaderboard' | 'prize'>('bracket');
   readonly selectedMatch = signal<BracketMatch | null>(null);
   readonly disputeMode   = signal(false);
 
@@ -177,62 +181,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         reward:   String(item?.reward ?? item?.prize ?? item?.value ?? ''),
       };
     }).filter((p: { position: number; reward: string }) => p.reward.trim().length > 0);
-  });
-
-  /**
-   * Aggregated total of all numeric prize rewards for the hero "Total
-   * Prize Pool" card. Returns the formatted number as a string (with
-   * thousands separators) or null when prizes are non-numeric / split
-   * across positions where summing wouldn't make sense.
-   *
-   * Why null when non-numeric?
-   *   Some tournaments offer in-kind rewards ("PS5", "Gaming chair")
-   *   that can't be summed. The template renders a "Multiple Tiers"
-   *   fallback when this is null instead of a misleading "$0".
-   *
-   * Currency detection:
-   *   Trailing-most currency code (SAR, USD, AED, EUR, INR, etc.)
-   *   appearing in any prize string wins. Mixed currencies → "MIXED"
-   *   so the UI doesn't misrepresent a sum across denominations.
-   */
-  readonly totalPrizeDisplay = computed<string | null>(() => {
-    const prizes = this.normalizedPrizes();
-    if (!prizes.length) return null;
-
-    let total = 0;
-    let any = false;
-    for (const p of prizes) {
-      // Strip currency codes / words and grab the first number we see.
-      const m = p.reward.match(/[\d][\d,\s.]*/);
-      if (!m) continue;
-      const n = Number(m[0].replace(/[,\s]/g, ''));
-      if (!Number.isFinite(n)) continue;
-      total += n;
-      any = true;
-    }
-    if (!any || total <= 0) return null;
-    // Locale 'en' for grouping commas; matches existing currency hint formatting.
-    return new Intl.NumberFormat('en').format(total);
-  });
-
-  /**
-   * Currency code(s) detected in the prize pool. Returns:
-   *   - The single currency code if all numeric prizes share one
-   *   - 'MIXED' if multiple distinct codes are present
-   *   - empty string if no currency was detected
-   */
-  readonly totalPrizeCurrency = computed<string>(() => {
-    const prizes = this.normalizedPrizes();
-    if (!prizes.length) return '';
-    const codes = new Set<string>();
-    const re = /\b(SAR|USD|AED|EUR|GBP|INR|KWD|QAR|BHD|OMR|JOD|EGP)\b/i;
-    for (const p of prizes) {
-      const m = p.reward.match(re);
-      if (m) codes.add(m[1].toUpperCase());
-    }
-    if (codes.size === 0) return '';
-    if (codes.size === 1) return [...codes][0];
-    return 'MIXED';
   });
 
   // ── Sprint 2 modal state ─────────────────────────────────────────────
@@ -658,6 +606,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.countdownHandle) clearInterval(this.countdownHandle);
     // Revert to platform defaults when leaving this page.
     this.brand.reset();
   }
@@ -973,16 +922,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Alias for the redesigned template's button bindings. The new HTML
-   * calls `organizerOverrideReschedule(r, true|false)`; older code/docs
-   * still reference `organizerOverride`. Both names point to the same
-   * implementation so neither breaks.
-   */
-  organizerOverrideReschedule(req: MatchRescheduleRequest, accept: boolean): void {
-    this.organizerOverride(req, accept);
-  }
-
   cancelMyReschedule(req: MatchRescheduleRequest): void {
     const m = this.selectedMatch();
     if (!m) return;
@@ -1108,7 +1047,97 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     const id = this.tournament()?.id;
     if (!id) return;
     this.api.getTournament(id).subscribe({
-      next: (res: any) => this.tournament.set(res.data ?? res),
+      next: (res: any) => {
+        this.tournament.set(res.data ?? res);
+        if (this.countdownHandle) clearInterval(this.countdownHandle);
+        this.startCountdown();
+      },
     });
   }
+
+  // ── Unregister ─────────────────────────────────────────────────────────────
+  unregister(): void {
+    const t = this.tournament();
+    if (!t) return;
+    this.unregistering.set(true);
+    this.api.unregisterFromTournament(t.id).subscribe({
+      next: () => {
+        this.refresh();
+        this.unregistering.set(false);
+        this.toast.success('You have been unregistered.');
+      },
+      error: (err: any) => {
+        this.toast.error(err?.error?.message ?? 'Failed to unregister.');
+        this.unregistering.set(false);
+      },
+    });
+  }
+
+  // ── Share ───────────────────────────────────────────────────────────────────
+  shareLink(): void {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({ title: this.tournament()?.name ?? 'Tournament', url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        this.linkCopied.set(true);
+        setTimeout(() => this.linkCopied.set(false), 2500);
+      });
+    }
+  }
+
+  // ── Countdown ───────────────────────────────────────────────────────────────
+  startCountdown(): void {
+    this.updateCountdown();
+    this.countdownHandle = setInterval(() => this.updateCountdown(), 1000);
+  }
+
+  private updateCountdown(): void {
+    const t = this.tournament();
+    if (!t) return;
+    const target = t.starts_at
+      ? new Date(t.starts_at).getTime()
+      : t.registration_closes_at
+        ? new Date(t.registration_closes_at).getTime()
+        : null;
+    if (!target) { this.countdown.set(null); return; }
+    const diff = target - Date.now();
+    if (diff <= 0) { this.countdown.set(null); return; }
+    this.countdown.set({
+      days:  Math.floor(diff / 86400000),
+      hours: Math.floor((diff % 86400000) / 3600000),
+      mins:  Math.floor((diff % 3600000) / 60000),
+      secs:  Math.floor((diff % 60000) / 1000),
+    });
+  }
+
+  // ── Prize display helpers ───────────────────────────────────────────────────
+  totalPrizeDisplay(): string | null {
+    const prizes = this.normalizedPrizes?.() ?? [];
+    if (!prizes.length) return null;
+    const sarPrizes = prizes
+      .map((p: any) => p.reward ?? '')
+      .filter((r: string) => /\d/.test(r));
+    if (!sarPrizes.length) return prizes[0]?.reward ?? null;
+    const total = sarPrizes.reduce((sum: number, r: string) => {
+      const match = r.match(/([\d,]+)/);
+      return sum + (match ? parseInt(match[1].replace(/,/g, '')) : 0);
+    }, 0);
+    return total > 0 ? total.toLocaleString() : prizes[0]?.reward ?? null;
+  }
+
+  totalPrizeCurrency(): string {
+    const prizes = this.normalizedPrizes?.() ?? [];
+    if (!prizes.length) return '';
+    const first = prizes[0]?.reward ?? '';
+    if (/SAR/i.test(first)) return 'SAR';
+    if (/USD/i.test(first)) return 'USD';
+    return '';
+  }
+
+  // ── Organizer override reschedule ───────────────────────────────────────────
+  organizerOverrideReschedule(req: any, accept: boolean): void {
+    this.respondToReschedule(req, accept);
+  }
+
 }

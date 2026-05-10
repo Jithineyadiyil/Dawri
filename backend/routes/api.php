@@ -23,7 +23,6 @@ use App\Http\Controllers\Api\TournamentSponsorshipController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TournamentController;
 use App\Http\Controllers\Api\WalletController;
-use App\Http\Controllers\Api\PublicStatsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -54,9 +53,6 @@ Route::prefix('v1')->group(function () {
 
     // Sprint 14: platform sponsors — visible to all visitors
     Route::get('/platform-sponsors', [PlatformSponsorController::class, 'index']);
-
-    // Public stats for home page
-    Route::get('/stats/public', [PublicStatsController::class, 'index']);
 
     // Sprint 13 Phase 1: Finance report downloads — token-in-query auth
     // (handled inside AdminFinanceController::ensureAdminFromQueryToken)
@@ -110,6 +106,7 @@ Route::prefix('v1')->group(function () {
         Route::put   ('/tournaments/{tournament}',                          [TournamentController::class, 'update']);
         Route::delete('/tournaments/{tournament}',                          [TournamentController::class, 'destroy']);
         Route::post  ('/tournaments/{tournament}/register',                 [TournamentController::class, 'register']);
+        Route::delete('/tournaments/{tournament}/register',                 [TournamentController::class, 'unregister']);
         Route::post  ('/tournaments/{tournament}/generate-bracket',         [TournamentController::class, 'generateBracket']);
         Route::post  ('/tournaments/{tournament}/matches/{matchId}/result', [TournamentController::class, 'submitResult']);
 

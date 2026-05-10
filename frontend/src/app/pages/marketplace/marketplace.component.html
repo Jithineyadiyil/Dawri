@@ -172,36 +172,39 @@
 
                 <div class="product-grid">
                   @for (p of grouped()[brand]; track p.id) {
-                    <article class="product-card">
+                    <article class="product-card" (click)="openDetail(p, $event)">
                       <div class="product-art">
                         <img [src]="p.image_url || '/brands/generic.svg'"
                              [alt]="p.brand"
                              loading="lazy"
                              (error)="onImgError($event)"/>
+                        <div class="product-art__overlay">
+                          <button type="button" class="quick-view-btn">View details</button>
+                        </div>
+                        <div class="product-price-badge">
+                          <span class="price-num">{{ p.our_price | number:'1.0-0' }}</span>
+                          <span class="price-ccy">SAR</span>
+                        </div>
+                        @if (cartQty(p.id)) {
+                          <div class="in-cart-badge">✓ {{ cartQty(p.id) }} in cart</div>
+                        }
                       </div>
-
                       <div class="product-card__body">
                         <h3 class="product-name">{{ p.name }}</h3>
                         @if (p.name_ar) {
                           <p class="product-name-ar" dir="rtl" lang="ar">{{ p.name_ar }}</p>
                         }
-                        <div class="product-price">
-                          <span class="price-num">{{ p.our_price | number:'1.0-2' }}</span>
-                          <span class="price-ccy">SAR</span>
+                        <div class="product-foot">
+                          <span class="product-region">{{ p.region }}</span>
+                          <button type="button"
+                                  class="product-cta"
+                                  [class.added]="cartQty(p.id)"
+                                  (click)="addToCart(p, $event)"
+                                  [attr.aria-label]="'Add ' + p.name + ' to cart'">
+                            @if (cartQty(p.id)) { ✓ } @else { + }
+                          </button>
                         </div>
                       </div>
-
-                      <button type="button"
-                              class="product-cta"
-                              [class.added]="cartQty(p.id)"
-                              (click)="addToCart(p, $event)"
-                              [attr.aria-label]="'Add ' + p.name + ' to cart'">
-                        @if (cartQty(p.id)) {
-                          <span>✓ {{ cartQty(p.id) }} in cart</span>
-                        } @else {
-                          Add to cart
-                        }
-                      </button>
                     </article>
                   }
                 </div>
@@ -513,6 +516,104 @@
         <a class="btn-primary" routerLink="/auth"
            (click)="showLoginPrompt.set(false)">Sign in</a>
       </footer>
+    </div>
+  }
+
+
+  <!-- ═══════════════════════════════════ PRODUCT DETAIL MODAL ═════════════ -->
+  @if (showDetail() && detailProduct(); as p) {
+    <div class="modal-back" (click)="closeDetail()"></div>
+    <div class="detail-modal" role="dialog" [attr.aria-label]="p.name">
+      <button type="button" class="modal-close detail-close" (click)="closeDetail()" aria-label="Close">✕</button>
+
+      <div class="detail-art">
+        <img [src]="p.image_url || '/brands/generic.svg'" [alt]="p.brand" (error)="onImgError($event)" />
+        <div class="detail-art-glow"></div>
+        <span class="detail-instant-badge">⚡ Instant delivery</span>
+      </div>
+
+      <div class="detail-body">
+        <div class="detail-meta">
+          <span class="detail-brand">{{ p.brand }}</span>
+          <span class="detail-region">{{ p.region }}</span>
+        </div>
+        <h2 class="detail-name">{{ p.name }}</h2>
+        @if (p.name_ar) {
+          <p class="detail-name-ar" dir="rtl" lang="ar">{{ p.name_ar }}</p>
+        }
+
+        <div class="detail-price-row">
+          <div class="detail-price">
+            <span class="detail-price-num">{{ p.our_price | number:'1.0-0' }}</span>
+            <span class="detail-price-ccy">SAR</span>
+          </div>
+          <div class="detail-face">
+            Face value: <strong>{{ p.face_value | number:'1.0-0' }} {{ p.currency }}</strong>
+          </div>
+        </div>
+
+        <div class="detail-features">
+          <div class="detail-feat"><span>🔒</span>Encrypted delivery</div>
+          <div class="detail-feat"><span>⚡</span>Instant code</div>
+          <div class="detail-feat"><span>♾</span>No expiry</div>
+          <div class="detail-feat"><span>🔓</span>Reveal anytime</div>
+        </div>
+
+        <div class="detail-qty-row">
+          <span class="detail-qty-label">Quantity</span>
+          <div class="detail-qty-ctrl">
+            <button type="button" (click)="detailQty.set(detailQty() > 1 ? detailQty() - 1 : 1)">−</button>
+            <span>{{ detailQty() }}</span>
+            <button type="button" (click)="detailQty.set(detailQty() + 1)">+</button>
+          </div>
+          <span class="detail-qty-total">{{ (p.our_price * detailQty()) | number:'1.0-0' }} SAR total</span>
+        </div>
+
+        <!-- Gift mode toggle -->
+        @if (giftMode()) {
+          <div class="gift-input-wrap">
+            <div class="gift-input-label">
+              🎁 Recipient email
+            </div>
+            <input type="email"
+                   class="gift-email-input"
+                   placeholder="friend@example.com"
+                   [value]="giftEmail()"
+                   (input)="giftEmail.set($any($event.target).value)"
+                   (keyup.enter)="buyAsGift()" />
+            @if (giftEmailError()) {
+              <span class="gift-email-error">{{ giftEmailError() }}</span>
+            }
+          </div>
+        }
+
+        <div class="detail-actions">
+          @if (!giftMode()) {
+            <button type="button" class="detail-btn-cart" (click)="addDetailToCart()">
+              Add to cart
+            </button>
+            <button type="button" class="detail-btn-buy"
+                    (click)="addDetailToCart(); checkout()">
+              Buy now
+            </button>
+          } @else {
+            <button type="button" class="detail-btn-cart" (click)="toggleGift()">
+              Cancel gift
+            </button>
+            <button type="button" class="detail-btn-buy" (click)="buyAsGift()">
+              🎁 Send as gift
+            </button>
+          }
+        </div>
+
+        <button type="button" class="gift-toggle-btn" (click)="toggleGift()">
+          @if (!giftMode()) {
+            🎁 Send as a gift
+          } @else {
+            ← Back to purchase
+          }
+        </button>
+      </div>
     </div>
   }
 
