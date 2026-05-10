@@ -204,6 +204,25 @@ export class TournamentsComponent implements OnInit {
   }
 
   /** Short two-letter game code for the cover glyph. */
+  gameImage(g: string): string {
+    const map: Record<string, string> = {
+      ea_fc25:    'https://images.igdb.com/igdb/image/upload/t_screenshot_big/sc8pxf.jpg',
+      pubg_mobile:'https://images.igdb.com/igdb/image/upload/t_screenshot_big/scnwp6.jpg',
+      cod_mobile: 'https://images.igdb.com/igdb/image/upload/t_screenshot_big/sc5vff.jpg',
+    };
+    // Fallback to data URI gradient if image fails
+    return map[g] ?? '';
+  }
+
+  gameAccent(g: string): string {
+    const map: Record<string, string> = {
+      ea_fc25:    '#00d473',
+      pubg_mobile:'#f5b942',
+      cod_mobile: '#ff4444',
+    };
+    return map[g] ?? '#f0a500';
+  }
+
   gameShort(g: string): string {
     return this.games.find(x => x.value === g)?.short ?? '·';
   }

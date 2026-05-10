@@ -23,8 +23,11 @@
     <section class="hero"
       [class.hero--has-cover]="t.cover_image_url"
       [class]="'hero game-bg game-bg--' + t.game + (t.cover_image_url ? ' hero--has-cover' : '')">
+      <!-- Hero background: cover image or game art fallback -->
       @if (t.cover_image_url) {
         <img class="hero__cover" [src]="t.cover_image_url" [alt]="t.name" loading="eager"/>
+      } @else {
+        <img class="hero__cover hero__cover--game-art" [src]="gameArtUrl(t.game)" [alt]="t.game_label" loading="eager"/>
       }
       <div class="hero__grid-bg"></div>
       <div class="hero__glow"></div>
@@ -1191,8 +1194,7 @@
       }
 
       <!-- ═══ EVIDENCE / SUBMIT RESULT ═══ -->
-      @if (selectedMatch(); as m) {
-        @if (canSubmitResult(m)) {
+      @if (canSubmitResult(m)) {
           <section class="m-section">
             <header class="m-section__head">
               <span class="m-section__icon">⚔️</span>
@@ -1290,7 +1292,6 @@
               }
             </div>
           </section>
-        }
       }
 
     </div>

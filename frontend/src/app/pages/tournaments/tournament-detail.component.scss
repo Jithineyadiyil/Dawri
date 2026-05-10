@@ -1443,3 +1443,14 @@
   font-family: var(--mono); font-size: 10px; color: var(--text-mute);
   letter-spacing: .5px; display: block; margin-top: 2px;
 }
+
+/* ── Game art hero image ─────────────────────────────────────────────────── */
+.hero__cover--game-art {
+  opacity: 0.35;        /* dimmer than custom cover so text stays readable */
+  filter: saturate(0.7);
+}
+
+/* Make game-bg use the art as backdrop when cover present */
+.hero--has-cover .hero__cover {
+  opacity: 0.55;
+}

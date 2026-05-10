@@ -26,8 +26,8 @@ export interface BracketMatch {
   match_number: number;
   bracket_section: string;
   status: string;
-  participant_a: { id: string; name: string; display_name?: string | null; nickname?: string | null; avatar_url?: string | null } | null;
-  participant_b: { id: string; name: string; display_name?: string | null; nickname?: string | null; avatar_url?: string | null } | null;
+  participant_a: { id: string; name: string; display_name?: string | null; nickname?: string | null; avatar_url?: string | null; user_id?: string | null } | null;
+  participant_b: { id: string; name: string; display_name?: string | null; nickname?: string | null; avatar_url?: string | null; user_id?: string | null } | null;
   participant_a_is_bye: boolean;
   participant_b_is_bye: boolean;
   winner_id: string | null;
@@ -1068,9 +1068,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     const userId = this.auth.currentUser()?.id;
     if (!userId) return false;
     if (m.status === 'completed' || m.status === 'walkover') return false;
-    const pa = m.participant_a as any;
-    const pb = m.participant_b as any;
-    const isParticipant = pa?.user_id === userId || pb?.user_id === userId;
+    const isParticipant =
+      m.participant_a?.user_id === userId ||
+      m.participant_b?.user_id === userId;
     return isParticipant || this.canManageMatch();
   }
 
@@ -1078,9 +1078,10 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     const userId = this.auth.currentUser()?.id;
     if (!userId) return false;
     if (m.status !== 'submitted') return false;
-    const pa = m.participant_a as any;
-    const pb = m.participant_b as any;
-    return pa?.user_id === userId || pb?.user_id === userId;
+    return (
+      m.participant_a?.user_id === userId ||
+      m.participant_b?.user_id === userId
+    );
   }
 
   onEvidenceSelected(e: Event): void {
@@ -1095,6 +1096,16 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   clearEvidence(): void {
     this.evidenceFile.set(null);
     this.evidencePreview.set(null);
+  }
+
+  // ── Game art helpers ──────────────────────────────────────────────────────
+  gameArtUrl(game: string): string {
+    const map: Record<string, string> = {
+      ea_fc25:    'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=1200&q=80&fit=crop',
+      pubg_mobile:'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1200&q=80&fit=crop',
+      cod_mobile: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?w=1200&q=80&fit=crop',
+    };
+    return map[game] ?? 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=1200&q=80&fit=crop';
   }
 
   // ── Round picker helpers ──────────────────────────────────────────────────
@@ -1216,8 +1227,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     const userId = this.auth.currentUser()?.id;
     if (!t || !userId) return;
     const matches: any[] = t?.bracket?.matches ?? t?.matches ?? [];
-    const mine = matches.find((m: any) =>
-      ((m.participant_a?.user_id === userId || m.participant_b?.user_id === userId)) &&
+    const mine = (matches as BracketMatch[]).find(m =>
+      (m.participant_a?.user_id === userId || m.participant_b?.user_id === userId) &&
       !['completed', 'walkover'].includes(m.status)
     );
     if (mine) {
