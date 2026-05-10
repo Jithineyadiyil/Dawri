@@ -1,10 +1,3 @@
-<!--
-  Dawri — Home page template
-  Replace frontend/src/app/pages/home/home.component.html with this file.
-  Component class additions needed (already in your home.component.ts —
-  just confirm `players`, `games`, `formats`, `steps`, `b2bFeatures` arrays
-  exist; the template only changes structure, not the data).
--->
 <div class="home">
 
   <!-- ── HERO ─────────────────────────────────────────────────────── -->
@@ -16,7 +9,13 @@
     <div class="hero-wrap">
       <div class="hero-left">
         <div class="hero-eyebrow">
-          <span class="live-pill"><span class="dot"></span>Live · 12 tournaments</span>
+          @if (liveTournaments().length > 0) {
+            <span class="live-pill"><span class="dot"></span>Live · {{ liveTournaments().length }} tournament{{ liveTournaments().length === 1 ? '' : 's' }}</span>
+          } @else if (upcomingTournaments().length > 0) {
+            <span class="live-pill open-pill">{{ upcomingTournaments().length }} open for registration</span>
+          } @else {
+            <span class="live-pill open-pill">New tournaments coming soon</span>
+          }
           <span>Saudi Arabia &amp; GCC</span>
         </div>
         <h1 class="hero-title">
@@ -35,8 +34,8 @@
         </div>
         <div class="hero-meta">
           <div class="hero-meta-item">
-            <div class="hero-meta-n">23M+</div>
-            <div class="hero-meta-l">Gamers in KSA</div>
+            <div class="hero-meta-n">{{ liveTournaments().length + upcomingTournaments().length }}</div>
+            <div class="hero-meta-l">Active tournaments</div>
           </div>
           <div class="hero-meta-item">
             <div class="hero-meta-n">512</div>
@@ -47,81 +46,157 @@
             <div class="hero-meta-l">Bracket formats</div>
           </div>
           <div class="hero-meta-item">
-            <div class="hero-meta-n">3K+</div>
-            <div class="hero-meta-l">Prize SKUs</div>
+            <div class="hero-meta-n">Free</div>
+            <div class="hero-meta-l">To play</div>
           </div>
         </div>
       </div>
 
       <aside class="hero-right">
-        <div class="feature-card">
-          <div class="fc-header">
-            <span class="fc-game">EA FC 25 · Single Elim</span>
-            <span class="live-pill"><span class="dot"></span>Quarter-finals</span>
-          </div>
-          <div class="fc-body">
-            <div class="fc-title">Riyadh Spring Cup</div>
-            <div class="fc-sub">Round 4 · 8 of 64 remaining</div>
-
-            <div class="mini-bracket">
-              <div class="mb-match">
-                <div class="mb-row win"><span class="mb-name"><span class="mb-flag">🇸🇦</span>FaisalA</span><span class="mb-score">3</span></div>
-                <div class="mb-row lose"><span class="mb-name"><span class="mb-flag">🇦🇪</span>OmarM_07</span><span class="mb-score">1</span></div>
+        @if (heroTournament(); as t) {
+          <div class="feature-card">
+            <div class="fc-header">
+              <span class="fc-game">{{ t.game_label }} · {{ t.format_label }}</span>
+              <span class="live-pill" [class.open-pill]="getStatusClass(t.status) === 'open'">
+                <span class="dot"></span>{{ getStatusLabel(t.status) }}
+              </span>
+            </div>
+            <div class="fc-body">
+              <div class="fc-title">{{ t.name }}</div>
+              @if (t.name_ar) { <div class="fc-title-ar" dir="rtl">{{ t.name_ar }}</div> }
+              <div class="fc-sub">{{ t.participant_count }} / {{ t.max_participants }} players registered</div>
+              <div class="fc-meta-row">
+                <div class="fc-meta-badge">{{ t.format_label }}</div>
+                @if (t.starts_at) {
+                  <div class="fc-meta-date">🗓 {{ t.starts_at | date:'d MMM, HH:mm' }}</div>
+                }
               </div>
-              <div class="mb-match">
-                <div class="mb-row win"><span class="mb-name"><span class="mb-flag">🇰🇼</span>NouraR</span><span class="mb-score">2</span></div>
-                <div class="mb-row lose"><span class="mb-name"><span class="mb-flag">🇶🇦</span>KhalidT</span><span class="mb-score">0</span></div>
-              </div>
-              <div class="mb-match">
-                <div class="mb-row win"><span class="mb-name"><span class="mb-flag">🇸🇦</span>SaraK</span><span class="mb-score">4</span></div>
-                <div class="mb-row lose"><span class="mb-name"><span class="mb-flag">🇧🇭</span>YousefL</span><span class="mb-score">2</span></div>
-              </div>
-              <div class="mb-match">
-                <div class="mb-row pending"><span class="mb-name"><span class="mb-flag">🇴🇲</span>HamadZ</span><span class="mb-score">—</span></div>
-                <div class="mb-row pending"><span class="mb-name"><span class="mb-flag">🇸🇦</span>AhmedB</span><span class="mb-score">—</span></div>
+              <div class="fc-progress-wrap">
+                <div class="fc-progress-bar">
+                  <div class="fc-progress-fill" [style.width.%]="(t.participant_count / t.max_participants) * 100"></div>
+                </div>
+                <span class="fc-progress-label">{{ ((t.participant_count / t.max_participants) * 100) | number:'1.0-0' }}% full</span>
               </div>
             </div>
-          </div>
-          <div class="fc-prize">
-            <div>
-              <div class="fc-prize-l">Prize pool</div>
-              <div class="fc-prize-n">15,000<span class="fc-prize-curr">SAR</span></div>
+            <div class="fc-prize">
+              <div>
+                <div class="fc-prize-l">Prize pool</div>
+                <div class="fc-prize-n">{{ getPrizePool(t) }}</div>
+              </div>
+              <a [routerLink]="['/tournaments', t.id]" class="fc-cta">
+                {{ getStatusClass(t.status) === 'open' ? 'Register now' : 'View bracket' }} <span class="arrow">→</span>
+              </a>
             </div>
-            <a routerLink="/tournaments" class="fc-cta">Watch live <span class="arrow">→</span></a>
           </div>
-        </div>
+        } @else {
+          <div class="feature-card feature-card--empty">
+            <div class="fc-empty-icon">🏆</div>
+            <div class="fc-empty-title">No live tournaments right now</div>
+            <div class="fc-empty-sub">New events are created daily. Create your own in minutes.</div>
+            <a routerLink="/tournaments" class="fc-cta" style="margin-top:16px">Browse all tournaments <span class="arrow">→</span></a>
+          </div>
+        }
       </aside>
     </div>
   </section>
 
-  <!-- ── PLATFORM SPONSORS (auto-hides) ───────────────────────────── -->
+  <!-- ── PLATFORM SPONSORS ─────────────────────────────────────────── -->
   <app-platform-sponsors-strip variant="hero"></app-platform-sponsors-strip>
-
   @if (hasPartners()) {
     <div class="see-all-partners">
-      <a routerLink="/sponsors" class="see-all-partners__link">
-        See All Partners <span aria-hidden="true">→</span>
-      </a>
+      <a routerLink="/sponsors" class="see-all-partners__link">See All Partners <span aria-hidden="true">→</span></a>
     </div>
   }
 
-  <!-- ── TICKER ───────────────────────────────────────────────────── -->
+  <!-- ── LIVE TICKER ───────────────────────────────────────────────── -->
   <div class="ticker">
     <div class="ticker-track">
-      @for (i of [1,2]; track i) {
-        <span class="ticker-item"><span class="live">● LIVE</span> <span class="game">EA FC 25</span> <span class="name">Riyadh Spring Cup</span> <span class="score">FaisalA 3 – 1 OmarM_07</span></span>
-        <span class="ticker-item sep">/</span>
-        <span class="ticker-item"><span class="live">● LIVE</span> <span class="game">PUBG Mobile</span> <span class="name">Jeddah Open</span> <span class="score">Match 7 of 24</span></span>
-        <span class="ticker-item sep">/</span>
-        <span class="ticker-item"><span class="game">UPCOMING</span> <span class="name">CoD Mobile · GCC Invitational</span> <span class="score">Saturday 21:00 AST</span></span>
-        <span class="ticker-item sep">/</span>
-        <span class="ticker-item"><span class="game">PRIZE</span> <span class="name">Khobar Showdown</span> <span class="score">25,000 SAR</span></span>
-        <span class="ticker-item sep">/</span>
-        <span class="ticker-item"><span class="live">● LIVE</span> <span class="game">EA FC 25</span> <span class="name">Aramco Internal</span> <span class="score">Round of 16</span></span>
+      @for (item of tickerItems(); track $index) {
+        <span class="ticker-item">{{ item }}</span>
         <span class="ticker-item sep">/</span>
       }
     </div>
   </div>
+
+  <!-- ── LIVE TOURNAMENTS ──────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-wrap">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Live &amp; upcoming</div>
+          <h2 class="section-title">Tournaments <em>right now</em></h2>
+        </div>
+        <a routerLink="/tournaments" class="btn btn-ghost">View all →</a>
+      </div>
+
+      @if (statsLoading()) {
+        <div class="tournaments-grid">
+          @for (i of [1,2,3,4,5,6]; track i) { <div class="t-card-skel"></div> }
+        </div>
+      } @else if (allTournaments().length === 0) {
+        <div class="t-empty">
+          <div class="t-empty-icon">🏆</div>
+          <div class="t-empty-title">No active tournaments right now</div>
+          <div class="t-empty-sub">New events are created daily. Create your own or check back soon.</div>
+          <a routerLink="/tournaments" class="btn btn-primary" style="margin-top:16px">Browse all tournaments →</a>
+        </div>
+      } @else {
+        <div class="tournaments-grid">
+          @for (t of allTournaments(); track t.id) {
+            <a [routerLink]="['/tournaments', t.id]" class="t-card reveal">
+              <div class="t-card__head">
+                <span class="t-card__game">{{ t.game_label }}</span>
+                <span class="t-card__status" [class]="getStatusClass(t.status)">{{ getStatusLabel(t.status) }}</span>
+              </div>
+
+              <div class="t-card__name">{{ t.name }}</div>
+              @if (t.name_ar) { <div class="t-card__name-ar" dir="rtl">{{ t.name_ar }}</div> }
+              <div class="t-card__meta">
+                <span>{{ t.format_label }}</span>
+                <span>{{ t.participant_count }}/{{ t.max_participants }}</span>
+              </div>
+              <div class="t-card__prize">{{ getPrizePool(t) }}</div>
+              <div class="t-card__cta">{{ getStatusClass(t.status) === 'open' ? 'Register →' : 'Watch →' }}</div>
+            </a>
+          }
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- ── TOP PLAYERS ───────────────────────────────────────────────── -->
+  @if (topPlayers().length > 0) {
+    <section class="section section--alt">
+      <div class="section-wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Leaderboard</div>
+            <h2 class="section-title">Top <em>players</em></h2>
+          </div>
+          <a routerLink="/leaderboard" class="btn btn-ghost">Full leaderboard →</a>
+        </div>
+        <div class="players-podium">
+          @for (p of topPlayers(); track p.user_id; let i = $index) {
+            <a [routerLink]="['/players', p.user_id]" class="podium-card reveal" [class.podium-first]="i === 0">
+              <div class="podium-rank">#{{ i + 1 }}</div>
+              <div class="podium-avatar">
+                @if (p.avatar_url) {
+                  <img [src]="p.avatar_url" [alt]="p.name" />
+                } @else {
+                  <div class="podium-avatar-letter">{{ p.name.charAt(0).toUpperCase() }}</div>
+                }
+              </div>
+              <div class="podium-name">{{ p.name }}</div>
+              <div class="podium-stats">
+                <span class="podium-wins">{{ p.wins }}W</span>
+                <span class="podium-pts">{{ p.points }} pts</span>
+              </div>
+            </a>
+          }
+        </div>
+      </div>
+    </section>
+  }
 
   <!-- ── GAMES ────────────────────────────────────────────────────── -->
   <section class="section">
@@ -131,26 +206,19 @@
           <div class="eyebrow">Supported games</div>
           <h2 class="section-title">Play what <em>you love</em></h2>
         </div>
-        <p class="section-lede">Three flagship titles, every bracket format. More games rolling out across 2026 — vote inside the platform for what comes next.</p>
+        <p class="section-lede">Three flagship titles, every bracket format.</p>
       </div>
-
       <div class="games-grid">
         @for (g of games; track g.name) {
-          <article class="game-card reveal">
-            <div class="game-cover">
-              <div class="game-cover-stripe"></div>
-              <div class="game-cover-glyph">{{ g.shortCode || g.name.substr(0,2) }}</div>
-              <span class="game-cover-tag">{{ g.badge }}</span>
-              <div class="game-cover-meta">{{ g.activeText || 'Active now' }}</div>
-              <div class="game-cover-placeholder">[ key art ]</div>
-            </div>
+          <article class="game-card reveal" [style.--game-color]="g.color">
+            <div class="game-icon">{{ g.icon }}</div>
             <div class="game-body">
               <h3 class="game-name">{{ g.name }}</h3>
               <p class="game-desc">{{ g.desc }}</p>
             </div>
             <div class="game-foot">
-              <span>{{ g.formatsText || 'All formats' }}</span>
-              <span class="arrow">View tournaments →</span>
+              <span class="game-badge">{{ g.badge }}</span>
+              <a routerLink="/tournaments" class="game-link">View tournaments →</a>
             </div>
           </article>
         }
@@ -166,9 +234,8 @@
           <div class="eyebrow">How it works</div>
           <h2 class="section-title">Three steps to <em>winning</em></h2>
         </div>
-        <p class="section-lede">From signup to payout in under five minutes. The platform handles brackets, scoring, and prize distribution.</p>
+        <p class="section-lede">From signup to payout in under five minutes.</p>
       </div>
-
       <div class="steps">
         @for (s of steps; track s.n; let i = $index) {
           <div class="step reveal" [class.active]="i === 0">
@@ -189,9 +256,8 @@
           <div class="eyebrow">Tournament formats</div>
           <h2 class="section-title">Four ways to <em>compete</em></h2>
         </div>
-        <p class="section-lede">Every bracket type the IOC and ESL use, configurable in a click. Pick what fits your event size and time budget.</p>
+        <p class="section-lede">Every bracket type the IOC and ESL use, configurable in a click.</p>
       </div>
-
       <div class="formats">
         @for (f of formats; track f.name) {
           <div class="format reveal">
@@ -211,35 +277,20 @@
         <div class="b2b-content">
           <div class="eyebrow">For companies</div>
           <h2 class="section-title">Run employee tournaments with <em>zero admin overhead</em></h2>
-          <p class="b2b-lede">
-            HR teams across Saudi Arabia and the GCC use Dawri to run engagement programs for their employees.
-            Set up a company tournament in under 10 minutes, fund the prize pool, and let the platform handle everything else.
-          </p>
+          <p class="b2b-lede">HR teams across Saudi Arabia and the GCC use Dawri to run engagement programs. Set up a company tournament in under 10 minutes, fund the prize pool, and let the platform handle everything else.</p>
           <div class="b2b-feats">
             @for (f of b2bFeatures; track f) {
-              <div class="b2b-feat reveal">
-                <span class="b2b-feat-check">✓</span>{{ f.replace('✓ ', '') }}
-              </div>
+              <div class="b2b-feat reveal"><span class="b2b-feat-check">✓</span>{{ f }}</div>
             }
           </div>
-          <a routerLink="/pricing" class="btn btn-violet btn-lg" style="margin-top:32px">
-            View enterprise plans <span class="arrow">→</span>
-          </a>
+          <a routerLink="/pricing" class="btn btn-violet btn-lg" style="margin-top:32px">View enterprise plans <span class="arrow">→</span></a>
         </div>
-
         <div class="b2b-visual reveal">
-          <div class="b2b-visual-stripe"></div>
-          <span class="b2b-visual-tag">[ team event photo ]</span>
-          <div class="b2b-visual-glyph">HR<br>+<br>FUN</div>
-          <div class="b2b-badge">
-            <div>
-              <div class="b2b-badge-n">10 min</div>
-              <div class="b2b-badge-l">to set up a tournament</div>
-            </div>
-            <div style="text-align:right">
-              <div class="b2b-badge-n" style="color:var(--text)">200+</div>
-              <div class="b2b-badge-l">companies onboarded</div>
-            </div>
+          <div class="b2b-visual-inner">
+            <div class="b2b-stat"><div class="b2b-stat-n">10 min</div><div class="b2b-stat-l">to set up a tournament</div></div>
+            <div class="b2b-stat"><div class="b2b-stat-n">4</div><div class="b2b-stat-l">bracket formats</div></div>
+            <div class="b2b-stat"><div class="b2b-stat-n">512</div><div class="b2b-stat-l">max participants</div></div>
+            <div class="b2b-stat"><div class="b2b-stat-n">100%</div><div class="b2b-stat-l">automated prizes</div></div>
           </div>
         </div>
       </div>
@@ -254,8 +305,11 @@
       <div class="eyebrow" style="display:inline-flex">Ready to play</div>
       <h2 class="cta-title">Join the <em>GCC's #1</em><br>esports platform</h2>
       <p class="cta-sub">
-        Thousands of players across Saudi Arabia and the GCC are already competing.
-        It's completely free to join.
+        @if (allTournaments().length > 0) {
+          {{ allTournaments().length }} active tournament{{ allTournaments().length === 1 ? '' : 's' }} waiting for you. It's completely free to join.
+        } @else {
+          New tournaments are added daily. It's completely free to join.
+        }
       </p>
       <div class="cta-actions">
         <a routerLink="/auth" class="btn btn-primary btn-lg">Create free account <span class="arrow">→</span></a>

@@ -398,3 +398,106 @@ img { display: block; max-width: 100%; }
   transition: opacity .6s ease, transform .6s ease;
   &.visible { opacity: 1; transform: translateY(0); }
 }
+
+// ── Live data additions ──────────────────────────────────────────────────────
+
+.stat-loading { opacity: .4; animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity:.4; } 50% { opacity:.8; } }
+
+.open-pill { background: rgba(168,85,247,.15) !important; color: #a855f7 !important; border-color: rgba(168,85,247,.4) !important; }
+
+// Tournament cards grid
+.tournaments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+.t-card {
+  display: flex; flex-direction: column; gap: .5rem;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px; padding: 1.25rem;
+  text-decoration: none; color: inherit;
+  transition: transform .2s, border-color .2s, box-shadow .2s;
+  &:hover { transform: translateY(-3px); border-color: var(--gold); box-shadow: 0 8px 30px rgba(0,0,0,.3); }
+}
+.t-card__head { display: flex; align-items: center; justify-content: space-between; }
+.t-card__game { font-family: 'Rajdhani', sans-serif; font-size: .75rem; font-weight: 700; letter-spacing: 1px; color: #6b7280; text-transform: uppercase; }
+.t-card__status {
+  font-family: 'Rajdhani', sans-serif; font-size: .7rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px; letter-spacing: 1px;
+  &.live { background: rgba(239,68,68,.15); color: #ef4444; }
+  &.open { background: rgba(16,185,129,.15); color: #10b981; }
+  &.upcoming { background: rgba(107,114,128,.15); color: #6b7280; }
+}
+.t-card__name { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; color: #fff; letter-spacing: .5px; line-height: 1.2; }
+.t-card__name-ar { font-family: 'Noto Sans Arabic', sans-serif; font-size: .85rem; color: #6b7280; }
+.t-card__meta { display: flex; justify-content: space-between; font-family: 'Rajdhani', sans-serif; font-size: .82rem; color: #6b7280; }
+.t-card__prize { font-family: 'Rajdhani', sans-serif; font-size: .9rem; font-weight: 700; color: var(--gold); margin-top: auto; }
+.t-card__cta { font-family: 'Rajdhani', sans-serif; font-size: .85rem; color: var(--cyan); font-weight: 600; }
+
+// FC card extras
+.fc-title-ar { font-family: 'Noto Sans Arabic', sans-serif; font-size: .9rem; color: rgba(255,255,255,.5); direction: rtl; margin-top: 2px; }
+.fc-meta-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.fc-meta-badge { font-family: 'Rajdhani', sans-serif; font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(255,255,255,.08); color: #9ca3af; letter-spacing: 1px; }
+.fc-meta-date { font-family: 'Rajdhani', sans-serif; font-size: .8rem; color: #6b7280; }
+.fc-progress-wrap { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.fc-progress-bar { flex: 1; height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden; }
+.fc-progress-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width .5s ease; }
+.fc-progress-label { font-family: 'Rajdhani', sans-serif; font-size: .72rem; color: #6b7280; white-space: nowrap; }
+.feature-card--empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 300px; gap: 12px; }
+.fc-empty-icon { font-size: 3rem; opacity: .3; }
+.fc-empty-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; color: #fff; letter-spacing: 1px; }
+.fc-empty-sub { font-family: 'Rajdhani', sans-serif; font-size: .9rem; color: #6b7280; max-width: 260px; }
+
+// Podium / leaderboard
+.players-podium { display: flex; gap: 1rem; flex-wrap: wrap; }
+.podium-card {
+  display: flex; flex-direction: column; align-items: center; gap: .5rem;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px; padding: 1.5rem 1.25rem;
+  text-decoration: none; color: inherit; flex: 1; min-width: 140px;
+  transition: transform .2s, border-color .2s;
+  &:hover { transform: translateY(-3px); border-color: var(--gold); }
+  &.podium-first { border-color: var(--gold); background: rgba(240,165,0,.05); }
+}
+.podium-rank { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; color: var(--gold); letter-spacing: 1px; }
+.podium-avatar {
+  width: 56px; height: 56px; border-radius: 50%; overflow: hidden;
+  background: rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center;
+  img { width: 100%; height: 100%; object-fit: cover; }
+}
+.podium-avatar-letter { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; color: var(--gold); }
+.podium-name { font-family: 'Rajdhani', sans-serif; font-size: .9rem; font-weight: 700; color: #fff; text-align: center; }
+.podium-stats { display: flex; gap: 8px; font-family: 'Rajdhani', sans-serif; font-size: .8rem; }
+.podium-wins { color: #10b981; font-weight: 700; }
+.podium-pts  { color: #6b7280; }
+
+// Games updated
+.game-card { --game-color: var(--gold); border-color: rgba(255,255,255,.08); &:hover { border-color: var(--game-color); box-shadow: 0 0 24px rgba(0,0,0,.3); } }
+.game-icon { font-size: 2.5rem; margin-bottom: .5rem; }
+.game-badge { font-family: 'Rajdhani', sans-serif; font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: rgba(255,255,255,.08); color: #9ca3af; letter-spacing: 1px; }
+.game-link { font-family: 'Rajdhani', sans-serif; font-size: .85rem; color: var(--game-color); font-weight: 600; text-decoration: none; }
+.game-foot { display: flex; align-items: center; justify-content: space-between; }
+
+// B2B visual stats
+.b2b-visual-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.b2b-stat { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 1.25rem; }
+.b2b-stat-n { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--gold); letter-spacing: 1px; line-height: 1; }
+.b2b-stat-l { font-family: 'Rajdhani', sans-serif; font-size: .82rem; color: #6b7280; margin-top: 4px; }
+
+// Skeleton + empty states for tournaments
+.t-card-skel {
+  height: 180px; border-radius: 14px;
+  background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.t-empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 60px 20px; text-align: center; gap: 12px;
+}
+.t-empty-icon { font-size: 3rem; opacity: .3; }
+.t-empty-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; color: #6b7280; letter-spacing: 1px; }
+.t-empty-sub { font-family: 'Rajdhani', sans-serif; color: #4b5563; font-size: .9rem; max-width: 380px; }
