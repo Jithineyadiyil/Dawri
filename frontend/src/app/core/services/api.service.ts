@@ -374,12 +374,6 @@ export class ApiService {
    *                       tournament_participants.rules_accepted_at
    *                       with the current time when this is true.
    */
-  unregisterFromTournament(id: string): Observable<{ message: string; participants_count: number }> {
-    return this.http.delete<{ message: string; participants_count: number }>(
-      `${API_BASE}/tournaments/${id}/register`
-    );
-  }
-
   registerForTournamentWithRules(
     id: string,
     acceptedRules: boolean
@@ -628,4 +622,52 @@ export class ApiService {
   getInvoices(): Observable<PaginatedResponse<Invoice>> {
     return this.http.get<PaginatedResponse<Invoice>>(`${API_BASE}/subscription/invoices`);
   }
+  // ── Challonge Features ──────────────────────────────────────────────────────
+
+  shuffleSeeds(id: string): Observable<any> {
+    return this.http.post(`${API_BASE}/tournaments/${id}/shuffle-seeds`, {}, { headers: this.authHeaders() });
+  }
+
+  substituteParticipant(tournamentId: string, participantId: string, payload: { new_user_id?: string; new_display_name?: string }): Observable<any> {
+    return this.http.patch(`${API_BASE}/tournaments/${tournamentId}/participants/${participantId}/substitute`, payload, { headers: this.authHeaders() });
+  }
+
+  submitPrediction(tournamentId: string, matchId: string, predictedWinnerId: string): Observable<any> {
+    return this.http.post(
+      `${API_BASE}/tournaments/${tournamentId}/predictions`,
+      { match_id: matchId, predicted_winner_id: predictedWinnerId },
+      { headers: this.authHeaders() }
+    );
+  }
+
+  getMyPredictions(tournamentId: string): Observable<{ data: Record<string, any> }> {
+    return this.http.get<{ data: Record<string, any> }>(
+      `${API_BASE}/tournaments/${tournamentId}/predictions`,
+      { headers: this.authHeaders() }
+    );
+  }
+
+  getPredictionLeaderboard(tournamentId: string): Observable<{ data: any[] }> {
+    return this.http.get<{ data: any[] }>(`${API_BASE}/tournaments/${tournamentId}/predictions/leaderboard`);
+  }
+
+  getAdPlacements(type: string): Observable<{ data: any[] }> {
+    return this.http.get<{ data: any[] }>(`${API_BASE}/ad-placements?type=${type}`);
+  }
+
+  trackAdClick(id: string): void {
+    this.http.post(`${API_BASE}/ad-placements/${id}/click`, {}).subscribe();
+  }
+
+  unregisterFromTournament(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${API_BASE}/tournaments/${id}/register`, { headers: this.authHeaders() });
+  }
+
+  private authHeaders(): Record<string, string> {
+    const token = localStorage.getItem('dawri_token') ?? '';
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  // ── End Challonge Features ────────────────────────────────────────────────
+
 }

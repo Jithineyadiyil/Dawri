@@ -13,6 +13,7 @@ use App\Http\Resources\MatchEvidenceResource;
 use App\Http\Resources\MatchRescheduleResource;
 use App\Models\MatchEvidence;
 use App\Models\MatchRescheduleRequest;
+use App\Models\BracketPrediction;
 use App\Models\TournamentMatch;
 use App\Services\BracketAdvancementService;
 use App\Services\DisputeService;
@@ -132,12 +133,32 @@ class MatchController extends Controller
 
         try {
             $this->advancement->advance($match);
+
+            // Auto-score bracket predictions for this match
+            $this->scorePredictions($match->id, $match->winner_id, $match->round_number ?? 1);
+
             return response()->json([
                 'message' => 'Result confirmed and bracket advanced.',
                 'data'    => $this->matchArray($match->fresh()),
             ]);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    /** Auto-score predictions when a match completes. */
+    private function scorePredictions(string $matchId, string $winnerId, int $round): void
+    {
+        try {
+            $points = min(10, $round * 2);
+            BracketPrediction::where('match_id', $matchId)
+                ->where('predicted_winner_id', $winnerId)
+                ->update(['is_correct' => true, 'points_earned' => $points]);
+            BracketPrediction::where('match_id', $matchId)
+                ->where('predicted_winner_id', '!=', $winnerId)
+                ->update(['is_correct' => false, 'points_earned' => 0]);
+        } catch (\Throwable $e) {
+            logger()->warning('Prediction scoring failed: ' . $e->getMessage());
         }
     }
 
@@ -185,6 +206,7 @@ class MatchController extends Controller
         ]);
 
         try { $this->advancement->advance($match); } catch (\Throwable $e) { logger()->error($e->getMessage()); }
+        $this->scorePredictions($match->id, $winnerId, $match->round_number ?? 1);
 
         return response()->json([
             'message' => 'Match result overridden.',

@@ -283,7 +283,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     return [...t.participants]
       .sort((a: any, b: any) => b.wins - a.wins || b.points - a.points || a.losses - b.losses)
       .map((p: any, i: number) => ({
-        id: p.id ?? null,
         rank: i + 1,
         name: p.name ?? '—',
         display_name: p.display_name ?? p.name ?? '—',
@@ -589,6 +588,180 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   });
 
   // ── Lifecycle ────────────────────────────────────────────────────────
+
+  // ════════════════════════════════════════════════════════════
+  //  Challonge Feature Signals
+  // ════════════════════════════════════════════════════════════
+
+  // Shuffle Seeds
+  readonly shuffling        = signal(false);
+
+  // Substitution
+  readonly showSubModal     = signal(false);
+  readonly subParticipant   = signal<any>(null);
+  readonly subUserId        = signal('');
+  readonly subDisplayName   = signal('');
+  readonly substituting     = signal(false);
+
+  // Predictions
+  readonly predictionsMode  = signal(false);
+  readonly myPredictions    = signal<Record<string,string>>({});
+  readonly predictionsSaved = signal(false);
+  readonly predictionLb     = signal<any[]>([]);
+  readonly showPredictionLb = signal(false);
+  readonly submittingPred   = signal(false);
+
+  // Form dots (Cricbuzz)
+  readonly playerForm = computed<Record<string, ('W'|'L')[]>>(() => {
+    const t = this.tournament();
+    if (!t) return {};
+    const matches: BracketMatch[] = t?.bracket?.matches ?? t?.matches ?? [];
+    const completed = matches.filter((m: BracketMatch) => m.status === 'completed' && m.winner_id);
+    const form: Record<string, ('W'|'L')[]> = {};
+    const sorted = [...completed].sort((a, b) => a.round_number - b.round_number);
+    for (const m of sorted) {
+      const paId = m.participant_a?.id;
+      const pbId = m.participant_b?.id;
+      if (!paId || !pbId) continue;
+      if (!form[paId]) form[paId] = [];
+      if (!form[pbId]) form[pbId] = [];
+      form[paId].push(m.winner_id === paId ? 'W' : 'L');
+      form[pbId].push(m.winner_id === pbId ? 'W' : 'L');
+    }
+    for (const id of Object.keys(form)) form[id] = form[id].slice(-5);
+    return form;
+  });
+
+  getPlayerForm(participantId: string): ('W'|'L')[] {
+    return this.playerForm()[participantId] ?? [];
+  }
+
+  // ── Challonge Methods ─────────────────────────────────────────────────────
+
+  shuffleSeeds(): void {
+    const t = this.tournament();
+    if (!t) return;
+    if (!confirm('Randomly reassign all participant seeds? The bracket must not be generated yet.')) return;
+    this.shuffling.set(true);
+    this.api.shuffleSeeds(t.id).subscribe({
+      next: () => { this.shuffling.set(false); this.reload(); this.toast.success('Seeds shuffled!'); },
+      error: (err: any) => { this.shuffling.set(false); this.toast.error(err?.error?.message ?? 'Failed to shuffle.'); },
+    });
+  }
+
+  openSubModal(p: any): void {
+    this.subParticipant.set(p);
+    this.subUserId.set('');
+    this.subDisplayName.set('');
+    this.showSubModal.set(true);
+  }
+
+  confirmSub(): void {
+    const t = this.tournament();
+    const p = this.subParticipant();
+    if (!t || !p) return;
+    if (!this.subUserId() && !this.subDisplayName()) {
+      this.toast.error('Enter a user ID or guest display name.');
+      return;
+    }
+    this.substituting.set(true);
+    const payload: any = this.subUserId()
+      ? { new_user_id: this.subUserId() }
+      : { new_display_name: this.subDisplayName() };
+
+    this.api.substituteParticipant(t.id, p.id, payload).subscribe({
+      next: (res: any) => {
+        this.substituting.set(false);
+        this.showSubModal.set(false);
+        this.reload();
+        this.toast.success(res.message ?? 'Substituted!');
+      },
+      error: (err: any) => {
+        this.substituting.set(false);
+        this.toast.error(err?.error?.message ?? 'Substitution failed.');
+      },
+    });
+  }
+
+  togglePredictionsMode(): void {
+    const entering = !this.predictionsMode();
+    this.predictionsMode.set(entering);
+    if (entering) {
+      this.predictionsSaved.set(false);
+      const t = this.tournament();
+      if (!t) return;
+      this.api.getMyPredictions(t.id).subscribe({
+        next: (r) => {
+          const map: Record<string,string> = {};
+          Object.values(r.data ?? {}).forEach((v: any) => { map[v.match_id] = v.predicted_winner_id; });
+          this.myPredictions.set(map);
+        },
+        error: () => {},
+      });
+    }
+  }
+
+
+  pickA(m: BracketMatch, event: Event): void {
+    event.stopPropagation();
+    if (!this.predictionsMode()) return;
+    const id = m.participant_a?.id;
+    if (id) this.setPrediction(m.id, id);
+  }
+
+  pickB(m: BracketMatch, event: Event): void {
+    event.stopPropagation();
+    if (!this.predictionsMode()) return;
+    const id = m.participant_b?.id;
+    if (id) this.setPrediction(m.id, id);
+  }
+
+  clickMatch(m: BracketMatch, event: Event): void {
+    if (this.predictionsMode()) return;
+    this.openMatch(m);
+  }
+
+  setPrediction(matchId: string, participantId: string): void {
+    this.myPredictions.update(p => ({ ...p, [matchId]: participantId }));
+  }
+
+  hasPrediction(matchId: string): string | null {
+    return this.myPredictions()[matchId] ?? null;
+  }
+
+  countPredictions(): number {
+    return Object.keys(this.myPredictions()).length;
+  }
+
+  saveAllPredictions(): void {
+    const t = this.tournament();
+    if (!t) return;
+    const entries = Object.entries(this.myPredictions());
+    if (!entries.length) return;
+    this.submittingPred.set(true);
+    let done = 0;
+    entries.forEach(([matchId, winnerId]) => {
+      this.api.submitPrediction(t.id, matchId, winnerId).subscribe({
+        next:  () => { if (++done === entries.length) { this.submittingPred.set(false); this.predictionsSaved.set(true); this.toast.success(`${done} prediction${done>1?'s':''} saved!`); } },
+        error: () => { if (++done === entries.length) this.submittingPred.set(false); },
+      });
+    });
+  }
+
+  loadPredictionLeaderboard(): void {
+    const t = this.tournament();
+    if (!t) return;
+    this.showPredictionLb.set(true);
+    this.api.getPredictionLeaderboard(t.id).subscribe({
+      next: (r) => this.predictionLb.set(r.data ?? []),
+      error: () => {},
+    });
+  }
+
+  private reload(): void {
+    window.location.reload();
+  }
+
   ngOnInit(): void {
     this.route.paramMap.pipe(
       switchMap(p => {
@@ -1098,62 +1271,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     this.evidenceFile.set(null);
     this.evidencePreview.set(null);
   }
-
-
-  // ── Recent form (last 5 results per player) ──────────────────────────────
-  readonly playerForm = computed<Record<string, ('W'|'L'|'D')[]>>(() => {
-    const t = this.tournament();
-    if (!t) return {};
-    const matches: BracketMatch[] = t?.bracket?.matches ?? t?.matches ?? [];
-    const completed = matches.filter(m => m.status === 'completed' && m.winner_id);
-    const form: Record<string, ('W'|'L'|'D')[]> = {};
-
-    // Sort by round ascending so form reads left=oldest, right=latest
-    const sorted = [...completed].sort((a, b) => a.round_number - b.round_number);
-
-    for (const m of sorted) {
-      const paId = (m as any).participant_a_id ?? m.participant_a?.id;
-      const pbId = (m as any).participant_b_id ?? m.participant_b?.id;
-      if (!paId || !pbId) continue;
-
-      if (!form[paId]) form[paId] = [];
-      if (!form[pbId]) form[pbId] = [];
-
-      form[paId].push(m.winner_id === paId ? 'W' : 'L');
-      form[pbId].push(m.winner_id === pbId ? 'W' : 'L');
-    }
-
-    // Keep last 5 only
-    for (const id of Object.keys(form)) {
-      form[id] = form[id].slice(-5);
-    }
-    return form;
-  });
-
-  getPlayerForm(participantId: string): ('W'|'L'|'D')[] {
-    return this.playerForm()[participantId] ?? [];
-  }
-
-  // ── Schedule timeline ────────────────────────────────────────────────────
-  readonly scheduleMatches = computed(() => {
-    const t = this.tournament();
-    if (!t) return [];
-    const matches: BracketMatch[] = t?.bracket?.matches ?? t?.matches ?? [];
-    return [...matches]
-      .filter(m => !m.participant_a_is_bye && !m.participant_b_is_bye)
-      .sort((a, b) => {
-        // Sort by scheduled_at if available, then round, then match number
-        const aTime = (a as any).scheduled_at ? new Date((a as any).scheduled_at).getTime() : 0;
-        const bTime = (b as any).scheduled_at ? new Date((b as any).scheduled_at).getTime() : 0;
-        if (aTime && bTime) return aTime - bTime;
-        if (a.round_number !== b.round_number) return a.round_number - b.round_number;
-        return a.match_number - b.match_number;
-      });
-  });
-
-  readonly scheduledCount = computed(() =>
-    this.scheduleMatches().filter(m => (m as any).scheduled_at).length
-  );
 
   // ── Game art helpers ──────────────────────────────────────────────────────
   gameArtUrl(game: string): string {

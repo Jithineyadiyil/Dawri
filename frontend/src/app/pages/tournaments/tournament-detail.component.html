@@ -226,7 +226,6 @@
         </button>
         <button class="tab" role="tab" [class.tab--active]="activeTab()==='prize'" (click)="activeTab.set('prize')">Prize Pool</button>
 
-
         @if (liveStreamsCount() > 0) {
           <button class="tab tab--live" role="tab" [class.tab--active]="activeTab()==='live'"
                   [class.tab--actually-live]="trulyLiveCount() > 0"
@@ -266,6 +265,21 @@
               <h2 class="section-title">{{ t.format_label }}</h2>
             </div>
             <div class="bracket-toolbar__right">
+              @if (isOrganizerOrAdmin() && !t.bracket) {
+                <button type="button" class="btn btn--ghost btn--sm" [disabled]="shuffling()" (click)="shuffleSeeds()">
+                  🔀 {{ shuffling() ? 'Shuffling…' : 'Shuffle Seeds' }}
+                </button>
+              }
+              @if (t.bracket && t.status !== 'completed') {
+                <button type="button" class="btn btn--ghost btn--sm"
+                        [class.btn--active]="predictionsMode()"
+                        (click)="togglePredictionsMode()">
+                  🎯 {{ predictionsMode() ? 'Exit Predictions' : 'Predict Winners' }}
+                </button>
+              }
+              <button type="button" class="btn btn--ghost btn--sm" (click)="loadPredictionLeaderboard()">
+                🏅 Leaderboard
+              </button>
               @if (currentUserIsParticipant() && t.status !== 'completed') {
                 <button type="button" class="btn btn--ghost btn--sm" (click)="jumpToMyMatch()">
                   ⚡ My Match
@@ -314,9 +328,10 @@
 
                         <div class="b-match"
                           [class]="'b-match--' + m.status"
-                          [class.b-match--clickable]="matchIsClickable(m)"
+                          [class.b-match--clickable]="matchIsClickable(m) && !predictionsMode()"
                           [class.b-match--bye]="m.participant_a_is_bye || m.participant_b_is_bye"
-                          (click)="openMatch(m)"
+                          [class.b-match--pred-mode]="predictionsMode()"
+                          (click)="clickMatch(m, $event)"
                           [attr.role]="matchIsClickable(m) ? 'button' : null"
                           [attr.tabindex]="matchIsClickable(m) ? 0 : null">
 
@@ -333,7 +348,9 @@
 
                           <div class="b-match__p"
                             [class.b-match__p--winner]="m.winner_id === m.participant_a?.id && m.status === 'completed'"
-                            [class.b-match__p--loser]="m.winner_id && m.winner_id !== m.participant_a?.id && m.status === 'completed'">
+                            [class.b-match__p--loser]="m.winner_id && m.winner_id !== m.participant_a?.id && m.status === 'completed'"
+                            [class.b-match__p--pick]="predictionsMode() && hasPrediction(m.id) === m.participant_a?.id"
+                            (click)="pickA(m, $event)">
                             <span class="b-match__name">
                               @if (m.participant_a_is_bye) { <em class="b-match__bye">BYE</em> }
                               @else {
@@ -358,7 +375,9 @@
 
                           <div class="b-match__p"
                             [class.b-match__p--winner]="m.winner_id === m.participant_b?.id && m.status === 'completed'"
-                            [class.b-match__p--loser]="m.winner_id && m.winner_id !== m.participant_b?.id && m.status === 'completed'">
+                            [class.b-match__p--loser]="m.winner_id && m.winner_id !== m.participant_b?.id && m.status === 'completed'"
+                            [class.b-match__p--pick]="predictionsMode() && hasPrediction(m.id) === m.participant_b?.id"
+                            (click)="pickB(m, $event)">
                             <span class="b-match__name">
                               @if (m.participant_b_is_bye) { <em class="b-match__bye">BYE</em> }
                               @else {
@@ -413,23 +432,40 @@
                              [style.--delay.ms]="(matchIdx * 60) + (roundIdx * 120)">
                           <div class="b-match"
                             [class]="'b-match--' + m.status"
-                            [class.b-match--clickable]="matchIsClickable(m)"
-                            (click)="openMatch(m)"
+                            [class.b-match--clickable]="matchIsClickable(m) && !predictionsMode()"
+                            [class.b-match--pred-mode]="predictionsMode()"
+                            (click)="clickMatch(m, $event)"
                             [attr.role]="matchIsClickable(m) ? 'button' : null">
                             <div class="b-match__head">
                               <span class="b-match__num">Match #{{ m.match_number }}</span>
                               <span class="b-match__head-status">{{ statusLabel(m.status) }}</span>
                             </div>
-                            <div class="b-match__p" [class.b-match__p--winner]="m.winner_id === m.participant_a?.id && m.status === 'completed'">
+                            <div class="b-match__p"
+                              [class.b-match__p--winner]="m.winner_id === m.participant_a?.id && m.status === 'completed'"
+                              [class.b-match__p--pick]="predictionsMode() && hasPrediction(m.id) === m.participant_a?.id"
+                              (click)="pickA(m, $event)">
                               <span class="b-match__name"><span class="b-match__name-text">{{ m.participant_a?.display_name || m.participant_a?.name || 'TBD' }}</span></span>
-                              @if (m.score_a !== null && m.score_a !== undefined) {
+                              @if (!predictionsMode() && m.score_a !== null && m.score_a !== undefined) {
                                 <span class="b-match__score" [class.b-match__score--win]="m.winner_id === m.participant_a?.id">{{ m.score_a }}</span>
                               }
+                              @if (predictionsMode() && m.participant_a?.id) {
+                                <span class="pred-pick-label" [class.pred-pick-label--active]="hasPrediction(m.id) === m.participant_a?.id">
+                                  {{ hasPrediction(m.id) === m.participant_a?.id ? '✓ Picked' : 'Pick' }}
+                                </span>
+                              }
                             </div>
-                            <div class="b-match__p" [class.b-match__p--winner]="m.winner_id === m.participant_b?.id && m.status === 'completed'">
+                            <div class="b-match__p"
+                              [class.b-match__p--winner]="m.winner_id === m.participant_b?.id && m.status === 'completed'"
+                              [class.b-match__p--pick]="predictionsMode() && hasPrediction(m.id) === m.participant_b?.id"
+                              (click)="pickB(m, $event)">
                               <span class="b-match__name"><span class="b-match__name-text">{{ m.participant_b?.display_name || m.participant_b?.name || 'TBD' }}</span></span>
-                              @if (m.score_b !== null && m.score_b !== undefined) {
+                              @if (!predictionsMode() && m.score_b !== null && m.score_b !== undefined) {
                                 <span class="b-match__score" [class.b-match__score--win]="m.winner_id === m.participant_b?.id">{{ m.score_b }}</span>
+                              }
+                              @if (predictionsMode() && m.participant_b?.id) {
+                                <span class="pred-pick-label" [class.pred-pick-label--active]="hasPrediction(m.id) === m.participant_b?.id">
+                                  {{ hasPrediction(m.id) === m.participant_b?.id ? '✓ Picked' : 'Pick' }}
+                                </span>
                               }
                             </div>
                           </div>
@@ -439,6 +475,21 @@
                   </div>
                 }
               </div>
+            </div>
+          }
+
+
+          @if (predictionsMode()) {
+            <div class="pred-bar">
+              <span class="pred-bar__info">🎯 Prediction mode — click a player row to pick your winner</span>
+              <span class="pred-bar__count">{{ countPredictions() }} picked</span>
+              @if (predictionsSaved()) {
+                <span class="pred-bar__saved">✓ Saved!</span>
+              } @else {
+                <button class="btn btn--primary btn--sm" [disabled]="submittingPred() || countPredictions() === 0" (click)="saveAllPredictions()">
+                  {{ submittingPred() ? 'Saving…' : 'Save All Picks' }}
+                </button>
+              }
             </div>
           }
 
@@ -659,7 +710,6 @@
             <span class="lb-th lb-th--pts">Pts</span>
             @if (t.format === 'swiss') { <span class="lb-th lb-th--bh">BH</span> }
             <span class="lb-th lb-th--wr">Win rate</span>
-            <span class="lb-th lb-th--form">Form</span>
           </div>
 
           <!-- ── Player rows ─────────────────────────────────────── -->
@@ -721,20 +771,11 @@
                     <span class="lb-wr__pct" style="color:var(--text-mute)">—</span>
                   }
                 </div>
-
-                <!-- Recent form dots -->
-                <div class="lb-cell lb-cell--form">
-                  <div class="form-dots">
-                    @for (r of getPlayerForm(p.id ?? ''); track $index) {
-                      <span class="form-dot" [class.form-dot--w]="r === 'W'" [class.form-dot--l]="r === 'L'">
-                        {{ r }}
-                      </span>
-                    }
-                    @if (getPlayerForm(p.id ?? '').length === 0) {
-                      <span style="color:var(--text-mute);font-size:11px">—</span>
-                    }
+                @if (isOrganizerOrAdmin()) {
+                  <div class="lb-cell lb-cell--sub">
+                    <button class="sub-btn" (click)="openSubModal(p)" title="Substitute player">⇄ Sub</button>
                   </div>
-                </div>
+                }
               </div>
             }
             @if (filteredLeaderboard().length === 0) {
@@ -802,7 +843,6 @@
     <!-- ═══════════════════════════════════════════════════════════ -->
     <!-- STREAMS TAB                                                -->
     <!-- ═══════════════════════════════════════════════════════════ -->
-
     @if (activeTab() === 'live') {
       <section class="tab-content">
         @if (liveStreams().length === 0) {
@@ -1398,4 +1438,77 @@
       </footer>
     </div>
   </div>
+
+<!-- ═══ SUBSTITUTE MODAL ═══════════════════════════════════════ -->
+@if (showSubModal()) {
+  <div class="modal-overlay" (click)="showSubModal.set(false)" role="dialog">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <header class="modal__head">
+        <div>
+          <h3 class="modal__title">⇄ Substitute Player</h3>
+          <p class="modal__hint">Replacing: <strong>{{ subParticipant()?.display_name || subParticipant()?.name }}</strong></p>
+        </div>
+        <button class="modal__close" (click)="showSubModal.set(false)">✕</button>
+      </header>
+      <div class="modal-body" style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+        <div class="field">
+          <label class="label">New Player — User ID (UUID)</label>
+          <input class="input" [value]="subUserId()"
+                 (input)="subUserId.set($any($event.target).value)"
+                 placeholder="Paste the user's UUID…"/>
+          <small style="color:var(--text-mute);font-size:11px">Find in Admin → Users</small>
+        </div>
+        <div style="text-align:center;color:var(--text-mute);font-size:12px">— OR —</div>
+        <div class="field">
+          <label class="label">Guest Display Name</label>
+          <input class="input" [value]="subDisplayName()"
+                 (input)="subDisplayName.set($any($event.target).value)"
+                 placeholder="e.g. stand_in_player"/>
+        </div>
+      </div>
+      <footer class="modal-foot">
+        <button class="btn btn--ghost" (click)="showSubModal.set(false)" [disabled]="substituting()">Cancel</button>
+        <button class="btn btn--primary" (click)="confirmSub()" [disabled]="substituting()">
+          {{ substituting() ? 'Substituting…' : 'Confirm Substitute' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+<!-- ═══ PREDICTION LEADERBOARD MODAL ════════════════════════════ -->
+@if (showPredictionLb()) {
+  <div class="modal-overlay" (click)="showPredictionLb.set(false)" role="dialog">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <header class="modal__head">
+        <h3 class="modal__title">🏅 Prediction Leaderboard</h3>
+        <button class="modal__close" (click)="showPredictionLb.set(false)">✕</button>
+      </header>
+      <div class="modal-body" style="padding:20px 24px">
+        @if (predictionLb().length === 0) {
+          <p style="text-align:center;color:var(--text-mute);padding:32px 0">No predictions submitted yet. Click 🎯 Predict Winners and save your picks first.</p>
+        } @else {
+          <div class="pred-lb">
+            @for (p of predictionLb(); track p.user_id; let i = $index) {
+              <div class="pred-lb__row">
+                <span class="pred-lb__rank" [class.pred-lb__rank--gold]="i===0" [class.pred-lb__rank--silver]="i===1" [class.pred-lb__rank--bronze]="i===2">
+                  {{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1 }}
+                </span>
+                <div class="pred-lb__avatar">
+                  @if (p.avatar_url) { <img [src]="p.avatar_url" [alt]="p.name"/> }
+                  @else { <span>{{ p.name.charAt(0).toUpperCase() }}</span> }
+                </div>
+                <span class="pred-lb__name">{{ p.name }}</span>
+                <span class="pred-lb__correct">{{ p.correct_count }}/{{ p.total_predictions }} ✓</span>
+                <span class="pred-lb__pts">{{ p.total_points }} pts</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+
 }
