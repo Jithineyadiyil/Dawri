@@ -112,6 +112,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     title: 'Sponsors — Admin — Dawri',
   },
+  {
+    path: 'admin/streams',
+    loadComponent: () => import('./pages/admin/admin-streams.component').then(m => m.AdminStreamsComponent),
+    title: 'Live Streams — Admin — Dawri',
+  },
   // Ad Placements admin
   {
     path: 'admin/ads',

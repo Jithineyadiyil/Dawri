@@ -122,6 +122,16 @@ export interface Tournament {
   bracket?: BracketData | null;
   created_at: string;
   updated_at: string;
+  // YouTube streaming
+  youtube_broadcast_id?: string | null;
+  youtube_stream_key?: string | null;
+  youtube_stream_url?: string | null;
+  youtube_stream_status?: string | null;
+  // Ads
+  cover_image_url?: string | null;
+  description?: string | null;
+  rules?: string | null;
+  organizer_name?: string | null;
 }
 
 export interface BracketData {
@@ -729,6 +739,30 @@ export class ApiService {
 
   getAdPlacementsForTournament(tournamentId: string): Observable<{ data: any[] }> {
     return this.http.get<{ data: any[] }>(`${API_BASE}/ad-placements?type=tournament_banner&tournament_id=${tournamentId}`);
+  }
+
+
+
+  // ── YouTube Live Streaming ────────────────────────────────────────────────
+
+  createYouTubeStream(tournamentId: string): Observable<any> {
+    return this.http.post<any>(`${API_BASE}/admin/tournaments/${tournamentId}/youtube-stream`, {}, { headers: this.authHeaders() });
+  }
+
+  endYouTubeStream(tournamentId: string): Observable<any> {
+    return this.http.delete<any>(`${API_BASE}/admin/tournaments/${tournamentId}/youtube-stream`, { headers: this.authHeaders() });
+  }
+
+  getYouTubeStreamStatus(tournamentId: string): Observable<any> {
+    return this.http.get<any>(`${API_BASE}/admin/tournaments/${tournamentId}/youtube-stream/status`, { headers: this.authHeaders() });
+  }
+
+  getStreamKey(tournamentId: string): Observable<any> {
+    return this.http.get<any>(`${API_BASE}/tournaments/${tournamentId}/stream-key`, { headers: this.authHeaders() });
+  }
+
+  getStreamInfo(tournamentId: string): Observable<any> {
+    return this.http.get<any>(`${API_BASE}/tournaments/${tournamentId}/stream-info`);
   }
 
 

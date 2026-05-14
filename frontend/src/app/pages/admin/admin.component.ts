@@ -34,6 +34,7 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
         <!-- Sprint 13: finance & reports on its own page -->
         <a class="tab" routerLink="/admin/finance">💰 Finance</a>
         <a class="tab" routerLink="/admin/ads">📢 Ad Placements</a>
+        <a class="tab" routerLink="/admin/streams">📡 Live Streams</a>
       </div>
 
       <!-- ═══ OVERVIEW ═══ -->

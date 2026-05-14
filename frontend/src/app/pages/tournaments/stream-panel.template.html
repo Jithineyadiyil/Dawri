@@ -1,0 +1,100 @@
+<!-- 
+  STREAM KEY PANEL 
+  Shown in tournament detail when user is organizer/admin
+  Add this inside the tournament detail's hero section or as a new tab
+-->
+
+<!-- Stream Setup Panel — organizer only -->
+@if (isOrganizerOrAdmin() && t.id) {
+  <div class="stream-panel">
+
+    @if (!streamInfo()) {
+      <!-- No stream configured yet -->
+      <div class="stream-panel__empty">
+        <span class="stream-panel__icon">📡</span>
+        <div>
+          <div class="stream-panel__label">Live Streaming</div>
+          <div class="stream-panel__hint">No YouTube Live stream configured. Contact admin to set one up.</div>
+        </div>
+      </div>
+    } @else {
+      <!-- Stream is configured -->
+      <div class="stream-panel__active" [class.stream-panel__active--live]="streamInfo()?.stream_status === 'live'">
+
+        <!-- Status badge -->
+        <div class="stream-status-badge" [class]="'stream-status-badge--' + (streamInfo()?.stream_status || 'pending')">
+          @if (streamInfo()?.stream_status === 'live') {
+            <span class="dot"></span> LIVE NOW
+          } @else if (streamInfo()?.stream_status === 'ended') {
+            ✓ Stream Ended
+          } @else {
+            ⏳ Waiting for stream…
+          }
+        </div>
+
+        <!-- Stream key (organizer only) -->
+        @if (streamKey()) {
+          <div class="stream-key-section">
+            <div class="stream-key-label">🔑 Your Stream Key</div>
+            <div class="stream-key-wrap">
+              <code class="stream-key-val" [class.stream-key-val--hidden]="keyHidden()">
+                {{ keyHidden() ? '••••••••••••••••••••••' : streamKey() }}
+              </code>
+              <button class="stream-key-btn" (click)="keyHidden.set(!keyHidden())">
+                {{ keyHidden() ? '👁 Show' : '🙈 Hide' }}
+              </button>
+              <button class="stream-key-btn" (click)="copyStreamKey()">
+                {{ keyCopied() ? '✓ Copied!' : '📋 Copy' }}
+              </button>
+            </div>
+            <div class="stream-key-rtmp">
+              <span class="stream-key-rtmp__label">RTMP URL:</span>
+              <code>rtmp://a.rtmp.youtube.com/live2</code>
+            </div>
+          </div>
+
+          <!-- Setup guides -->
+          <div class="setup-guides">
+            <button class="setup-guide-tab" [class.setup-guide-tab--active]="setupPlatform() === 'ps5'" (click)="setupPlatform.set('ps5')">
+              🎮 PS5 Setup
+            </button>
+            <button class="setup-guide-tab" [class.setup-guide-tab--active]="setupPlatform() === 'obs'" (click)="setupPlatform.set('obs')">
+              🖥 OBS Setup
+            </button>
+
+            @if (setupPlatform() === 'ps5') {
+              <ol class="setup-steps">
+                <li>On your PS5 → <strong>Settings</strong> → <strong>Users and Accounts</strong> → <strong>Link with Other Services</strong> → YouTube → Sign In</li>
+                <li>Go back to <strong>Settings</strong> → <strong>Captures and Broadcasts</strong> → <strong>Broadcast</strong></li>
+                <li>Select <strong>Broadcasting Service</strong> → <strong>Custom RTMP</strong></li>
+                <li>RTMP URL: <code>rtmp://a.rtmp.youtube.com/live2</code></li>
+                <li>Stream Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : 'Copy Key' }}</button></li>
+                <li>Press <strong>Start Broadcasting</strong> when your match begins</li>
+              </ol>
+            }
+
+            @if (setupPlatform() === 'obs') {
+              <ol class="setup-steps">
+                <li>Open <strong>OBS Studio</strong> → <strong>Settings</strong> → <strong>Stream</strong></li>
+                <li>Service: <strong>Custom…</strong></li>
+                <li>Server: <code>rtmp://a.rtmp.youtube.com/live2</code></li>
+                <li>Stream Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : 'Copy Key' }}</button></li>
+                <li>Click OK → <strong>Start Streaming</strong> when ready</li>
+                <li>Recommended: 1080p 60fps, 6000 Kbps</li>
+              </ol>
+            }
+          </div>
+
+          <!-- Watch URL -->
+          @if (streamInfo()?.watch_url) {
+            <div class="stream-watch-link">
+              <a [href]="streamInfo()!.watch_url" target="_blank" rel="noopener" class="stream-watch-btn">
+                ▶ Watch on YouTube ↗
+              </a>
+            </div>
+          }
+        }
+      </div>
+    }
+  </div>
+}
