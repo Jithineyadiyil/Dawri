@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdPlacementController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\ChallongeFeatureController;
 use App\Http\Controllers\Api\AdminFinanceController;
@@ -111,6 +112,13 @@ Route::prefix('v1')->group(function () {
         Route::put   ('/tournaments/{tournament}',                          [TournamentController::class, 'update']);
         Route::delete('/tournaments/{tournament}',                          [TournamentController::class, 'destroy']);
         Route::post  ('/tournaments/{tournament}/register',                 [TournamentController::class, 'register']);
+        // ── Notifications ─────────────────────────────────────────────────────
+        Route::get   ('/notifications',               [NotificationController::class, 'index']);
+        Route::get   ('/notifications/unread-count',  [NotificationController::class, 'unreadCount']);
+        Route::post  ('/notifications/read-all',      [NotificationController::class, 'markAllRead']);
+        Route::post  ('/notifications/{id}/read',     [NotificationController::class, 'markRead']);
+        Route::delete('/notifications/{id}',          [NotificationController::class, 'destroy']);
+
         Route::post  ('/tournaments/{id}/shuffle-seeds',                       [ChallongeFeatureController::class, 'shuffleSeeds']);
         Route::patch ('/tournaments/{id}/participants/{participantId}/substitute', [ChallongeFeatureController::class, 'substitute']);
         Route::post  ('/tournaments/{id}/predictions',                         [ChallongeFeatureController::class, 'submitPrediction']);

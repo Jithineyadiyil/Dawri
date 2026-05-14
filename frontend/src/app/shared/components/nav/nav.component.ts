@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
+import { NotificationBellComponent } from '../../../components/notification-bell/notification-bell.component';
 
 /**
  * NavComponent — main top navigation.
@@ -15,7 +16,7 @@ import { AuthService } from '../../../core/services/auth.service';
 @Component({
   selector: 'app-nav',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, CommonModule],
+  imports: [RouterLink, RouterLinkActive, CommonModule, NotificationBellComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav class="nav">
@@ -43,6 +44,9 @@ import { AuthService } from '../../../core/services/auth.service';
           @if (auth.currentUser()?.role === 'organizer') {
             <a routerLink="/subscription" class="nav-link nav-link--sub" routerLinkActive="active">Plan</a>
           }
+
+          <!-- Notification Bell -->
+          <app-notification-bell></app-notification-bell>
 
           <!-- Avatar → My Profile -->
           <a routerLink="/profile" class="nav-avatar"
