@@ -213,7 +213,16 @@
     }
 
     <!-- ── Tabs ─────────────────────────────────────────────────── -->
-    <div class="tab-bar-wrap">
+    
+      @if (tournamentBanner(); as banner) {
+        <div class="t-banner-ad" [style.--banner-accent]="banner.brand_color||'#f0a500'">
+          @if (banner.image_url) { <img class="t-banner-ad__img" [src]="banner.image_url" [alt]="banner.title" loading="lazy"/> }
+          <div class="t-banner-ad__content"><span class="t-banner-ad__title">{{ banner.title }}</span></div>
+          @if (banner.link_url) { <a [href]="banner.link_url" target="_blank" rel="noopener" class="t-banner-ad__cta">{{ banner.cta_label||'Learn More' }} →</a> }
+          <span class="t-banner-ad__label">Sponsored</span>
+        </div>
+      }
+<div class="tab-bar-wrap">
       <div class="tab-bar" role="tablist">
         <button class="tab" role="tab" [class.tab--active]="activeTab()==='bracket'" (click)="activeTab.set('bracket')">Bracket</button>
 

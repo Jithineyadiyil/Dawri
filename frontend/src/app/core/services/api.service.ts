@@ -670,4 +670,66 @@ export class ApiService {
 
   // ── End Challonge Features ────────────────────────────────────────────────
 
+
+  // ── Admin Ad Placements ───────────────────────────────────────────────────
+
+  uploadAdImage(file: File): Observable<{ url: string }> {
+    const fd = new FormData();
+    fd.append('image', file);
+    return this.http.post<{ url: string }>(`${API_BASE}/admin/ad-placements/upload-image`, fd, { headers: this.authHeaders() });
+  }
+
+  adminGetAdPlacements(): Observable<{ data: any[] }> {
+    return this.http.get<{ data: any[] }>(`${API_BASE}/admin/ad-placements`, { headers: this.authHeaders() });
+  }
+
+  adminCreateAdPlacement(payload: any): Observable<any> {
+    return this.http.post(`${API_BASE}/admin/ad-placements`, payload, { headers: this.authHeaders() });
+  }
+
+  adminUpdateAdPlacement(id: string, payload: any): Observable<any> {
+    return this.http.put(`${API_BASE}/admin/ad-placements/${id}`, payload, { headers: this.authHeaders() });
+  }
+
+  adminDeleteAdPlacement(id: string): Observable<any> {
+    return this.http.delete(`${API_BASE}/admin/ad-placements/${id}`, { headers: this.authHeaders() });
+  }
+
+  adminToggleAdPlacement(id: string): Observable<any> {
+    return this.http.post(`${API_BASE}/admin/ad-placements/${id}/toggle`, {}, { headers: this.authHeaders() });
+  }
+
+  adminGetAdStats(): Observable<{ data: any[] }> {
+    return this.http.get<{ data: any[] }>(`${API_BASE}/admin/ad-placements/stats`, { headers: this.authHeaders() });
+  }
+
+
+
+  // ── Notifications ────────────────────────────────────────────────────────
+
+  getNotifications(page = 1): Observable<any> {
+    return this.http.get(`${API_BASE}/notifications?page=${page}`, { headers: this.authHeaders() });
+  }
+
+  getUnreadCount(): Observable<{ count: number }> {
+    return this.http.get<{ count: number }>(`${API_BASE}/notifications/unread-count`, { headers: this.authHeaders() });
+  }
+
+  markNotificationRead(id: string): Observable<any> {
+    return this.http.post(`${API_BASE}/notifications/${id}/read`, {}, { headers: this.authHeaders() });
+  }
+
+  markAllNotificationsRead(): Observable<any> {
+    return this.http.post(`${API_BASE}/notifications/read-all`, {}, { headers: this.authHeaders() });
+  }
+
+  deleteNotification(id: string): Observable<any> {
+    return this.http.delete(`${API_BASE}/notifications/${id}`, { headers: this.authHeaders() });
+  }
+
+  getAdPlacementsForTournament(tournamentId: string): Observable<{ data: any[] }> {
+    return this.http.get<{ data: any[] }>(`${API_BASE}/ad-placements?type=tournament_banner&tournament_id=${tournamentId}`);
+  }
+
+
 }

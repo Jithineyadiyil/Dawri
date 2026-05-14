@@ -762,6 +762,12 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     window.location.reload();
   }
 
+
+  readonly tournamentBanner = signal<any>(null);
+  loadTournamentBanner(id: string): void {
+    this.api.getAdPlacementsForTournament(id).subscribe({ next: (r) => this.tournamentBanner.set((r.data??[])[0]??null), error: ()=>{} });
+  }
+
   ngOnInit(): void {
     this.route.paramMap.pipe(
       switchMap(p => {

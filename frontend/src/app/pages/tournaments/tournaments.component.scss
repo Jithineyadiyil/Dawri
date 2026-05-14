@@ -817,3 +817,52 @@
 .chip-rows {
   gap: 8px !important;         /* tighter row spacing */
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Ad Placement Styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── In-grid sponsor card ───────────────────────────────────────── */
+.ad-card {
+  --ad-accent: #f0a500;
+  display: flex; flex-direction: column;
+  border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.06);
+  background: #0d1117; position: relative;
+  transition: transform .2s, border-color .2s;
+  min-height: 380px;
+}
+.ad-card:hover { transform: translateY(-2px); border-color: var(--ad-accent); }
+
+.ad-card__sponsored {
+  position: absolute; top: 10px; left: 10px; z-index: 3;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: rgba(255,255,255,.5);
+  background: rgba(0,0,0,.6); padding: 3px 8px; border-radius: 4px;
+}
+.ad-card__art { position: relative; height: 160px; overflow: hidden; flex-shrink: 0; }
+.ad-card__art img { width: 100%; height: 100%; object-fit: cover; }
+.ad-card__art-fade { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(13,17,23,.95) 100%); }
+.ad-card__art--placeholder { background: linear-gradient(135deg, #0d1117, #1a2235); display: flex; align-items: center; justify-content: center; }
+.ad-card__brand-initial { font-family: var(--display); font-size: 80px; color: var(--ad-accent); opacity: .2; line-height: 1; }
+.ad-card__body { padding: 14px 16px; flex: 1; }
+.ad-card__brand { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--ad-accent); margin-bottom: 6px; }
+.ad-card__title { font-family: var(--display); font-size: 18px; letter-spacing: .5px; text-transform: uppercase; color: #fff; line-height: 1.2; }
+.ad-card__title-ar { font-size: 13px; color: #6b7280; margin-top: 4px; }
+.ad-card__foot { padding: 10px 16px 14px; border-top: 1px solid rgba(255,255,255,.05); }
+.ad-card__cta { display: inline-flex; align-items: center; font-size: 13px; font-weight: 700; color: var(--ad-accent); text-decoration: none; padding: 8px 16px; border-radius: 6px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); transition: background .15s; }
+.ad-card__cta:hover { background: rgba(255,255,255,.1); }
+
+/* ── Promoted tournament card ───────────────────────────────────── */
+.card--promoted {
+  border-color: rgba(240,165,0,.35) !important;
+  box-shadow: 0 0 0 1px rgba(240,165,0,.15), 0 4px 20px rgba(240,165,0,.08);
+}
+.promoted-badge {
+  position: absolute; top: 10px; left: 10px; z-index: 10;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: #f0a500;
+  background: rgba(240,165,0,.15); border: 1px solid rgba(240,165,0,.3);
+  padding: 3px 8px; border-radius: 4px; backdrop-filter: blur(4px);
+}

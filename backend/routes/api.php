@@ -182,7 +182,8 @@ Route::prefix('v1')->group(function () {
             Route::post  ('/ad-placements',          [AdPlacementController::class, 'store']);
             Route::put   ('/ad-placements/{id}',     [AdPlacementController::class, 'update']);
             Route::delete('/ad-placements/{id}',     [AdPlacementController::class, 'destroy']);
-            Route::post  ('/ad-placements/{id}/toggle', [AdPlacementController::class, 'toggle']);
+            Route::post  ('/ad-placements/{id}/toggle',       [AdPlacementController::class, 'toggle']);
+            Route::post  ('/ad-placements/upload-image',       [AdPlacementController::class, 'uploadImage']);
             Route::get   ('/ad-placements/stats',    [AdPlacementController::class, 'stats']);
 
             // Sprint 13: Domain-focused dashboards (replaces old generic /admin/dashboard)

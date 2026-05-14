@@ -181,8 +181,33 @@
   <!-- ── Grid view ───────────────────────────────────────────── -->
   @if (!loading() && !error() && view() === 'grid' && filtered().length > 0) {
     <div class="grid">
-      @for (t of filtered(); track t.id) {
-        <a class="card" [routerLink]="['/tournaments', t.id]">
+      @for (t of filteredWithAds(); track trackItem($index, t)) {
+        @if (t.__adCard) {
+          <!-- In-grid sponsor card -->
+          <div class="ad-card" [style.--ad-accent]="t.brand_color || '#f0a500'">
+            <div class="ad-card__sponsored">Sponsored</div>
+            @if (t.image_url) {
+              <div class="ad-card__art"><img [src]="t.image_url" [alt]="t.brand_name || t.title" loading="lazy"/><div class="ad-card__art-fade"></div></div>
+            } @else {
+              <div class="ad-card__art ad-card__art--placeholder"><div class="ad-card__brand-initial">{{ (t.brand_name || t.title).charAt(0) }}</div></div>
+            }
+            <div class="ad-card__body">
+              @if (t.brand_name) { <div class="ad-card__brand">{{ t.brand_name }}</div> }
+              <div class="ad-card__title">{{ t.title }}</div>
+              @if (t.title_ar) { <div class="ad-card__title-ar" dir="rtl">{{ t.title_ar }}</div> }
+            </div>
+            <div class="ad-card__foot">
+              @if (t.link_url) {
+                <a [href]="t.link_url" target="_blank" rel="noopener" class="ad-card__cta" (click)="$event.stopPropagation()">
+                  {{ t.cta_label || 'Learn More' }} →
+                </a>
+              }
+            </div>
+          </div>
+        } @else {
+          <!-- Tournament card -->
+          <a class="card" [class.card--promoted]="isPromoted(t.id)" [routerLink]="['/tournaments', t.id]">
+            @if (isPromoted(t.id)) { <div class="promoted-badge">⭐ Promoted</div> }
 
           <!-- ── Game art ── -->
           <div class="card-art" [style.--accent]="gameAccent(t.game)">
@@ -248,7 +273,8 @@
               @else { Register Now }
             </button>
           </div>
-        </a>
+          </a>
+        }
       }
     </div>
   }

@@ -7,6 +7,7 @@ import { ReactiveFormsModule, FormBuilder, FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService }  from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { catchError, forkJoin, of } from 'rxjs';
 import { PlatformSponsorsStripComponent } from '../../components/platform-sponsors-strip/platform-sponsors-strip.component';
 
 /**
@@ -156,7 +157,50 @@ export class TournamentsComponent implements OnInit {
     return role === 'organizer' || role === 'admin';
   });
 
+
+  // ── Ad Placements ────────────────────────────────────────────────────────
+  readonly sponsorCards = signal<any[]>([]);
+  readonly promotedIds  = signal<Set<string>>(new Set());
+
+  loadAdPlacements(): void {
+    forkJoin({
+      grid:     this.api.getAdPlacements('in_grid_sponsor'),
+      promoted: this.api.getAdPlacements('promoted_tournament'),
+    }).subscribe({
+      next: ({ grid, promoted }) => {
+        this.sponsorCards.set(grid.data ?? []);
+        const ids = new Set<string>(
+          (promoted.data ?? []).map((p: any) => p.tournament_id).filter(Boolean)
+        );
+        this.promotedIds.set(ids);
+      },
+      error: () => {},
+    });
+  }
+
+  isPromoted(id: string): boolean { return this.promotedIds().has(id); }
+
+  filteredWithAds(): any[] {
+    const items = this.filtered();
+    const sponsors = this.sponsorCards();
+    if (!sponsors.length) return items;
+    const result: any[] = [];
+    let si = 0;
+    items.forEach((item, i) => {
+      result.push(item);
+      if ((i + 1) % 2 === 0 && si < sponsors.length) {
+        result.push({ __adCard: true, ...sponsors[si++] });
+      }
+    });
+    return result;
+  }
+
+  trackItem(_: number, item: any): string {
+    return item.__adCard ? 'ad-' + item.id : item.id;
+  }
+
   ngOnInit(): void {
+    this.loadAdPlacements();
     this.loading.set(true);
     this.api.getTournaments({}).subscribe({
       next: (res: any) => { this.items.set(res.data ?? []); this.loading.set(false); },

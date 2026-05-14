@@ -14,6 +14,9 @@ use App\Http\Resources\MatchRescheduleResource;
 use App\Models\MatchEvidence;
 use App\Models\MatchRescheduleRequest;
 use App\Models\BracketPrediction;
+use App\Notifications\DisputeRaisedNotification;
+use App\Notifications\MatchCompletedNotification;
+use App\Notifications\ResultSubmittedNotification;
 use App\Models\TournamentMatch;
 use App\Services\BracketAdvancementService;
 use App\Services\DisputeService;
@@ -118,6 +121,33 @@ class MatchController extends Controller
             'result_screenshot_path' => $screenshotPath,
         ]);
 
+        // Notify opponent to confirm/dispute
+        try {
+            $submitter = $request->user();
+            $opponentId = $match->participant_a_id === ($match->submittedBy?->id ?? null)
+                ? $match->participant_b_id
+                : $match->participant_a_id;
+
+            $pA = \App\Models\TournamentParticipant::find($match->participant_a_id);
+            $pB = \App\Models\TournamentParticipant::find($match->participant_b_id);
+            $opponent = $match->participant_a_id === $match->submitted_by_id ? $pB : $pA;
+            if ($opponent?->user_id) {
+                $opponentUser = \App\Models\User::find($opponent->user_id);
+                $tournament   = $match->bracket?->tournament;
+                $opponentUser?->notify(new ResultSubmittedNotification(
+                    tournamentId:   $tournament?->id ?? '',
+                    tournamentName: $tournament?->name ?? '',
+                    matchId:        $match->id,
+                    matchNumber:    $match->match_number,
+                    submitterName:  $submitter->name,
+                    scoreA:         (int) ($match->score_a ?? 0),
+                    scoreB:         (int) ($match->score_b ?? 0),
+                ));
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('ResultSubmitted notify failed: ' . $e->getMessage());
+        }
+
         return response()->json(['data' => $this->matchArray($match->fresh())]);
     }
 
@@ -137,12 +167,46 @@ class MatchController extends Controller
             // Auto-score bracket predictions for this match
             $this->scorePredictions($match->id, $match->winner_id, $match->round_number ?? 1);
 
+            // Notify both players of result
+            $this->notifyMatchCompleted($match);
+
             return response()->json([
                 'message' => 'Result confirmed and bracket advanced.',
                 'data'    => $this->matchArray($match->fresh()),
             ]);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    /** Notify both participants when a match completes. */
+    private function notifyMatchCompleted(\App\Models\TournamentMatch $match): void
+    {
+        try {
+            $tournament = $match->bracket?->tournament;
+            if (!$tournament) return;
+
+            $pA = \App\Models\TournamentParticipant::find($match->participant_a_id);
+            $pB = \App\Models\TournamentParticipant::find($match->participant_b_id);
+            $winner = \App\Models\TournamentParticipant::find($match->winner_id);
+            $winnerName = $winner?->user?->name ?? 'Unknown';
+
+            foreach ([$pA, $pB] as $p) {
+                if (!$p?->user_id) continue;
+                $user = \App\Models\User::find($p->user_id);
+                $user?->notify(new MatchCompletedNotification(
+                    tournamentId:   $tournament->id,
+                    tournamentName: $tournament->name,
+                    matchId:        $match->id,
+                    matchNumber:    $match->match_number,
+                    winnerName:     $winnerName,
+                    isWinner:       $match->winner_id === $p->id,
+                    scoreA:         (int) ($match->score_a ?? 0),
+                    scoreB:         (int) ($match->score_b ?? 0),
+                ));
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('MatchCompleted notify failed: ' . $e->getMessage());
         }
     }
 
@@ -168,6 +232,31 @@ class MatchController extends Controller
 
         try {
             $dispute = $this->disputes->raise($id, $request->user()->id, $request->input('reason'));
+
+            // Notify organizer + moderator
+            try {
+                $match      = \App\Models\TournamentMatch::find($id);
+                $tournament = $match?->bracket?->tournament;
+                if ($tournament) {
+                    $notif = new DisputeRaisedNotification(
+                        tournamentId:   $tournament->id,
+                        tournamentName: $tournament->name,
+                        matchId:        $id,
+                        matchNumber:    $match->match_number,
+                        disputerName:   $request->user()->name,
+                        reason:         $request->input('reason'),
+                    );
+                    $organizer = \App\Models\User::find($tournament->organizer_id);
+                    $organizer?->notify($notif);
+                    if ($tournament->moderator_id && $tournament->moderator_id !== $tournament->organizer_id) {
+                        $moderator = \App\Models\User::find($tournament->moderator_id);
+                        $moderator?->notify($notif);
+                    }
+                }
+            } catch (\Throwable $e2) {
+                \Illuminate\Support\Facades\Log::warning('DisputeRaised notify failed: ' . $e2->getMessage());
+            }
+
             return response()->json([
                 'message'    => 'Dispute raised successfully.',
                 'dispute_id' => $dispute->id,

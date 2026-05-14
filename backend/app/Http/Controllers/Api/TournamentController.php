@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Notifications\BracketGeneratedNotification;
+use App\Notifications\TournamentRegisteredNotification;
 use App\Http\Requests\UpdateTournamentBrandingRequest;
 use App\Http\Requests\UploadCoverRequest;
 use App\Http\Resources\TournamentResource;
@@ -170,6 +172,21 @@ class TournamentController extends Controller
                 'rules_accepted_at' => ! empty($data['accept_rules']) ? now() : null,
             ]);
         });
+
+        // Notify player of successful registration
+        try {
+            $count = $tournament->participants()->count();
+            $user->notify(new TournamentRegisteredNotification(
+                tournamentId:     $tournament->id,
+                tournamentName:   $tournament->name,
+                format:           $tournament->format,
+                startsAt:         $tournament->starts_at?->format('d M Y H:i') ?? 'TBD',
+                participantCount: $count,
+                maxParticipants:  $tournament->max_participants,
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('TournamentRegistered notify failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message'            => 'Registered!',

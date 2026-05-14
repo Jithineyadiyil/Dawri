@@ -112,6 +112,16 @@ export const routes: Routes = [
     canActivate: [authGuard],
     title: 'Sponsors — Admin — Dawri',
   },
+  // Ad Placements admin
+  {
+    path: 'admin/ads',
+    loadComponent: () => import('./pages/admin/admin-ads.component').then(m => m.AdminAdsComponent),
+  },
+  // Notifications page
+  {
+    path: 'notifications',
+    loadComponent: () => import('./pages/notifications/notifications.component').then(m => m.NotificationsComponent),
+  },
   // Sprint 11: Marketplace admin page — same specificity requirement
   {
     path: 'admin/marketplace',

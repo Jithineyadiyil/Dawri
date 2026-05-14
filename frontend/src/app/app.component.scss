@@ -1,8 +1,43 @@
-.main-content {
-  min-height: calc(100vh - 60px);
+/* ── App layout ─────────────────────────────────────────────── */
+.app-layout {
+  display: flex;
+  align-items: stretch;
   width: 100%;
+  min-height: calc(100vh - 60px);
+}
+
+/* ── Sidebar columns ─────────────────────────────────────────── */
+.app-layout__sidebar {
+  flex-shrink: 0;
+  position: sticky;
+  top: 60px;                  /* below nav */
+  height: calc(100vh - 60px); /* viewport minus nav */
+  overflow: hidden;
+
+  /* Responsive widths */
+  width: 180px;
+
+  @media (min-width: 1600px) { width: 220px; }
+  @media (max-width: 1400px) { width: 160px; }
+  @media (max-width: 1280px) { display: none; }
+}
+
+/* Pad inside sidebar so ad doesn't touch edges */
+.app-layout__sidebar--left  { padding: 0 8px 0 0; }
+.app-layout__sidebar--right { padding: 0 0 0 8px; }
+
+/* app-sidebar-ad fills the sticky column entirely */
+.app-layout__sidebar app-sidebar-ad {
+  display: block;
+  height: 100%;
+}
+
+/* ── Main content ────────────────────────────────────────────── */
+.main-content {
+  flex: 1;
+  min-width: 0;
+  min-height: calc(100vh - 60px);
   overflow-x: hidden;
-  // Ensure child components can be full width
   display: block;
   position: relative;
 }

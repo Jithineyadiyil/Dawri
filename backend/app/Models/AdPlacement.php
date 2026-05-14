@@ -30,10 +30,9 @@ class AdPlacement extends Model
     /** Only placements currently active (within date range if set). */
     public function scopeActive($query)
     {
-        return $query
-            ->where('is_active', true)
-            ->where(fn($q) => $q->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
-            ->where(fn($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>=', now()));
+        // Only filter by is_active — date range is informational only
+        // The admin controls live/paused via the toggle button
+        return $query->where('is_active', true);
     }
 
     public function scopeOfType($query, string $type)
