@@ -169,6 +169,28 @@ class YouTubeStreamController extends Controller
         ]);
     }
 
+    // ── Manual stream URL ────────────────────────────────────────────────────────
+
+    public function setManualUrl(Request $request, string $id): JsonResponse
+    {
+        $tournament = Tournament::findOrFail($id);
+
+        if ($tournament->organizer_id !== $request->user()->id && $request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $data = $request->validate(['youtube_stream_url' => ['required', 'url', 'max:500']]);
+        $url  = $data['youtube_stream_url'];
+
+        if (!str_contains($url, 'youtube.com') && !str_contains($url, 'youtu.be') && !str_contains($url, 'twitch.tv')) {
+            return response()->json(['message' => 'Only YouTube and Twitch URLs are supported.'], 422);
+        }
+
+        $tournament->update(['youtube_stream_url' => $url, 'youtube_stream_status' => 'pending']);
+
+        return response()->json(['message' => 'Stream URL saved.', 'watch_url' => $url]);
+    }
+
     // ── Instruction generators ───────────────────────────────────────────────
 
     private function ps5Instructions(string $streamKey): array

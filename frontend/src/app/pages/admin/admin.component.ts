@@ -1,7 +1,8 @@
+import { AuthService } from '../../core/services/auth.service';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -34,7 +35,6 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
         <!-- Sprint 13: finance & reports on its own page -->
         <a class="tab" routerLink="/admin/finance">💰 Finance</a>
         <a class="tab" routerLink="/admin/ads">📢 Ad Placements</a>
-        <a class="tab" routerLink="/admin/streams">📡 Live Streams</a>
       </div>
 
       <!-- ═══ OVERVIEW ═══ -->
@@ -487,7 +487,9 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
   `]
 })
 export class AdminComponent implements OnInit {
-  private readonly http = inject(HttpClient);
+  private readonly http   = inject(HttpClient);
+  private readonly auth   = inject(AuthService);
+  private readonly router = inject(Router);
   private readonly base = environment.apiUrl;
 
   readonly tabs = [
@@ -534,6 +536,12 @@ export class AdminComponent implements OnInit {
   gameSearch = ''; gameStatusFilter = '';
 
   gForm: any = this.emptyGameForm();
+
+  constructor() {
+    if (this.auth.currentUser()?.role !== 'admin') {
+      this.router.navigate(['/dashboard']);
+    }
+  }
 
   ngOnInit(): void {
     this.loadOverview();

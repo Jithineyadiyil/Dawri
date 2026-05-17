@@ -745,6 +745,14 @@ export class ApiService {
 
   // ── YouTube Live Streaming ────────────────────────────────────────────────
 
+  updateTournamentStream(tournamentId: string, watchUrl: string): Observable<any> {
+    return this.http.patch<any>(
+      `${API_BASE}/tournaments/${tournamentId}/stream-url`,
+      { youtube_stream_url: watchUrl },
+      { headers: this.authHeaders() }
+    );
+  }
+
   createYouTubeStream(tournamentId: string): Observable<any> {
     return this.http.post<any>(`${API_BASE}/admin/tournaments/${tournamentId}/youtube-stream`, {}, { headers: this.authHeaders() });
   }

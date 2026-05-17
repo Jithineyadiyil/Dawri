@@ -224,14 +224,14 @@
       }
 
 <!-- ── YouTube Stream Panel (organizer/admin only) ── -->
-@if (isOrganizerOrAdmin()) {
+@if (canManageMatch()) {
   <div class="stream-panel">
     @if (!streamInfo()) {
       <div class="stream-panel__empty">
         <span>📡</span>
         <div>
           <div class="stream-panel__label">Live Streaming</div>
-          <div class="stream-panel__hint">No YouTube stream set up. Ask your Dawri admin to configure one.</div>
+          <div class="stream-panel__hint">No YouTube stream configured yet. Ask your Dawri admin to set one up via Admin → Live Streams.</div>
         </div>
       </div>
     } @else {
@@ -251,24 +251,79 @@
             </div>
             <div class="stream-key-rtmp"><span>RTMP URL:</span><code>rtmp://a.rtmp.youtube.com/live2</code></div>
             <div class="setup-guides">
-              <button class="setup-tab" [class.setup-tab--active]="setupPlatform() === 'ps5'" (click)="setupPlatform.set('ps5')">🎮 PS5</button>
-              <button class="setup-tab" [class.setup-tab--active]="setupPlatform() === 'obs'" (click)="setupPlatform.set('obs')">🖥 OBS</button>
+              <div class="setup-tabs-row">
+                <button class="setup-tab" [class.setup-tab--active]="setupPlatform() === 'ps5'" (click)="setupPlatform.set('ps5')">🎮 PS5</button>
+                <button class="setup-tab" [class.setup-tab--active]="setupPlatform() === 'obs'" (click)="setupPlatform.set('obs')">🖥 OBS (PC)</button>
+                <button class="setup-tab" [class.setup-tab--active]="setupPlatform() === 'mobile'" (click)="setupPlatform.set('mobile')">📱 Mobile</button>
+              </div>
+
               @if (setupPlatform() === 'ps5') {
-                <ol class="setup-steps">
-                  <li>PS5 → Settings → Users and Accounts → Link with Other Services → YouTube</li>
-                  <li>Settings → Captures and Broadcasts → Broadcast → Broadcasting Service → Custom RTMP</li>
-                  <li>RTMP URL: <code>rtmp://a.rtmp.youtube.com/live2</code></li>
-                  <li>Stream Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : 'Tap to Copy Key' }}</button></li>
-                  <li>Press Start Broadcasting when your match begins</li>
-                </ol>
+                <div class="setup-guide-card">
+                  <div class="setup-guide-card__head">
+                    <span class="setup-platform-icon">🎮</span>
+                    <div>
+                      <div class="setup-platform-name">PlayStation 5</div>
+                      <div class="setup-platform-sub">Built-in broadcaster — no extra software needed</div>
+                    </div>
+                  </div>
+                  <ol class="setup-steps">
+                    <li>On your PS5 go to <strong>Settings</strong> → <strong>Users and Accounts</strong> → <strong>Link with Other Services</strong> → YouTube → Sign In with any YouTube account</li>
+                    <li>Go to <strong>Settings</strong> → <strong>Captures and Broadcasts</strong> → <strong>Broadcast</strong></li>
+                    <li>Select <strong>Broadcasting Service</strong> → <strong>Custom RTMP</strong></li>
+                    <li>RTMP URL: <code>rtmp://a.rtmp.youtube.com/live2</code></li>
+                    <li>Stream Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : '📋 Copy Stream Key' }}</button></li>
+                    <li>Set your stream title → Press <strong>Start Broadcasting</strong> when your match begins</li>
+                  </ol>
+                  <div class="setup-note">💡 Works for EA FC 25, Call of Duty, and any PS5 game</div>
+                </div>
               }
+
               @if (setupPlatform() === 'obs') {
-                <ol class="setup-steps">
-                  <li>OBS → Settings → Stream → Service: Custom…</li>
-                  <li>Server: <code>rtmp://a.rtmp.youtube.com/live2</code></li>
-                  <li>Stream Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : 'Tap to Copy Key' }}</button></li>
-                  <li>Start Streaming — 1080p 60fps, 6000 Kbps recommended</li>
-                </ol>
+                <div class="setup-guide-card">
+                  <div class="setup-guide-card__head">
+                    <span class="setup-platform-icon">🖥</span>
+                    <div>
+                      <div class="setup-platform-name">OBS Studio</div>
+                      <div class="setup-platform-sub">Free professional streaming software for Windows / Mac / Linux</div>
+                    </div>
+                    <a href="https://obsproject.com/download" target="_blank" rel="noopener" class="setup-download-btn">⬇ Download OBS Free</a>
+                  </div>
+                  <ol class="setup-steps">
+                    <li>Download and install <a href="https://obsproject.com/download" target="_blank" rel="noopener" class="setup-link">OBS Studio</a> (free, obsproject.com)</li>
+                    <li>Open OBS → click <strong>Settings</strong> (bottom right) → click <strong>Stream</strong></li>
+                    <li>Service: choose <strong>Custom…</strong></li>
+                    <li>Server: <code>rtmp://a.rtmp.youtube.com/live2</code></li>
+                    <li>Stream Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : '📋 Copy Stream Key' }}</button></li>
+                    <li>Click <strong>OK</strong> → In the main window click <strong>+ Add Source</strong> → choose <strong>Game Capture</strong> → select your game</li>
+                    <li>Click <strong>Start Streaming</strong> when your match begins</li>
+                  </ol>
+                  <div class="setup-note">⚙️ Recommended: Output → 1080p, 60fps, 6000 Kbps bitrate. Works for any PC game.</div>
+                  <div class="setup-note">📱 To stream mobile games: mirror your phone to PC with <a href="https://scrcpy.genymobile.com" target="_blank" rel="noopener" class="setup-link">Scrcpy (Android)</a> or QuickTime (iPhone), then add as Window Capture in OBS.</div>
+                </div>
+              }
+
+              @if (setupPlatform() === 'mobile') {
+                <div class="setup-guide-card">
+                  <div class="setup-guide-card__head">
+                    <span class="setup-platform-icon">📱</span>
+                    <div>
+                      <div class="setup-platform-name">Mobile Games</div>
+                      <div class="setup-platform-sub">PUBG Mobile, CoD Mobile, Free Fire — stream directly from your phone</div>
+                    </div>
+                    <a href="https://streamlabs.com/mobile-app" target="_blank" rel="noopener" class="setup-download-btn">⬇ Download StreamLabs</a>
+                  </div>
+                  <ol class="setup-steps">
+                    <li>Download <a href="https://streamlabs.com/mobile-app" target="_blank" rel="noopener" class="setup-link">StreamLabs Mobile</a> (free) from App Store or Google Play</li>
+                    <li>Open StreamLabs → tap the <strong>Settings gear</strong> → <strong>Streaming</strong></li>
+                    <li>Platform: select <strong>Custom RTMP</strong></li>
+                    <li>RTMP URL: <code>rtmp://a.rtmp.youtube.com/live2</code></li>
+                    <li>Stream Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : '📋 Copy Stream Key' }}</button></li>
+                    <li>Go back to the main screen → tap the <strong>Go Live</strong> button before starting your match</li>
+                    <li>StreamLabs will capture your screen and stream directly to the Dawri YouTube channel</li>
+                  </ol>
+                  <div class="setup-note">💡 Enable <strong>screen recording permission</strong> when prompted. Works for PUBG Mobile, CoD Mobile, Free Fire, Mobile Legends.</div>
+                  <div class="setup-note">⚠️ Keep your phone plugged in — streaming drains battery fast.</div>
+                </div>
               }
             </div>
             @if (streamInfo()?.watch_url) {

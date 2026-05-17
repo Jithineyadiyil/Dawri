@@ -781,6 +781,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         const t = res.data ?? res;
         this.tournament.set(t);
         this.loading.set(false);
+        if (t?.id) this.loadStreamInfo(t.id);
         // Apply the tournament's resolved brand to the page.
         if (t?.brand) { this.brand.apply(t.brand); }
       },
@@ -1276,6 +1277,38 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   clearEvidence(): void {
     this.evidenceFile.set(null);
     this.evidencePreview.set(null);
+  }
+
+
+  // ── YouTube Stream Key (organizer) ───────────────────────────────────────
+  readonly streamInfo    = signal<any>(null);
+  readonly streamKey     = signal<string | null>(null);
+  readonly keyHidden     = signal(true);
+  readonly keyCopied     = signal(false);
+  readonly setupPlatform = signal<'ps5' | 'obs' | 'mobile'>('ps5');
+
+  private loadStreamInfo(tournamentId: string): void {
+    this.api.getStreamInfo(tournamentId).subscribe({
+      next: (r: any) => {
+        this.streamInfo.set(r?.has_stream ? r : null);
+        if (r?.has_stream && this.canManageMatch()) {
+          this.api.getStreamKey(tournamentId).subscribe({
+            next: (sk: any) => { if (sk?.has_stream) this.streamKey.set(sk.stream_key ?? null); },
+            error: () => {},
+          });
+        }
+      },
+      error: () => {},
+    });
+  }
+
+  copyStreamKey(): void {
+    const key = this.streamKey();
+    if (!key) return;
+    navigator.clipboard.writeText(key).then(() => {
+      this.keyCopied.set(true);
+      setTimeout(() => this.keyCopied.set(false), 2500);
+    });
   }
 
   // ── Game art helpers ──────────────────────────────────────────────────────

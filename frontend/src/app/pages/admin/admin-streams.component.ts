@@ -79,9 +79,32 @@ import { catchError, of } from 'rxjs';
       } @else {
         <div class="tc-no-stream">
           <p>No YouTube stream configured for this tournament.</p>
-          <button class="btn-primary" (click)="createStream()" [disabled]="creating()">
-            {{ creating() ? 'Creating on YouTube…' : '📡 Create YouTube Live Event' }}
-          </button>
+
+          <!-- Option A: Auto-create via YouTube API -->
+          <div class="stream-option">
+            <div class="stream-option__label">Option A — Auto-create via YouTube API</div>
+            <div class="stream-option__hint">Requires YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN in .env</div>
+            <button class="btn-primary" (click)="createStream()" [disabled]="creating()">
+              {{ creating() ? 'Creating on YouTube…' : '📡 Create YouTube Live Event' }}
+            </button>
+          </div>
+
+          <!-- Option B: Manual URL -->
+          <div class="stream-option stream-option--manual">
+            <div class="stream-option__label">Option B — Manual URL (use while setting up YouTube API)</div>
+            <div class="stream-option__hint">Start a YouTube Live stream manually, paste the watch URL here</div>
+            <div class="manual-url-row">
+              <input class="search-input" [value]="manualUrl()"
+                     (input)="manualUrl.set($any($event.target).value)"
+                     placeholder="https://www.youtube.com/watch?v=… or https://twitch.tv/channel"/>
+              <button class="btn-ghost" (click)="saveManualUrl()" [disabled]="savingManual() || !manualUrl()">
+                {{ manualSaved() ? '✓ Saved!' : (savingManual() ? 'Saving…' : 'Save URL') }}
+              </button>
+            </div>
+            <div class="manual-url-hint">
+              💡 To get a YouTube URL: go to studio.youtube.com → Go Live → copy the share link
+            </div>
+          </div>
         </div>
       }
     </div>
@@ -166,7 +189,13 @@ import { catchError, of } from 'rxjs';
     .key-val { font-size: 13px; color: #10b981; background: rgba(16,185,129,.08); padding: 4px 10px; border-radius: 6px; }
     .watch-link { color: #ff4444; font-size: 13px; font-weight: 700; text-decoration: none; }
     .tc-actions { display: flex; gap: 8px; }
-    .tc-no-stream { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; color: #6b7280; font-size: 13px; }
+    .tc-no-stream { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+    .stream-option { padding: 16px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; display: flex; flex-direction: column; gap: 10px; }
+    .stream-option--manual { border-style: dashed; }
+    .stream-option__label { font-size: 13px; font-weight: 700; color: #fff; }
+    .stream-option__hint { font-size: 12px; color: #6b7280; }
+    .manual-url-row { display: flex; gap: 8px; }
+    .manual-url-hint { font-size: 11px; color: #4b5563; font-style: italic; }
 
     .new-stream-result { padding: 24px; background: rgba(16,185,129,.05); border: 1px solid rgba(16,185,129,.2); border-radius: 12px; }
     .nsr-title { font-size: 18px; font-weight: 700; color: #10b981; margin-bottom: 16px; }
@@ -196,7 +225,10 @@ export class AdminStreamsComponent implements OnInit {
   readonly error        = signal<string | null>(null);
   readonly tournament   = signal<any>(null);
   readonly newStream    = signal<any>(null);
-  readonly streamStatus = signal<string>('pending');
+  readonly streamStatus   = signal<string>('pending');
+  readonly manualUrl      = signal('');
+  readonly savingManual   = signal(false);
+  readonly manualSaved    = signal(false);
 
   ngOnInit(): void {}
 
@@ -254,6 +286,32 @@ export class AdminStreamsComponent implements OnInit {
     this.api.endYouTubeStream(t.id).pipe(catchError(() => of(null))).subscribe(() => {
       this.ending.set(false);
       this.streamStatus.set('ended');
+    });
+  }
+
+  saveManualUrl(): void {
+    const t = this.tournament();
+    const url = this.manualUrl().trim();
+    if (!t || !url) return;
+    // Validate it's a YouTube or Twitch URL
+    if (!url.includes('youtube.com') && !url.includes('youtu.be') && !url.includes('twitch.tv')) {
+      this.error.set('Please enter a valid YouTube or Twitch URL.');
+      return;
+    }
+    this.savingManual.set(true);
+    this.error.set(null);
+    // Use the existing tournament PATCH endpoint to store youtube_stream_url
+    this.api.updateTournamentStream(t.id, url).pipe(catchError(err => {
+      this.error.set(err?.error?.message ?? 'Failed to save stream URL.');
+      this.savingManual.set(false);
+      return of(null);
+    })).subscribe((r: any) => {
+      if (r) {
+        this.savingManual.set(false);
+        this.manualSaved.set(true);
+        this.tournament.update(t => ({ ...t, youtube_stream_url: url, youtube_stream_status: 'pending' }));
+        setTimeout(() => this.manualSaved.set(false), 3000);
+      }
     });
   }
 
