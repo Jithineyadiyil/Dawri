@@ -122,6 +122,16 @@ export interface Tournament {
   bracket?: BracketData | null;
   created_at: string;
   updated_at: string;
+  // YouTube streaming
+  youtube_broadcast_id?: string | null;
+  youtube_stream_key?: string | null;
+  youtube_stream_url?: string | null;
+  youtube_stream_status?: string | null;
+  // Ads
+  cover_image_url?: string | null;
+  description?: string | null;
+  rules?: string | null;
+  organizer_name?: string | null;
 }
 
 export interface BracketData {
@@ -622,4 +632,146 @@ export class ApiService {
   getInvoices(): Observable<PaginatedResponse<Invoice>> {
     return this.http.get<PaginatedResponse<Invoice>>(`${API_BASE}/subscription/invoices`);
   }
+  // ── Challonge Features ──────────────────────────────────────────────────────
+
+  shuffleSeeds(id: string): Observable<any> {
+    return this.http.post(`${API_BASE}/tournaments/${id}/shuffle-seeds`, {}, { headers: this.authHeaders() });
+  }
+
+  substituteParticipant(tournamentId: string, participantId: string, payload: { new_user_id?: string; new_display_name?: string }): Observable<any> {
+    return this.http.patch(`${API_BASE}/tournaments/${tournamentId}/participants/${participantId}/substitute`, payload, { headers: this.authHeaders() });
+  }
+
+  submitPrediction(tournamentId: string, matchId: string, predictedWinnerId: string): Observable<any> {
+    return this.http.post(
+      `${API_BASE}/tournaments/${tournamentId}/predictions`,
+      { match_id: matchId, predicted_winner_id: predictedWinnerId },
+      { headers: this.authHeaders() }
+    );
+  }
+
+  getMyPredictions(tournamentId: string): Observable<{ data: Record<string, any> }> {
+    return this.http.get<{ data: Record<string, any> }>(
+      `${API_BASE}/tournaments/${tournamentId}/predictions`,
+      { headers: this.authHeaders() }
+    );
+  }
+
+  getPredictionLeaderboard(tournamentId: string): Observable<{ data: any[] }> {
+    return this.http.get<{ data: any[] }>(`${API_BASE}/tournaments/${tournamentId}/predictions/leaderboard`);
+  }
+
+  getAdPlacements(type: string): Observable<{ data: any[] }> {
+    return this.http.get<{ data: any[] }>(`${API_BASE}/ad-placements?type=${type}`);
+  }
+
+  trackAdClick(id: string): void {
+    this.http.post(`${API_BASE}/ad-placements/${id}/click`, {}).subscribe();
+  }
+
+  unregisterFromTournament(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${API_BASE}/tournaments/${id}/register`, { headers: this.authHeaders() });
+  }
+
+  private authHeaders(): Record<string, string> {
+    const token = localStorage.getItem('dawri_token') ?? '';
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  // ── End Challonge Features ────────────────────────────────────────────────
+
+
+  // ── Admin Ad Placements ───────────────────────────────────────────────────
+
+  uploadAdImage(file: File): Observable<{ url: string }> {
+    const fd = new FormData();
+    fd.append('image', file);
+    return this.http.post<{ url: string }>(`${API_BASE}/admin/ad-placements/upload-image`, fd, { headers: this.authHeaders() });
+  }
+
+  adminGetAdPlacements(): Observable<{ data: any[] }> {
+    return this.http.get<{ data: any[] }>(`${API_BASE}/admin/ad-placements`, { headers: this.authHeaders() });
+  }
+
+  adminCreateAdPlacement(payload: any): Observable<any> {
+    return this.http.post(`${API_BASE}/admin/ad-placements`, payload, { headers: this.authHeaders() });
+  }
+
+  adminUpdateAdPlacement(id: string, payload: any): Observable<any> {
+    return this.http.put(`${API_BASE}/admin/ad-placements/${id}`, payload, { headers: this.authHeaders() });
+  }
+
+  adminDeleteAdPlacement(id: string): Observable<any> {
+    return this.http.delete(`${API_BASE}/admin/ad-placements/${id}`, { headers: this.authHeaders() });
+  }
+
+  adminToggleAdPlacement(id: string): Observable<any> {
+    return this.http.post(`${API_BASE}/admin/ad-placements/${id}/toggle`, {}, { headers: this.authHeaders() });
+  }
+
+  adminGetAdStats(): Observable<{ data: any[] }> {
+    return this.http.get<{ data: any[] }>(`${API_BASE}/admin/ad-placements/stats`, { headers: this.authHeaders() });
+  }
+
+
+
+  // ── Notifications ────────────────────────────────────────────────────────
+
+  getNotifications(page = 1): Observable<any> {
+    return this.http.get(`${API_BASE}/notifications?page=${page}`, { headers: this.authHeaders() });
+  }
+
+  getUnreadCount(): Observable<{ count: number }> {
+    return this.http.get<{ count: number }>(`${API_BASE}/notifications/unread-count`, { headers: this.authHeaders() });
+  }
+
+  markNotificationRead(id: string): Observable<any> {
+    return this.http.post(`${API_BASE}/notifications/${id}/read`, {}, { headers: this.authHeaders() });
+  }
+
+  markAllNotificationsRead(): Observable<any> {
+    return this.http.post(`${API_BASE}/notifications/read-all`, {}, { headers: this.authHeaders() });
+  }
+
+  deleteNotification(id: string): Observable<any> {
+    return this.http.delete(`${API_BASE}/notifications/${id}`, { headers: this.authHeaders() });
+  }
+
+  getAdPlacementsForTournament(tournamentId: string): Observable<{ data: any[] }> {
+    return this.http.get<{ data: any[] }>(`${API_BASE}/ad-placements?type=tournament_banner&tournament_id=${tournamentId}`);
+  }
+
+
+
+  // ── YouTube Live Streaming ────────────────────────────────────────────────
+
+  updateTournamentStream(tournamentId: string, watchUrl: string): Observable<any> {
+    return this.http.patch<any>(
+      `${API_BASE}/tournaments/${tournamentId}/stream-url`,
+      { youtube_stream_url: watchUrl },
+      { headers: this.authHeaders() }
+    );
+  }
+
+  createYouTubeStream(tournamentId: string): Observable<any> {
+    return this.http.post<any>(`${API_BASE}/admin/tournaments/${tournamentId}/youtube-stream`, {}, { headers: this.authHeaders() });
+  }
+
+  endYouTubeStream(tournamentId: string): Observable<any> {
+    return this.http.delete<any>(`${API_BASE}/admin/tournaments/${tournamentId}/youtube-stream`, { headers: this.authHeaders() });
+  }
+
+  getYouTubeStreamStatus(tournamentId: string): Observable<any> {
+    return this.http.get<any>(`${API_BASE}/admin/tournaments/${tournamentId}/youtube-stream/status`, { headers: this.authHeaders() });
+  }
+
+  getStreamKey(tournamentId: string): Observable<any> {
+    return this.http.get<any>(`${API_BASE}/tournaments/${tournamentId}/stream-key`, { headers: this.authHeaders() });
+  }
+
+  getStreamInfo(tournamentId: string): Observable<any> {
+    return this.http.get<any>(`${API_BASE}/tournaments/${tournamentId}/stream-info`);
+  }
+
+
 }

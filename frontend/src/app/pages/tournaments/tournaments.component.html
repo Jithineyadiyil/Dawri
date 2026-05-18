@@ -63,6 +63,11 @@
         aria-label="Search tournaments" />
     </div>
 
+    @if (auth.isLoggedIn()) {
+      <button type="button" class="mine-toggle" [class.active]="showMine()" (click)="toggleMine()">
+        {{ showMine() ? '✓ My Tournaments' : 'My Tournaments' }}
+      </button>
+    }
     <div class="view-toggle" role="group" aria-label="View mode">
       <button type="button"
               [class.active]="view() === 'grid'"
@@ -176,93 +181,100 @@
   <!-- ── Grid view ───────────────────────────────────────────── -->
   @if (!loading() && !error() && view() === 'grid' && filtered().length > 0) {
     <div class="grid">
-      @for (t of filtered(); track t.id) {
-        <a class="card" [class]="'card ' + t.game" [routerLink]="['/tournaments', t.id]">
-
-          <div class="card-cover">
-            @if (t.cover_image_url) {
-              <div class="card-art" [style.background-image]="'url(' + t.cover_image_url + ')'"></div>
+      @for (t of filteredWithAds(); track trackItem($index, t)) {
+        @if (t.__adCard) {
+          <!-- In-grid sponsor card -->
+          <div class="ad-card" [style.--ad-accent]="t.brand_color || '#f0a500'">
+            <div class="ad-card__sponsored">Sponsored</div>
+            @if (t.image_url) {
+              <div class="ad-card__art"><img [src]="t.image_url" [alt]="t.brand_name || t.title" loading="lazy"/><div class="ad-card__art-fade"></div></div>
             } @else {
-              <div class="card-cover-stripe"></div>
-              <div class="card-cover-glyph">{{ gameShort(t.game) }}</div>
+              <div class="ad-card__art ad-card__art--placeholder"><div class="ad-card__brand-initial">{{ (t.brand_name || t.title).charAt(0) }}</div></div>
             }
+            <div class="ad-card__body">
+              @if (t.brand_name) { <div class="ad-card__brand">{{ t.brand_name }}</div> }
+              <div class="ad-card__title">{{ t.title }}</div>
+              @if (t.title_ar) { <div class="ad-card__title-ar" dir="rtl">{{ t.title_ar }}</div> }
+            </div>
+            <div class="ad-card__foot">
+              @if (t.link_url) {
+                <a [href]="t.link_url" target="_blank" rel="noopener" class="ad-card__cta" (click)="$event.stopPropagation()">
+                  {{ t.cta_label || 'Learn More' }} →
+                </a>
+              }
+            </div>
+          </div>
+        } @else {
+          <!-- Tournament card -->
+          <a class="card" [class.card--promoted]="isPromoted(t.id)" [routerLink]="['/tournaments', t.id]">
+            @if (isPromoted(t.id)) { <div class="promoted-badge">⭐ Promoted</div> }
 
-            <span class="card-cover-tag">{{ t.game_label }} · {{ t.format_label }}</span>
-
+          <!-- ── Game art ── -->
+          <div class="card-art" [style.--accent]="gameAccent(t.game)">
+            @if (t.cover_image_url) {
+              <img [src]="t.cover_image_url" [alt]="t.name" loading="lazy"/>
+            } @else {
+              <img [src]="gameImage(t.game)" [alt]="t.game_label" loading="lazy"/>
+            }
+            <div class="card-art__fade"></div>
             @switch (statusGroup(t.status)) {
-              @case ('live') {
-                <span class="card-status live"><span class="dot"></span>Live</span>
-              }
-              @case ('open') {
-                <span class="card-status open">Open</span>
-              }
-              @case ('completed') {
-                <span class="card-status completed">Completed</span>
-              }
-              @default {
-                <span class="card-status draft">{{ t.status_label || t.status }}</span>
-              }
-            }
-
-            @if (prizeTotal(t) > 0) {
-              <div class="card-cover-prize">
-                {{ prizeLabel(t) }}<span class="card-cover-prize-curr">SAR</span>
-              </div>
+              @case ('live') { <span class="card-badge card-badge--live"><span class="dot"></span>Live now</span> }
+              @case ('open') { <span class="card-badge card-badge--open">Open</span> }
+              @case ('completed') { <span class="card-badge card-badge--done">Completed</span> }
+              @default { <span class="card-badge card-badge--soon">{{ t.status_label || 'Soon' }}</span> }
             }
           </div>
 
-          <div class="card-body">
-            <h3 class="card-title">{{ t.name }}</h3>
-            <span class="card-format">{{ t.format_label }}</span>
+          <!-- ── Meta strip ── -->
+          <div class="card-strip">
+            <span class="card-strip__org">
+              @if (t.organizer_name || t.organizer?.name) {
+                <span class="card-strip__by">by</span> {{ t.organizer_name || t.organizer?.name }}
+              } @else {
+                <span class="card-strip__by">{{ t.game_label }}</span>
+              }
+            </span>
+            @if (t.starts_at) {
+              <span class="card-strip__date">
+                {{ statusGroup(t.status) === 'completed' ? 'Ended' : 'Starts' }} {{ t.starts_at | date:'d MMM' }}
+              </span>
+            }
+          </div>
 
-            <div class="card-progress">
-              <div class="card-progress-row">
-                <span>
-                  <span class="filled">{{ t.participant_count || 0 }}</span>
-                  <span class="total">/{{ t.max_participants }} joined</span>
-                </span>
-                <span style="color:var(--text-mute)">{{ progressPct(t) }}%</span>
+          <!-- ── Body ── -->
+          <div class="card-body">
+            <div class="card-game-line">{{ t.game_label }} · {{ t.format_label }}</div>
+            <div class="card-name">{{ t.name }}</div>
+            @if (t.name_ar) { <div class="card-name-ar" dir="rtl">{{ t.name_ar }}</div> }
+            @if (prizeTotal(t) > 0) {
+              <div class="card-reward">🏆 Win <strong>{{ prizeLabel(t) }} SAR</strong> in prizes</div>
+            } @else {
+              <div class="card-reward card-reward--free">🎮 Free to enter</div>
+            }
+            <div class="card-slots">
+              <div class="card-slots__bar">
+                <div class="card-slots__fill" [style.width.%]="progressPct(t)"
+                     [class.card-slots__fill--full]="progressPct(t) >= 100"></div>
               </div>
-              <div class="progress-bar">
-                <div class="progress-fill"
-                     [style.width.%]="progressPct(t)"
-                     [class.complete]="statusGroup(t.status) === 'completed'"></div>
-              </div>
+              <span class="card-slots__label"><strong>{{ t.participant_count || 0 }}</strong>/{{ t.max_participants }} slots</span>
             </div>
           </div>
 
-          <div class="card-meta">
-            <span class="card-meta-item fee" [class.free]="t.entry_fee_sar === 0">
-              {{ t.entry_fee_sar === 0 ? 'FREE' : (t.entry_fee_sar + ' SAR') }}
+          <!-- ── Actions ── -->
+          <div class="card-actions">
+            <span class="card-fee" [class.card-fee--free]="t.entry_fee_sar === 0">
+              {{ t.entry_fee_sar === 0 ? 'FREE' : t.entry_fee_sar + ' SAR' }}
             </span>
-            <span class="card-meta-item">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <rect width="18" height="18" x="3" y="4" rx="2"/>
-                <path d="M16 2v4M8 2v4M3 10h18"/>
-              </svg>
-              {{ t.starts_at | date:'d MMM · HH:mm' }}
-            </span>
+            <button class="card-cta"
+              [class.card-cta--live]="statusGroup(t.status) === 'live'"
+              [class.card-cta--done]="statusGroup(t.status) === 'completed'">
+              @if (statusGroup(t.status) === 'live') { 🔴 Watch Live }
+              @else if (statusGroup(t.status) === 'completed') { View Results }
+              @else { Register Now }
+            </button>
           </div>
-
-          <div class="card-foot">
-            @if (statusGroup(t.status) === 'live') {
-              <span class="card-foot-time urgent">● Match in progress</span>
-            } @else if (statusGroup(t.status) === 'completed') {
-              <span class="card-foot-time">Final results</span>
-            } @else {
-              <span class="card-foot-time" [class.urgent]="isUrgent(t)">
-                {{ closesIn(t) || 'Registration open' }}
-              </span>
-            }
-            <span class="card-foot-cta">
-              @if (statusGroup(t.status) === 'live') { Watch }
-              @else if (statusGroup(t.status) === 'completed') { Recap }
-              @else { Join }
-              <span class="arrow">→</span>
-            </span>
-          </div>
-        </a>
+          </a>
+        }
       }
     </div>
   }
@@ -277,6 +289,7 @@
             <div class="row-title">{{ t.name }}</div>
             <div class="row-sub">
               {{ t.game_label }} · {{ t.format_label }} · {{ t.starts_at | date:'d MMM · HH:mm' }}
+              @if (t.organizer_name || t.organizer?.name) { · by {{ t.organizer_name || t.organizer?.name }} }
             </div>
           </div>
           <div class="row-prize">

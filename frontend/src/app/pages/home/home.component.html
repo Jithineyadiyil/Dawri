@@ -16,7 +16,13 @@
     <div class="hero-wrap">
       <div class="hero-left">
         <div class="hero-eyebrow">
-          <span class="live-pill"><span class="dot"></span>Live · 12 tournaments</span>
+          @if (activeLiveCount() > 0) {
+            <span class="live-pill"><span class="dot"></span>Live · {{ activeLiveCount() }} tournament{{ activeLiveCount() === 1 ? '' : 's' }}</span>
+          } @else if (liveTournaments().length > 0) {
+            <span class="live-pill" style="background:rgba(16,185,129,.15);color:#10b981">{{ liveTournaments().length }} open for registration</span>
+          } @else {
+            <span class="live-pill">Esports Platform</span>
+          }
           <span>Saudi Arabia &amp; GCC</span>
         </div>
         <h1 class="hero-title">
@@ -35,8 +41,8 @@
         </div>
         <div class="hero-meta">
           <div class="hero-meta-item">
-            <div class="hero-meta-n">23M+</div>
-            <div class="hero-meta-l">Gamers in KSA</div>
+            <div class="hero-meta-n">{{ liveTournaments().length || 0 }}</div>
+            <div class="hero-meta-l">Active tournaments</div>
           </div>
           <div class="hero-meta-item">
             <div class="hero-meta-n">512</div>
@@ -108,20 +114,65 @@
   <!-- ── TICKER ───────────────────────────────────────────────────── -->
   <div class="ticker">
     <div class="ticker-track">
-      @for (i of [1,2]; track i) {
-        <span class="ticker-item"><span class="live">● LIVE</span> <span class="game">EA FC 25</span> <span class="name">Riyadh Spring Cup</span> <span class="score">FaisalA 3 – 1 OmarM_07</span></span>
+      @for (t of liveTournaments(); track t.id) {
+        <span class="ticker-item">
+          <span [class]="getStatusClass(t.status) === 'live' ? 'live' : 'game'">
+            {{ getStatusClass(t.status) === 'live' ? '● LIVE' : 'UPCOMING' }}
+          </span>
+          <span class="game">{{ t.game_label }}</span>
+          <span class="name">{{ t.name }}</span>
+          <span class="score">{{ t.participant_count }}/{{ t.max_participants }} players</span>
+        </span>
         <span class="ticker-item sep">/</span>
-        <span class="ticker-item"><span class="live">● LIVE</span> <span class="game">PUBG Mobile</span> <span class="name">Jeddah Open</span> <span class="score">Match 7 of 24</span></span>
+      }
+      @if (liveTournaments().length === 0) {
+        <span class="ticker-item"><span class="game">DAWRI</span> <span class="name">GCC Esports Platform</span> <span class="score">Join free today</span></span>
         <span class="ticker-item sep">/</span>
-        <span class="ticker-item"><span class="game">UPCOMING</span> <span class="name">CoD Mobile · GCC Invitational</span> <span class="score">Saturday 21:00 AST</span></span>
-        <span class="ticker-item sep">/</span>
-        <span class="ticker-item"><span class="game">PRIZE</span> <span class="name">Khobar Showdown</span> <span class="score">25,000 SAR</span></span>
-        <span class="ticker-item sep">/</span>
-        <span class="ticker-item"><span class="live">● LIVE</span> <span class="game">EA FC 25</span> <span class="name">Aramco Internal</span> <span class="score">Round of 16</span></span>
+        <span class="ticker-item"><span class="game">PLATFORM</span> <span class="name">EA FC 25 · PUBG Mobile · Call of Duty</span> <span class="score">4 bracket formats</span></span>
         <span class="ticker-item sep">/</span>
       }
     </div>
   </div>
+
+  <!-- ── LIVE TOURNAMENTS ──────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-wrap">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Live &amp; upcoming</div>
+          <h2 class="section-title">Tournaments <em>right now</em></h2>
+        </div>
+        <a routerLink="/tournaments" class="btn btn-ghost">View all →</a>
+      </div>
+      @if (statsLoading()) {
+        <div class="t-grid">
+          @for (i of [1,2,3,4,5,6]; track i) { <div class="t-skel"></div> }
+        </div>
+      } @else if (topTournaments().length === 0) {
+        <div class="t-empty">
+          <p>No active tournaments right now. <a routerLink="/tournaments">Browse all →</a></p>
+        </div>
+      } @else {
+        <div class="t-grid">
+          @for (t of topTournaments(); track t.id) {
+            <a [routerLink]="['/tournaments', t.id]" class="t-card reveal">
+              <div class="t-card-head">
+                <span class="t-game">{{ t.game_label }}</span>
+                <span class="t-status" [class]="getStatusClass(t.status)">{{ getStatusLabel(t.status) }}</span>
+              </div>
+              <div class="t-name">{{ t.name }}</div>
+              <div class="t-meta">
+                <span>{{ t.format_label }}</span>
+                <span>{{ t.participant_count }}/{{ t.max_participants }}</span>
+              </div>
+              @if (getPrizePool(t)) { <div class="t-prize">{{ getPrizePool(t) }}</div> }
+              <div class="t-cta">{{ getStatusClass(t.status) === 'open' ? 'Register →' : 'Watch →' }}</div>
+            </a>
+          }
+        </div>
+      }
+    </div>
+  </section>
 
   <!-- ── GAMES ────────────────────────────────────────────────────── -->
   <section class="section">

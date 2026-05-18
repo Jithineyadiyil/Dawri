@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\AdPlacementController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\ChallongeFeatureController;
 use App\Http\Controllers\Api\AdminFinanceController;
 use App\Http\Controllers\Api\AdminInventoryController;
 use App\Http\Controllers\Api\AdminMarketplaceController;
@@ -43,6 +46,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/games',                     [GameController::class, 'index']);
     Route::get('/games/active',              [GameController::class, 'active']);
     Route::get('/leaderboard',               [LeaderboardController::class, 'index']);
+    Route::get('/ad-placements',             [AdPlacementController::class, 'index']);
+    Route::post('/ad-placements/{id}/click', [AdPlacementController::class, 'click']);
+    Route::get('/tournaments/{id}/predictions/leaderboard', [ChallongeFeatureController::class, 'predictionLeaderboard']);
     Route::get('/marketplace/products',      [MarketplaceController::class, 'products']);
     Route::get('/tournaments',               [TournamentController::class, 'index']);
     Route::get('/tournaments/{tournament}',  [TournamentController::class, 'show'])
@@ -75,6 +81,9 @@ Route::prefix('v1')->group(function () {
     // ── Authenticated ──────────────────────────────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
 
+        // Sprint 5 — YouTube Live (Option B) routes
+        require __DIR__ . '/api.streaming.php';
+
         Route::get('/dashboard', [DashboardController::class, 'index']);
 
         // Sprint 9: sponsor catalog for organizer dropdowns
@@ -106,6 +115,18 @@ Route::prefix('v1')->group(function () {
         Route::put   ('/tournaments/{tournament}',                          [TournamentController::class, 'update']);
         Route::delete('/tournaments/{tournament}',                          [TournamentController::class, 'destroy']);
         Route::post  ('/tournaments/{tournament}/register',                 [TournamentController::class, 'register']);
+        // ── Notifications ─────────────────────────────────────────────────────
+        Route::get   ('/notifications',               [NotificationController::class, 'index']);
+        Route::get   ('/notifications/unread-count',  [NotificationController::class, 'unreadCount']);
+        Route::post  ('/notifications/read-all',      [NotificationController::class, 'markAllRead']);
+        Route::post  ('/notifications/{id}/read',     [NotificationController::class, 'markRead']);
+        Route::delete('/notifications/{id}',          [NotificationController::class, 'destroy']);
+
+        Route::post  ('/tournaments/{id}/shuffle-seeds',                       [ChallongeFeatureController::class, 'shuffleSeeds']);
+        Route::patch ('/tournaments/{id}/participants/{participantId}/substitute', [ChallongeFeatureController::class, 'substitute']);
+        Route::post  ('/tournaments/{id}/predictions',                         [ChallongeFeatureController::class, 'submitPrediction']);
+        Route::get   ('/tournaments/{id}/predictions',                         [ChallongeFeatureController::class, 'myPredictions']);
+        Route::post  ('/tournaments/{id}/predictions/score',                   [ChallongeFeatureController::class, 'scorePredictions']);
         Route::post  ('/tournaments/{tournament}/generate-bracket',         [TournamentController::class, 'generateBracket']);
         Route::post  ('/tournaments/{tournament}/matches/{matchId}/result', [TournamentController::class, 'submitResult']);
 
@@ -168,6 +189,13 @@ Route::prefix('v1')->group(function () {
         // Admin
         Route::prefix('admin')->middleware('admin')->group(function () {
             Route::get ('/overview',               [AdminController::class, 'overview']);
+            Route::get   ('/ad-placements',          [AdPlacementController::class, 'adminIndex']);
+            Route::post  ('/ad-placements',          [AdPlacementController::class, 'store']);
+            Route::put   ('/ad-placements/{id}',     [AdPlacementController::class, 'update']);
+            Route::delete('/ad-placements/{id}',     [AdPlacementController::class, 'destroy']);
+            Route::post  ('/ad-placements/{id}/toggle',       [AdPlacementController::class, 'toggle']);
+            Route::post  ('/ad-placements/upload-image',       [AdPlacementController::class, 'uploadImage']);
+            Route::get   ('/ad-placements/stats',    [AdPlacementController::class, 'stats']);
 
             // Sprint 13: Domain-focused dashboards (replaces old generic /admin/dashboard)
             Route::get ('/subscriptions/dashboard', [AdminController::class, 'subscriptionsDashboard']);

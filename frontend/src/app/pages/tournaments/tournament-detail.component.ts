@@ -13,6 +13,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { TournamentSponsorsComponent } from '../../shared/tournament-sponsors/tournament-sponsors.component';
 import { TournamentSponsorsManageComponent } from '../../shared/tournament-sponsors-manage/tournament-sponsors-manage.component';
 import { StreamEmbedComponent } from '../../shared/components/stream-embed/stream-embed.component';
+import { BroadcastControlsComponent } from '../../features/streaming/broadcast-controls.component';
 
 /**
  * Bracket match shape used by the template. Sprint 2 adds scheduling and
@@ -60,7 +61,7 @@ export interface BracketRound {
 @Component({
   selector: 'app-tournament-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, TournamentSponsorsComponent, TournamentSponsorsManageComponent, StreamEmbedComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, TournamentSponsorsComponent, TournamentSponsorsManageComponent, StreamEmbedComponent, BroadcastControlsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tournament-detail.component.html',
   styleUrls: ['./tournament-detail.component.scss'],
@@ -848,6 +849,28 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Sync local state when the Dawri-managed broadcast (Option B) component
+   * reports a change. The backend mirrors the watch URL into
+   * tournament_matches.stream_url on create, and nulls it on cancel — so
+   * the local signal needs to match.
+   *
+   * Accepts the BracketMatch the modal is currently bound to so we don't
+   * accidentally update state for a stale selection.
+   */
+  onBroadcastChanged(broadcast: { watch_url: string | null; is_terminal: boolean } | null, m: BracketMatch): void {
+    const current = this.selectedMatch();
+    if (!current || current.id !== m.id) return;
+
+    if (broadcast === null) {
+      // Cancelled — clear the embed.
+      this.selectedMatch.update(curr => curr ? ({ ...curr, stream_url: null }) : curr);
+    } else if (broadcast.watch_url && !broadcast.is_terminal) {
+      // Broadcast active — mirror the watch URL so <app-stream-embed> renders.
+      this.selectedMatch.update(curr => curr ? ({ ...curr, stream_url: broadcast.watch_url }) : curr);
+    }
+  }
+
   toggleRescheduleForm(): void {
     this.rescheduleForm.reset({ proposed_at: '', reason: '' });
     this.showRescheduleForm.update(v => !v);
@@ -915,6 +938,62 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         this.toast.error(err.error?.message ?? 'Failed to override.');
       },
     });
+  }
+
+  /**
+   * Template-side alias for organizerOverride(). The bracket template
+   * was authored expecting this longer name; keeping a thin alias avoids
+   * touching the template while satisfying its bindings.
+   */
+  organizerOverrideReschedule(req: MatchRescheduleRequest, accept: boolean): void {
+    this.organizerOverride(req, accept);
+  }
+
+  /**
+   * Combined prize total as a display string, or null when prizes are
+   * non-numeric or mixed-currency. Template falls through to the
+   * "Multiple Tiers" branch when this returns null.
+   *
+   * Edge cases:
+   *   - Empty prize_pool → null
+   *   - Any reward without a parseable number ("iPhone 15") → null
+   *   - Mixed currencies → null (companion method returns null too)
+   */
+  totalPrizeDisplay(): string | null {
+    const prizes = this.normalizedPrizes();
+    if (prizes.length === 0) return null;
+
+    let sum = 0;
+    for (const p of prizes) {
+      // Strip thousands separators, then find the first numeric span.
+      const match = p.reward.replace(/,/g, '').match(/[\d.]+/);
+      if (!match) return null;
+      const n = parseFloat(match[0]);
+      if (!isFinite(n)) return null;
+      sum += n;
+    }
+    return sum > 0 ? sum.toLocaleString() : null;
+  }
+
+  /**
+   * Currency code detected across rewards, or null if no currency is
+   * present or rewards use mixed currencies. Recognises SAR / USD / EUR /
+   * GBP plus their symbols (ر.س, ﷼, $, €, £).
+   */
+  totalPrizeCurrency(): string | null {
+    const prizes = this.normalizedPrizes();
+    if (prizes.length === 0) return null;
+
+    const currencies = new Set<string>();
+    for (const p of prizes) {
+      const m = p.reward.match(/SAR|USD|EUR|GBP|ر\.س|﷼|\$|€|£/i);
+      if (m) {
+        const raw = m[0].toUpperCase();
+        const normalised = raw === 'ر.س' || raw === '﷼' ? 'SAR' : raw;
+        currencies.add(normalised);
+      }
+    }
+    return currencies.size === 1 ? Array.from(currencies)[0] : null;
   }
 
   cancelMyReschedule(req: MatchRescheduleRequest): void {

@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/guards/auth.guard';
+import { authGuard, guestGuard, adminGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -92,37 +92,54 @@ export const routes: Routes = [
   // Sprint 14: admin platform-sponsors management — MUST come before /admin
   {
     path: 'admin/platform-sponsors',
+    canActivate: [adminGuard],
     loadComponent: () => import('./pages/admin/platform-sponsors/admin-platform-sponsors.component')
       .then(m => m.AdminPlatformSponsorsComponent),
-    canActivate: [authGuard],
     title: 'Platform Sponsors — Admin — Dawri',
   },
   // Sprint 13 Phase 1: Finance module — MUST come before /admin (specificity)
   {
     path: 'admin/finance',
+    canActivate: [adminGuard],
     loadComponent: () => import('./pages/admin/finance/finance.component').then(m => m.FinanceComponent),
-    canActivate: [authGuard],
     title: 'Finance &amp; Reports — Admin — Dawri',
   },
   // Sprint 8: Sponsor admin page — MUST come before /admin so the more
   // specific path matches first
   {
     path: 'admin/sponsors',
+    canActivate: [adminGuard],
     loadComponent: () => import('./pages/admin/admin-sponsors.component').then(m => m.AdminSponsorsComponent),
-    canActivate: [authGuard],
     title: 'Sponsors — Admin — Dawri',
+  },
+  // Ad Placements admin
+  {
+    path: 'admin/streams',
+    canActivate: [adminGuard],
+    loadComponent: () => import('./pages/admin/admin-streams.component').then(m => m.AdminStreamsComponent),
+    title: 'Live Streams — Admin — Dawri',
+  },
+  {
+    path: 'admin/ads',
+    canActivate: [adminGuard],
+    loadComponent: () => import('./pages/admin/admin-ads.component').then(m => m.AdminAdsComponent),
+  },
+  // Notifications page
+  {
+    path: 'notifications',
+    loadComponent: () => import('./pages/notifications/notifications.component').then(m => m.NotificationsComponent),
   },
   // Sprint 11: Marketplace admin page — same specificity requirement
   {
     path: 'admin/marketplace',
+    canActivate: [adminGuard],
     loadComponent: () => import('./pages/admin/marketplace/admin-marketplace.component').then(m => m.AdminMarketplaceComponent),
-    canActivate: [authGuard],
     title: 'Marketplace — Admin — Dawri',
   },
   {
     path: 'admin',
+    canActivate: [adminGuard],
     loadComponent: () => import('./pages/admin/admin.component').then(m => m.AdminComponent),
-    canActivate: [authGuard],
     title: 'Admin Panel — Dawri',
   },
   // Sprint 7: public About Us page

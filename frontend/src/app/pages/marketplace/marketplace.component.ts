@@ -133,6 +133,50 @@ export class MarketplaceComponent implements OnInit, OnDestroy {
   tuCardNumber = ''; tuCardName = ''; tuCardExpiry = ''; tuCardCvv = '';
   tuShowCvv    = false;
 
+  // ── Product detail modal ────────────────────────────────────────────────────
+  readonly showDetail      = signal(false);
+  readonly detailProduct   = signal<Product | null>(null);
+  readonly detailQty       = signal(1);
+  readonly giftMode        = signal(false);
+  readonly giftEmail       = signal('');
+  readonly giftEmailError  = signal('');
+
+  openDetail(p: Product, e: Event): void {
+    e.stopPropagation();
+    this.detailProduct.set(p);
+    this.detailQty.set(1);
+    this.showDetail.set(true);
+  }
+  closeDetail(): void { this.showDetail.set(false); }
+  addDetailToCart(): void {
+    const p = this.detailProduct();
+    if (!p) return;
+    for (let i = 0; i < this.detailQty(); i++) this.addToCart(p);
+    this.closeDetail();
+    this.openCart();
+  }
+
+  toggleGift(): void {
+    this.giftMode.update(v => !v);
+    this.giftEmail.set('');
+    this.giftEmailError.set('');
+  }
+
+  buyAsGift(): void {
+    const email = this.giftEmail().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) { this.giftEmailError.set('Please enter recipient email.'); return; }
+    if (!emailRegex.test(email)) { this.giftEmailError.set('Please enter a valid email address.'); return; }
+    this.giftEmailError.set('');
+    // Add to cart with gift metadata then checkout
+    const p = this.detailProduct();
+    if (!p) return;
+    for (let i = 0; i < this.detailQty(); i++) this.addToCart(p);
+    this.closeDetail();
+    this.notify(`Gift will be sent to ${email} after checkout.`, true);
+    this.openCart();
+  }
+
   readonly revealedCodes = signal<Record<string, string>>({});
   readonly revealing     = signal<string | null>(null);
   readonly toast         = signal<{ msg: string; ok: boolean } | null>(null);

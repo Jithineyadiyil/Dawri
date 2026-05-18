@@ -398,3 +398,40 @@ img { display: block; max-width: 100%; }
   transition: opacity .6s ease, transform .6s ease;
   &.visible { opacity: 1; transform: translateY(0); }
 }
+
+// ── Tournament cards (live data) ─────────────────────────────────────────────
+.t-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.t-skel {
+  height: 160px; border-radius: 12px;
+  background: rgba(255,255,255,.05);
+  animation: tpulse 1.5s ease-in-out infinite;
+}
+@keyframes tpulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+.t-empty { padding: 40px; text-align: center; color: var(--text-dim); font-family: var(--body); a { color: var(--accent); } }
+.t-card {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 1.25rem; border-radius: 12px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.1);
+  text-decoration: none; color: inherit;
+  transition: transform .2s, border-color .2s;
+  &:hover { transform: translateY(-3px); border-color: var(--accent); }
+}
+.t-card-head { display: flex; justify-content: space-between; align-items: center; }
+.t-game { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; }
+.t-status {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px; letter-spacing: 1px;
+  &.live     { background: rgba(239,68,68,.15); color: #ef4444; }
+  &.open     { background: rgba(16,185,129,.15); color: #10b981; }
+  &.upcoming { background: rgba(255,255,255,.08); color: var(--text-dim); }
+}
+.t-name  { font-family: var(--display); font-size: 1.1rem; color: var(--text); line-height: 1.2; }
+.t-meta  { display: flex; justify-content: space-between; font-family: var(--body); font-size: 13px; color: var(--text-dim); }
+.t-prize { font-family: var(--body); font-size: 13px; font-weight: 700; color: var(--accent); margin-top: auto; }
+.t-cta   { font-family: var(--mono); font-size: 12px; color: var(--cyan, #00e5ff); letter-spacing: 1px; }

@@ -42,6 +42,14 @@ class BracketAdvancementService
         }
 
         DB::transaction(function () use ($match): void {
+            // Apply per-match stats + flip the match itself to completed.
+            // Must run BEFORE the format-specific dispatch — that code
+            // uses status filters (e.g. whereIn('status', ['pending',
+            // 'ongoing'])) to decide if a Swiss round is finished, and
+            // it expects the just-confirmed match to be out of those
+            // statuses. Idempotent: skips if already completed.
+            $this->applyMatchStats($match);
+
             $bracket    = $match->bracket;
             $tournament = $bracket->tournament;
 
@@ -53,6 +61,75 @@ class BracketAdvancementService
                 default              => null,
             };
         });
+    }
+
+    /**
+     * Increment per-participant stats (wins/losses/points) and finalise
+     * the match itself.
+     *
+     * Why this lives here:
+     *   The codebase used to advance brackets without ever writing back
+     *   to tournament_participants.wins/losses/points. That meant the
+     *   Players tab and Standings tab always rendered 0/0/0 regardless
+     *   of how many matches had been played. Hooking the write into
+     *   `advance()` guarantees one consistent path for every format.
+     *
+     * Idempotency:
+     *   - If the match is already in a terminal status (completed /
+     *     walkover) we do nothing. Protects against duplicate
+     *     advance() calls if a moderator re-confirms a result.
+     *   - BYE matches don't increment loser stats — the absent slot
+     *     isn't a real participant.
+     *
+     * Points convention:
+     *   1 point per win across all formats. Swiss tie-breakers
+     *   (Buchholz) are recomputed elsewhere; this method only owns
+     *   the headline counters. Round-robin and elimination formats
+     *   simply mirror wins as points so the Players tab can render
+     *   a consistent "Pts" column.
+     */
+    private function applyMatchStats(TournamentMatch $match): void
+    {
+        // Idempotent guard
+        if (in_array($match->status, ['completed', 'walkover'], true)) {
+            return;
+        }
+
+        $winnerId = $match->winner_id;
+        if ($winnerId === null) {
+            return;
+        }
+
+        $loserId = $winnerId === $match->participant_a_id
+            ? $match->participant_b_id
+            : $match->participant_a_id;
+
+        // Increment winner stats. lockForUpdate prevents two
+        // simultaneous confirmations from over-counting.
+        $winner = TournamentParticipant::whereKey($winnerId)->lockForUpdate()->first();
+        if ($winner) {
+            $winner->wins   = (int) $winner->wins   + 1;
+            $winner->points = (int) $winner->points + 1;
+            $winner->save();
+        }
+
+        // Increment loser stats. Skip if BYE (no real loser).
+        $loserIsBye = ($match->participant_a_id === $loserId && $match->participant_a_is_bye)
+                   || ($match->participant_b_id === $loserId && $match->participant_b_is_bye);
+
+        if ($loserId && ! $loserIsBye) {
+            $loser = TournamentParticipant::whereKey($loserId)->lockForUpdate()->first();
+            if ($loser) {
+                $loser->losses = (int) $loser->losses + 1;
+                $loser->save();
+            }
+        }
+
+        // Finalise the match record.
+        $match->update([
+            'status'       => 'completed',
+            'completed_at' => now(),
+        ]);
     }
 
     // ─── Single Elimination ───────────────────────────────────────────────────

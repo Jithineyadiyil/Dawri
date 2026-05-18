@@ -1016,6 +1016,23 @@
         </div>
       </section>
 
+      <!-- ═══ DAWRI BROADCAST (Option B — Dawri-managed YouTube) ═══ -->
+      @if (canModifyStream()) {
+        <section class="m-section">
+          <header class="m-section__head">
+            <span class="m-section__icon">🎥</span>
+            <span class="m-section__title">Dawri Broadcast</span>
+          </header>
+          <div class="m-section__body">
+            <dawri-broadcast-controls
+              [matchId]="m.id"
+              [defaultTitle]="'Match #' + m.match_number + ' — ' + (m.participant_a?.display_name ?? m.participant_a?.name ?? '') + ' vs ' + (m.participant_b?.display_name ?? m.participant_b?.name ?? '')"
+              (broadcastChanged)="onBroadcastChanged($event, m)">
+            </dawri-broadcast-controls>
+          </div>
+        </section>
+      }
+
       <!-- ═══ RESCHEDULE REQUESTS ═══ -->
       @if (m.scheduled_at || rescheduleRequests().length) {
         <section class="m-section">

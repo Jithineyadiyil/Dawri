@@ -1,6 +1,14 @@
 <app-nav></app-nav>
-<main class="main-content">
-  <router-outlet></router-outlet>
-</main>
+<div class="app-layout">
+  <aside class="app-layout__sidebar app-layout__sidebar--left">
+    <app-sidebar-ad side="sidebar_left"></app-sidebar-ad>
+  </aside>
+  <main class="main-content">
+    <router-outlet></router-outlet>
+  </main>
+  <aside class="app-layout__sidebar app-layout__sidebar--right">
+    <app-sidebar-ad side="sidebar_right"></app-sidebar-ad>
+  </aside>
+</div>
 <app-footer></app-footer>
 <app-toast></app-toast>

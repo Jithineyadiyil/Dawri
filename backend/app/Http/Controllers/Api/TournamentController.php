@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Notifications\BracketGeneratedNotification;
+use App\Notifications\TournamentRegisteredNotification;
 use App\Http\Requests\UpdateTournamentBrandingRequest;
 use App\Http\Requests\UploadCoverRequest;
 use App\Http\Resources\TournamentResource;
@@ -171,11 +173,53 @@ class TournamentController extends Controller
             ]);
         });
 
+        // Notify player of successful registration
+        try {
+            $count = $tournament->participants()->count();
+            $user->notify(new TournamentRegisteredNotification(
+                tournamentId:     $tournament->id,
+                tournamentName:   $tournament->name,
+                format:           $tournament->format,
+                startsAt:         $tournament->starts_at?->format('d M Y H:i') ?? 'TBD',
+                participantCount: $count,
+                maxParticipants:  $tournament->max_participants,
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('TournamentRegistered notify failed: ' . $e->getMessage());
+        }
+
         return response()->json([
             'message'            => 'Registered!',
             'participants_count' => $tournament->participants()->count(),
             'participant_id'     => $participant->id,
         ], Response::HTTP_CREATED);
+    }
+
+
+    public function unregister(Request $request, string $id): JsonResponse
+    {
+        $user       = $request->user();
+        $tournament = Tournament::findOrFail($id);
+
+        if (! $tournament->isRegistrationOpen()) {
+            return response()->json(
+                ['message' => 'Registration is closed — you cannot withdraw after it closes.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        $deleted = $tournament->participants()
+            ->where('user_id', $user->id)
+            ->delete();
+
+        if (! $deleted) {
+            return response()->json(['message' => 'You are not registered for this tournament.'], 404);
+        }
+
+        return response()->json([
+            'message'            => 'You have been unregistered.',
+            'participants_count' => $tournament->participants()->count(),
+        ]);
     }
 
     // ── Sprint 3: Cover image ──────────────────────────────────────────

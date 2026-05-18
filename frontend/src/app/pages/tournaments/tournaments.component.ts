@@ -7,6 +7,7 @@ import { ReactiveFormsModule, FormBuilder, FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService }  from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { catchError, forkJoin, of } from 'rxjs';
 import { PlatformSponsorsStripComponent } from '../../components/platform-sponsors-strip/platform-sponsors-strip.component';
 
 /**
@@ -78,6 +79,8 @@ export class TournamentsComponent implements OnInit {
     { value: 'newest',        label: 'Sort: Newest' },
   ];
 
+  readonly showMine = signal(false);
+
   readonly filter = {
     game:   signal<string>(''),
     format: signal<string>(''),
@@ -92,7 +95,15 @@ export class TournamentsComponent implements OnInit {
     const st = this.filter.status();
     const stMatches = st ? (this.statuses.find(x => x.value === st)?.match ?? []) : [];
 
+    const mine = this.showMine();
+    const userId = this.auth.currentUser()?.id;
+
     const list = this.items().filter(t => {
+      if (mine && userId) {
+        const isOrg = t.organizer_id === userId || t.organizer?.id === userId;
+        const isParticipant = t.is_registered;
+        if (!isOrg && !isParticipant) return false;
+      }
       if (s  && !(`${t.name} ${t.name_ar ?? ''}`.toLowerCase().includes(s))) return false;
       if (g  && t.game   !== g)  return false;
       if (f  && t.format !== f)  return false;
@@ -146,7 +157,50 @@ export class TournamentsComponent implements OnInit {
     return role === 'organizer' || role === 'admin';
   });
 
+
+  // ── Ad Placements ────────────────────────────────────────────────────────
+  readonly sponsorCards = signal<any[]>([]);
+  readonly promotedIds  = signal<Set<string>>(new Set());
+
+  loadAdPlacements(): void {
+    forkJoin({
+      grid:     this.api.getAdPlacements('in_grid_sponsor'),
+      promoted: this.api.getAdPlacements('promoted_tournament'),
+    }).subscribe({
+      next: ({ grid, promoted }) => {
+        this.sponsorCards.set(grid.data ?? []);
+        const ids = new Set<string>(
+          (promoted.data ?? []).map((p: any) => p.tournament_id).filter(Boolean)
+        );
+        this.promotedIds.set(ids);
+      },
+      error: () => {},
+    });
+  }
+
+  isPromoted(id: string): boolean { return this.promotedIds().has(id); }
+
+  filteredWithAds(): any[] {
+    const items = this.filtered();
+    const sponsors = this.sponsorCards();
+    if (!sponsors.length) return items;
+    const result: any[] = [];
+    let si = 0;
+    items.forEach((item, i) => {
+      result.push(item);
+      if ((i + 1) % 2 === 0 && si < sponsors.length) {
+        result.push({ __adCard: true, ...sponsors[si++] });
+      }
+    });
+    return result;
+  }
+
+  trackItem(_: number, item: any): string {
+    return item.__adCard ? 'ad-' + item.id : item.id;
+  }
+
   ngOnInit(): void {
+    this.loadAdPlacements();
     this.loading.set(true);
     this.api.getTournaments({}).subscribe({
       next: (res: any) => { this.items.set(res.data ?? []); this.loading.set(false); },
@@ -159,6 +213,7 @@ export class TournamentsComponent implements OnInit {
   }
   setView(v: 'grid' | 'list' | 'calendar'): void { this.view.set(v); }
   setSort(v: string): void { this.sort.set(v as any); }
+  toggleMine(): void { this.showMine.set(!this.showMine()); }
 
   /** Prize pool total in SAR — supports prize_pool: [{amount}], prize_pool_sar: number, prize_pool_total. */
   prizeTotal(t: any): number {
@@ -193,6 +248,25 @@ export class TournamentsComponent implements OnInit {
   }
 
   /** Short two-letter game code for the cover glyph. */
+  gameImage(g: string): string {
+    const map: Record<string, string> = {
+      ea_fc25:    'https://images.igdb.com/igdb/image/upload/t_screenshot_big/sc8pxf.jpg',
+      pubg_mobile:'https://images.igdb.com/igdb/image/upload/t_screenshot_big/scnwp6.jpg',
+      cod_mobile: 'https://images.igdb.com/igdb/image/upload/t_screenshot_big/sc5vff.jpg',
+    };
+    // Fallback to data URI gradient if image fails
+    return map[g] ?? '';
+  }
+
+  gameAccent(g: string): string {
+    const map: Record<string, string> = {
+      ea_fc25:    '#00d473',
+      pubg_mobile:'#f5b942',
+      cod_mobile: '#ff4444',
+    };
+    return map[g] ?? '#f0a500';
+  }
+
   gameShort(g: string): string {
     return this.games.find(x => x.value === g)?.short ?? '·';
   }

@@ -190,32 +190,148 @@
   transition: transform .25s, border-color .25s, box-shadow .25s;
   &:hover { transform: translateY(-3px); border-color: var(--line-2); box-shadow: 0 14px 40px rgba(0,0,0,.4); }
 }
+/* ═══════════════════════════════════════════════════
+   Card cover — CSS art system
+   ═══════════════════════════════════════════════════ */
 .card-cover {
-  position: relative; height: 180px; overflow: hidden;
-  background: linear-gradient(135deg, var(--bg3), var(--bg2));
+  --accent: #f0a500;
+  position: relative;
+  height: 210px;
+  overflow: hidden;
+  background: #0a0f1e;
+  flex-shrink: 0;
 }
-.card-art { position: absolute; inset: 0; background-size: cover; background-position: center; }
-.card-cover-stripe {
-  position: absolute; inset: 0;
-  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.02) 0 2px, transparent 2px 14px);
-}
-.card-cover-glyph {
-  position: absolute; right: -20px; bottom: -40px;
-  font-family: var(--display); font-size: 200px; line-height: .8;
-  color: rgba(255,255,255,.04); letter-spacing: -6px; pointer-events: none;
-}
-.card.ea_fc25     .card-cover { background: linear-gradient(135deg, #0d2f1f 0%, #061a11 100%); }
-.card.pubg_mobile .card-cover { background: linear-gradient(135deg, #2a1f08 0%, #1a1304 100%); }
-.card.cod_mobile  .card-cover { background: linear-gradient(135deg, #2a0a14 0%, #1a060c 100%); }
 
-.card-cover-tag {
-  position: absolute; top: 14px; left: 14px;
-  font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--text); padding: 4px 10px;
-  background: rgba(0,0,0,.55); backdrop-filter: blur(8px);
-  border: 1px solid var(--line-2); border-radius: 100px;
+/* Custom uploaded cover image */
+.card-art-img {
+  position: absolute; inset: 0; z-index: 2;
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+  transition: transform .45s ease;
 }
-.card-status {
+.card:hover .card-art-img { transform: scale(1.06); }
+
+/* CSS art base layer */
+.card-css-art {
+  position: absolute; inset: 0; z-index: 1;
+  overflow: hidden;
+}
+
+/* Grid pattern */
+.card-css-art__grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 0%, black 30%, transparent 90%);
+  mask-image: radial-gradient(ellipse 100% 100% at 50% 0%, black 30%, transparent 90%);
+}
+
+/* Glowing orbs */
+.card-css-art__orb1 {
+  position: absolute;
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  top: -60px; right: -40px;
+  background: radial-gradient(circle, var(--accent), transparent 70%);
+  opacity: .18;
+  filter: blur(20px);
+  transition: opacity .3s;
+}
+.card:hover .card-css-art__orb1 { opacity: .28; }
+
+.card-css-art__orb2 {
+  position: absolute;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  bottom: -20px; left: 20px;
+  background: radial-gradient(circle, var(--accent), transparent 70%);
+  opacity: .10;
+  filter: blur(30px);
+}
+
+/* Large watermark glyph */
+.card-css-art__glyph {
+  position: absolute;
+  right: -10px; bottom: -30px;
+  font-family: var(--display);
+  font-size: 160px; line-height: .85;
+  letter-spacing: -4px;
+  color: var(--accent);
+  opacity: .07;
+  user-select: none; pointer-events: none;
+  transition: opacity .3s;
+}
+.card:hover .card-css-art__glyph { opacity: .12; }
+
+/* Per-game background gradients */
+.card-cover--ea_fc25 {
+  background: linear-gradient(145deg, #061a0f 0%, #0a2018 50%, #071410 100%);
+  --accent: #00e05a;
+}
+.card-cover--pubg_mobile {
+  background: linear-gradient(145deg, #1a1304 0%, #231a06 50%, #15100a 100%);
+  --accent: #f5b942;
+}
+.card-cover--cod_mobile {
+  background: linear-gradient(145deg, #150508 0%, #1e080d 50%, #120306 100%);
+  --accent: #ff4d4d;
+}
+
+/* Gradient overlay so text stays readable */
+.card-art-overlay {
+  position: absolute; inset: 0; z-index: 3;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,.0) 0%,
+    rgba(0,0,0,.15) 45%,
+    rgba(0,0,0,.85) 100%
+  );
+}
+
+/* Top badges row */
+.card-cover-top {
+  position: absolute; top: 12px; left: 12px; right: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  z-index: 4;
+}
+.card-cover-tag {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: rgba(255,255,255,.9);
+  padding: 4px 10px;
+  background: rgba(0,0,0,.5); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.12); border-radius: 100px;
+}
+
+/* Bottom info */
+.card-cover-bottom {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 14px 16px;
+  z-index: 4;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.card-cover-name {
+  font-family: var(--display); font-size: 20px; line-height: 1.05;
+  letter-spacing: .5px; text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0,0,0,.8);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-cover-prize-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  background: rgba(0,0,0,.55); backdrop-filter: blur(6px);
+  padding: 3px 10px; border-radius: 100px;
+  border: 1px solid var(--accent);
+  width: fit-content;
+  opacity: .9;
+}
+.card-status { z-index: 4;
   position: absolute; top: 14px; right: 14px;
   display: inline-flex; align-items: center; gap: 6px;
   font-family: var(--mono); font-size: 10px;
@@ -227,20 +343,12 @@
   &.completed { background: rgba(255,255,255,.05); border: 1px solid var(--line-2); color: var(--text-dim); }
   &.draft     { background: rgba(245,185,66,.1); border: 1px solid rgba(245,185,66,.3); color: #f5b942; }
 }
-.card-cover-prize {
-  position: absolute; left: 14px; bottom: 14px;
-  font-family: var(--display); font-size: 32px; line-height: 1;
-  color: var(--accent); letter-spacing: .5px;
-}
-.card-cover-prize-curr {
-  font-family: var(--mono); font-size: 11px; color: var(--text-dim);
-  margin-left: 4px; letter-spacing: 1px;
-}
+/* prize pill now in .card-cover-prize-pill inside .card-cover-bottom */
 
 .card-body { padding: 20px 22px 16px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
 .card-title {
-  font-family: var(--display); font-size: 22px; line-height: 1.05;
-  letter-spacing: .5px; text-transform: uppercase; color: var(--text); text-wrap: balance;
+  font-family: var(--display); font-size: 14px; line-height: 1.2;
+  letter-spacing: .5px; text-transform: uppercase; color: var(--text-dim);
 }
 .card-format {
   font-family: var(--mono); font-size: 10px; color: var(--text-dim);
@@ -320,7 +428,7 @@
 .row-fill { display: flex; flex-direction: column; gap: 6px; min-width: 140px; }
 .row-fill-row { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
 .row-status { display: flex; align-items: center; }
-.row-status .card-status { position: static; }
+.row-status .card-status { z-index: 4; position: static; }
 .row-cta { font-family: var(--mono); font-size: 14px; color: var(--accent); font-weight: 700; }
 
 /* Empty */
@@ -337,3 +445,424 @@
   text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px;
 }
 .empty-sub { color: var(--text-dim); font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
+
+/* ── My Tournaments toggle ─────────────────────────────────── */
+.mine-toggle {
+  padding: 8px 16px;
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--r, 8px); cursor: pointer;
+  font-size: 13px; font-family: var(--body);
+  color: var(--text-dim); white-space: nowrap;
+  transition: border-color .15s, color .15s, background .15s;
+  &.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(212,175,55,.08);
+  }
+  &:hover:not(.active) { border-color: var(--line-2); color: var(--text); }
+}
+
+/* ── Organizer name on card ────────────────────────────────── */
+.card-organizer {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text-mute); letter-spacing: .5px;
+  display: block; margin-top: 2px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Tournament Card — Discord Quest style
+   ══════════════════════════════════════════════════════════════ */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: #111827;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: transform .2s ease, border-color .2s, box-shadow .2s;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255,255,255,.18);
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+
+    .card-art img { transform: scale(1.04); }
+  }
+}
+
+/* ── Art area ── */
+.card-art {
+  --accent: #f0a500;
+  position: relative;
+  height: 160px;
+  overflow: hidden;
+  background: #060810;
+  flex-shrink: 0;
+
+  img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center top;
+    display: block;
+    transition: transform .4s ease;
+  }
+}
+.card-art__fade {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 30%,
+    rgba(17,24,39,.85) 100%
+  );
+}
+
+/* Status badges */
+.card-badge {
+  position: absolute; top: 10px; right: 10px;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 100px;
+  display: inline-flex; align-items: center; gap: 5px;
+
+  &--live {
+    background: rgba(239,68,68,.2); color: #fca5a5;
+    border: 1px solid rgba(239,68,68,.4);
+    .dot { width: 5px; height: 5px; border-radius: 50%; background: #ef4444;
+           animation: pulse 1.4s ease-in-out infinite; flex-shrink: 0; }
+  }
+  &--open { background: rgba(16,185,129,.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,.3); }
+  &--done { background: rgba(255,255,255,.08); color: #9ca3af; border: 1px solid rgba(255,255,255,.12); }
+  &--soon { background: rgba(245,158,11,.12); color: #fcd34d; border: 1px solid rgba(245,158,11,.25); }
+}
+
+/* ── Meta strip ("Promoted by" equivalent) ── */
+.card-strip {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.02);
+}
+.card-strip__org {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .5px;
+  color: #9ca3af;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-strip__by { color: #6b7280; margin-right: 3px; }
+.card-strip__date {
+  font-family: var(--mono); font-size: 10px; color: #6b7280;
+  white-space: nowrap; margin-left: 8px;
+}
+
+/* ── Body ── */
+.card-body {
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  flex: 1;
+}
+.card-game-line {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
+  text-transform: uppercase; color: #6b7280;
+}
+.card-name {
+  font-family: var(--display); font-size: 18px; line-height: 1.1;
+  letter-spacing: .5px; text-transform: uppercase;
+  color: #fff;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-name-ar {
+  font-size: 12px; color: #6b7280; margin-top: -4px;
+}
+.card-reward {
+  font-size: 13px; color: #d1d5db;
+  strong { color: #f0a500; }
+  &--free { color: #6b7280; }
+}
+
+/* Slots progress */
+.card-slots {
+  display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 6px;
+}
+.card-slots__bar {
+  flex: 1; height: 3px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden;
+}
+.card-slots__fill {
+  height: 100%; background: #f0a500; border-radius: 2px; transition: width .4s ease;
+  &--full { background: #10b981; }
+}
+.card-slots__label {
+  font-family: var(--mono); font-size: 10px; color: #6b7280; white-space: nowrap;
+  strong { color: #d1d5db; }
+}
+
+/* ── Action footer ── */
+.card-actions {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px 14px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.card-fee {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  color: #9ca3af; padding: 5px 10px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 6px;
+  &--free { color: #10b981; border-color: rgba(16,185,129,.3); background: rgba(16,185,129,.08); }
+}
+.card-cta {
+  flex: 1;
+  padding: 9px 14px;
+  background: #5865f2;
+  border: none; border-radius: 6px;
+  color: #fff; font-family: var(--body); font-size: 13px; font-weight: 700;
+  cursor: pointer; text-align: center;
+  transition: background .15s, opacity .15s;
+  &:hover { background: #4752c4; }
+  &--live { background: rgba(239,68,68,.2); color: #fca5a5; border: 1px solid rgba(239,68,68,.3);
+    &:hover { background: rgba(239,68,68,.3); } }
+  &--done { background: rgba(255,255,255,.08); color: #9ca3af; border: 1px solid rgba(255,255,255,.12);
+    &:hover { background: rgba(255,255,255,.12); } }
+}
+
+
+/* ── Card image fixes ───────────────────────────────────────────────────── */
+
+/* Stronger overlay so busy images don't overwhelm text */
+.card-art__fade {
+  background: linear-gradient(
+    180deg,
+    rgba(6,8,16,.1)  0%,
+    rgba(6,8,16,.5)  50%,
+    rgba(6,8,16,.95) 100%
+  ) !important;
+}
+
+/* Fixed card height so grid rows align */
+.card {
+  height: 100%;
+  min-height: 400px;
+}
+
+/* Fixed art area height */
+.card-art {
+  height: 180px !important;
+  flex-shrink: 0;
+}
+
+/* Game-specific tint overlays on top of image */
+.card-art::before {
+  content: '';
+  position: absolute; inset: 0; z-index: 1;
+  mix-blend-mode: multiply;
+  opacity: 0.4;
+}
+
+/* Card body takes remaining space so actions stay at bottom */
+.card-body {
+  flex: 1;
+}
+
+/* Consistent grid rows */
+.grid {
+  align-items: stretch;
+}
+
+/* ── Filter redesign ────────────────────────────────────────────────────── */
+
+/* Combine filters + chip-rows into one unified panel */
+.filters {
+  background: rgba(255,255,255,.02);
+  border-top: 1px solid var(--line);
+  border-bottom: none !important;
+  padding: 20px var(--gutter) !important;
+}
+
+.chip-rows {
+  background: rgba(255,255,255,.02);
+  border-bottom: 1px solid var(--line) !important;
+  padding: 0 var(--gutter) 20px !important;
+  gap: 10px !important;
+}
+
+/* Chip row: tighter, inline label */
+.chip-row {
+  align-items: center;
+  gap: 8px !important;
+  padding: 4px 0;
+}
+
+/* Label pill */
+.chip-row-label {
+  font-family: var(--mono);
+  font-size: 9px !important;
+  letter-spacing: 2px;
+  color: var(--text-mute) !important;
+  text-transform: uppercase;
+  min-width: 56px !important;
+  flex-shrink: 0;
+  padding: 4px 0;
+  border-right: 1px solid var(--line);
+  padding-right: 12px;
+  margin-right: 4px;
+}
+
+/* Chips — refined */
+.chip {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  border-radius: 8px !important;     /* rounded rect not pill */
+  border-color: rgba(255,255,255,.1) !important;
+  background: rgba(255,255,255,.03) !important;
+  color: #9ca3af !important;
+  transition: all .15s ease !important;
+  font-family: var(--body);
+
+  &:hover {
+    background: rgba(255,255,255,.08) !important;
+    border-color: rgba(255,255,255,.2) !important;
+    color: #fff !important;
+  }
+
+  &.active {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #0b1022 !important;
+    font-weight: 700;
+    box-shadow: 0 2px 12px rgba(240,165,0,.3);
+  }
+
+  .count {
+    font-size: 10px !important;
+    padding: 1px 5px !important;
+    background: rgba(0,0,0,.15) !important;
+    border-radius: 4px !important;
+    font-family: var(--mono);
+  }
+  &.active .count {
+    background: rgba(0,0,0,.2) !important;
+    color: rgba(0,0,0,.7) !important;
+  }
+}
+
+/* View toggle — match chip style */
+.view-toggle {
+  border-radius: 8px !important;
+  background: rgba(255,255,255,.03) !important;
+  border-color: rgba(255,255,255,.1) !important;
+
+  button {
+    border-radius: 6px !important;
+    font-size: 10px !important;
+    padding: 7px 12px !important;
+    &.active {
+      background: rgba(255,255,255,.1) !important;
+      color: #fff !important;
+    }
+  }
+}
+
+/* Mine toggle — consistent with chips */
+.mine-toggle {
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  padding: 7px 14px !important;
+}
+
+/* Search box — cleaner */
+.search-input {
+  background: rgba(255,255,255,.04) !important;
+  border-color: rgba(255,255,255,.1) !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+  padding: 11px 16px 11px 44px !important;
+
+  &:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(240,165,0,.12) !important;
+  }
+}
+
+/* Results header — cleaner */
+.results-head {
+  padding: 16px var(--gutter) 12px !important;
+  border-bottom: 1px solid var(--line);
+}
+.results-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  strong { color: var(--text); font-size: 14px; }
+}
+.sort-select {
+  background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+  color: var(--text-dim) !important;
+  padding: 6px 10px !important;
+  font-family: var(--mono) !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+}
+
+/* ── Filter label visibility tweak ─────────────────────────────────────── */
+.chip-row-label {
+  color: #4b5563 !important;   /* slightly brighter than text-mute */
+  font-size: 9px !important;
+}
+
+.chip-rows {
+  gap: 8px !important;         /* tighter row spacing */
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Ad Placement Styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── In-grid sponsor card ───────────────────────────────────────── */
+.ad-card {
+  --ad-accent: #f0a500;
+  display: flex; flex-direction: column;
+  border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.06);
+  background: #0d1117; position: relative;
+  transition: transform .2s, border-color .2s;
+  min-height: 380px;
+}
+.ad-card:hover { transform: translateY(-2px); border-color: var(--ad-accent); }
+
+.ad-card__sponsored {
+  position: absolute; top: 10px; left: 10px; z-index: 3;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: rgba(255,255,255,.5);
+  background: rgba(0,0,0,.6); padding: 3px 8px; border-radius: 4px;
+}
+.ad-card__art { position: relative; height: 160px; overflow: hidden; flex-shrink: 0; }
+.ad-card__art img { width: 100%; height: 100%; object-fit: cover; }
+.ad-card__art-fade { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(13,17,23,.95) 100%); }
+.ad-card__art--placeholder { background: linear-gradient(135deg, #0d1117, #1a2235); display: flex; align-items: center; justify-content: center; }
+.ad-card__brand-initial { font-family: var(--display); font-size: 80px; color: var(--ad-accent); opacity: .2; line-height: 1; }
+.ad-card__body { padding: 14px 16px; flex: 1; }
+.ad-card__brand { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--ad-accent); margin-bottom: 6px; }
+.ad-card__title { font-family: var(--display); font-size: 18px; letter-spacing: .5px; text-transform: uppercase; color: #fff; line-height: 1.2; }
+.ad-card__title-ar { font-size: 13px; color: #6b7280; margin-top: 4px; }
+.ad-card__foot { padding: 10px 16px 14px; border-top: 1px solid rgba(255,255,255,.05); }
+.ad-card__cta { display: inline-flex; align-items: center; font-size: 13px; font-weight: 700; color: var(--ad-accent); text-decoration: none; padding: 8px 16px; border-radius: 6px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); transition: background .15s; }
+.ad-card__cta:hover { background: rgba(255,255,255,.1); }
+
+/* ── Promoted tournament card ───────────────────────────────────── */
+.card--promoted {
+  border-color: rgba(240,165,0,.35) !important;
+  box-shadow: 0 0 0 1px rgba(240,165,0,.15), 0 4px 20px rgba(240,165,0,.08);
+}
+.promoted-badge {
+  position: absolute; top: 10px; left: 10px; z-index: 10;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: #f0a500;
+  background: rgba(240,165,0,.15); border: 1px solid rgba(240,165,0,.3);
+  padding: 3px 8px; border-radius: 4px; backdrop-filter: blur(4px);
+}

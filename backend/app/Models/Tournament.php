@@ -29,6 +29,8 @@ class Tournament extends Model
         'registration_closes_at', 'starts_at', 'timezone',
         'is_public', 'entry_fee_sar', 'prize_pool',
         'organizer_id', 'moderator_id', 'company_id', 'status',
+        'has_bronze_match', 'description',
+        'youtube_broadcast_id','youtube_stream_key','youtube_stream_url','youtube_stream_status',
         'cover_image_path', 'rules', 'brand_override',
         'primary_color', 'secondary_color', 'accent_color',
         'background_color', 'font_family', 'logo_url',
@@ -36,6 +38,7 @@ class Tournament extends Model
 
     protected $casts = [
         'is_public'              => 'boolean',
+        'has_bronze_match'       => 'boolean',
         'brand_override'         => 'boolean',
         'prize_pool'             => 'array',
         'registration_closes_at' => 'datetime',
