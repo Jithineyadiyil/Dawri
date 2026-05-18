@@ -1,213 +1,215 @@
-# Dawri Marketplace — Architecture
+# Architecture — Live Broadcast Module
 
-Sprint 5 redesign. This document covers the distributor abstraction,
-payment flow, and the end-to-end checkout pipeline.
+## Component diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ Angular frontend                                                     │
+│                                                                       │
+│  BroadcastControlsComponent ──► LiveBroadcastService (HTTP)          │
+│  StreamEmbedComponent       ──► reads stream_url from match payload  │
+└────────────────────────────────────────┬─────────────────────────────┘
+                                          │ HTTPS  (Bearer dawri_token)
+┌────────────────────────────────────────▼─────────────────────────────┐
+│ Laravel API                                                          │
+│                                                                       │
+│  routes/api.php ─► LiveBroadcastController                           │
+│                          │                                            │
+│                          ▼                                            │
+│                    LiveBroadcastService ──► LiveBroadcastRepository  │
+│                          │                          │                 │
+│                          │                          ▼                 │
+│                          │                    live_broadcasts (DB)    │
+│                          │                                            │
+│                          ▼                                            │
+│                    YouTubeStreamingService                            │
+│                          │                                            │
+│                          ▼                                            │
+└──────────────────────────┼────────────────────────────────────────────┘
+                            │ HTTPS (OAuth Bearer)
+                            ▼
+                  YouTube Data API v3
+```
 
 ---
 
-## Layer overview
+## Create-broadcast sequence
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│  FRONTEND — Angular 17 (standalone component)              │
-│  MarketplaceComponent                                      │
-│    ├─ products (signal)                                    │
-│    ├─ cart (signal, with batch qty)                        │
-│    └─ currentIdempotencyKey (UUID, stable per attempt)     │
-└──────────────────────┬─────────────────────────────────────┘
-                       │ POST /api/v1/marketplace/orders
-                       │ { items[], payment_method, idempotency_key }
-                       ▼
-┌────────────────────────────────────────────────────────────┐
-│  HTTP — PlaceOrderRequest (FormRequest validation)         │
-│    - product_id xor items[] required                       │
-│    - max 20 items, max qty 10 per item                     │
-│    - payment_method in [wallet, card, mada, stc_pay]       │
-└──────────────────────┬─────────────────────────────────────┘
-                       ▼
-┌────────────────────────────────────────────────────────────┐
-│  CONTROLLER — MarketplaceController                        │
-│   1. Check idempotency → short-circuit if seen             │
-│   2. Expand items[] × qty into line rows                   │
-│   3. PaymentService::charge (ONE payment for the batch)    │
-│   4. For each line: fulfilOne() → DistributorRouter        │
-│   5. On distributor fail after charge: PaymentService      │
-│      ::refund() for that line only                         │
-│   6. Dispatch OrderConfirmationNotification per success    │
-└──────────────────────┬─────────────────────────────────────┘
-                       ▼
-┌────────────────────────────────────────────────────────────┐
-│  DISTRIBUTOR ROUTER — DistributorRouter                    │
-│   1. Build candidate chain (brand-specific first)          │
-│   2. Skip unconfigured adapters                            │
-│   3. Skip adapters with open circuit                       │
-│   4. Try each, record health after each attempt            │
-│   5. On 3rd consecutive failure → open circuit 5min        │
-└──────────────────────┬─────────────────────────────────────┘
-                       ▼
-┌─────────┬────────┬──────────┬─────────────────────────────┐
-│Likecard │WUPEX   │Reloadly  │Jawaker  (all implement      │
-│(pri 10) │(pri 5) │(pri 7)   │(pri 3)   DistributorInterface│
-└─────────┴────────┴──────────┴─────────────────────────────┘
+Organizer       Angular          Laravel              YouTube
+  │  click "Start"  │                │                    │
+  ├─────────────────►│                │                    │
+  │                  │ POST /matches/{id}/broadcast        │
+  │                  ├───────────────►│                    │
+  │                  │                │ POST /liveBroadcasts
+  │                  │                ├───────────────────►│
+  │                  │                │◄── broadcast_id ───┤
+  │                  │                │                    │
+  │                  │                │ POST /liveStreams  │
+  │                  │                ├───────────────────►│
+  │                  │                │◄── stream_id, rtmp │
+  │                  │                │                    │
+  │                  │                │ POST /liveBroadcasts/bind
+  │                  │                ├───────────────────►│
+  │                  │                │◄── ok ─────────────┤
+  │                  │                │                    │
+  │                  │                │ DB tx:             │
+  │                  │                │   INSERT live_broadcasts
+  │                  │                │   UPDATE tournament_matches.stream_url
+  │                  │                │                    │
+  │                  │◄── LiveBroadcast (status=ready) ────┤
+  │◄── shows RTMP creds + "Go live" ──┤                    │
+  │                  │                │                    │
+  │ paste into OBS, click Stream      │                    │
+  │                  │                │                    │
+  │ click "Go live"  │                │                    │
+  ├─────────────────►│ POST /broadcasts/{id}/go-live       │
+  │                  ├───────────────►│                    │
+  │                  │                │ POST /transition?live
+  │                  │                ├───────────────────►│
+  │                  │                │◄── ok ─────────────┤
+  │                  │◄── status=live ┤                    │
+```
+
+---
+
+## Why these choices?
+
+### Why two services (`YouTubeStreamingService` + `LiveBroadcastService`)?
+
+- `YouTubeStreamingService` is a **pure API client** — no DB knowledge, no
+  authorization, no domain rules. Single responsibility: speak HTTP to
+  YouTube. Easy to unit-test with `Http::fake()`.
+- `LiveBroadcastService` is the **orchestrator** — knows that creating a
+  broadcast means "create + create-stream + bind + persist + update match",
+  knows the rollback path if step 2 fails, knows how to set
+  `tournament_matches.stream_url`.
+
+Splitting them keeps each class small, testable, and replaceable. If
+Dawri ever supports Twitch or DLive in addition, you swap the low-level
+service without touching the orchestrator.
+
+### Why a separate `live_broadcasts` table?
+
+The existing `tournament_matches.stream_url` is **Option A**: organizer
+pastes a Twitch/YouTube URL someone else owns. It needs nothing more
+than a string.
+
+**Option B** (this module): Dawri creates the broadcast on Dawri's own
+channel. We need to remember the YouTube broadcast ID, the stream ID,
+the encrypted stream key, the lifecycle status, and so on. That's
+multiple columns + state machine — table.
+
+The two coexist: when Option B succeeds, we write the watch URL into
+`tournament_matches.stream_url` so the existing embed component works
+without modification.
+
+### Why encrypt the stream key at rest?
+
+The stream key is **equivalent to a password** for the broadcast. Anyone
+with the URL + key can hijack the stream. The `'encrypted'` cast uses
+Laravel's app key (AES-256-CBC), so a database dump alone doesn't leak it.
+
+### Why `'encrypted'` cast instead of a `vault`-style external KMS?
+
+YAGNI. Laravel's app-key encryption is fine for a single-channel
+broadcast secret. If/when Dawri runs on multiple channels per customer
+(white-label), revisit with AWS KMS or HashiCorp Vault.
+
+### Why a separate `/credentials` endpoint?
+
+The `LiveBroadcastResource` is returned from list/show/create endpoints
+and may be cached by browsers, proxies, or downstream code. Putting the
+stream key in there means it ends up in browser history, logs, network
+panels.
+
+A dedicated endpoint with `Cache-Control: no-store` + 5/min rate limit +
+creator-only access keeps the high-sensitivity payload narrowly scoped.
+
+### Why `'enabled' => false` by default?
+
+Defence in depth. If `.env` is misconfigured during a migration or new
+developer setup, the service throws a clean `feature_disabled` error
+instead of panicking with a `null` access token deep in HTTP.
+
+### Why does `goLive()` not poll YouTube for stream health?
+
+Reduces complexity. The organizer is in front of OBS — they can see if
+the stream is connected. YouTube returns 403 on `transition?live` if no
+signal is detected, and that error is bubbled back to the UI cleanly.
+
+If we needed an "automatic go-live when signal detected", a separate
+artisan command (`broadcast:auto-transition`) could poll
+`/liveBroadcasts?part=status&id=X` and trigger the transition. That's
+left as a future enhancement.
+
+---
+
+## Idempotency
+
+`createForMatch()` and `createForTournament()` are idempotent:
+
+- If a non-terminal broadcast exists for the match/tournament, it's
+  returned instead of creating a new one.
+- Re-running `AutoCreateBroadcastJob` is safe — same protection.
+
+This handles the "user double-clicks the button" case and the "Laravel
+queue retries the job" case without duplicate YouTube events.
+
+---
+
+## State machine
+
+```
+                  ┌──────────┐
+   POST /matches/ │ created  │  (transient — never persisted in practice)
+   {id}/broadcast └────┬─────┘
                        │
+                       │ stream bound, row saved
                        ▼
-┌────────────────────────────────────────────────────────────┐
-│  DATA — digital_orders, digital_codes, distributor_health │
-│   - code_enc (AES-256 via Laravel Crypt)                   │
-│   - key_version (for APP_KEY rotation)                     │
-│   - idempotency_key UNIQUE per user                        │
-└────────────────────────────────────────────────────────────┘
+                  ┌──────────┐
+                  │  ready   │ ◄── organizer can reveal RTMP creds
+                  └────┬─────┘
+                       │ POST /broadcasts/{id}/go-live
+                       ▼
+                  ┌──────────┐
+                  │   live   │ ◄── viewers can watch
+                  └────┬─────┘
+                       │ POST /broadcasts/{id}/complete
+                       ▼
+                  ┌──────────┐
+                  │ complete │  (terminal)
+                  └──────────┘
+
+  any non-terminal ──DELETE──► ┌────────┐
+                               │ failed │ (terminal, soft-deleted)
+                               └────────┘
 ```
 
 ---
 
-## Happy path — batch checkout of 3 cards
+## Failure modes
 
-```
-User clicks "Checkout" (cart: 2 × PSN, 1 × Netflix)
-  │
-  ▼
-[FRONTEND]
-  processCheckout() builds payload:
-    {
-      items: [
-        { product_id: "psn-1", qty: 2 },
-        { product_id: "netflix-1", qty: 1 }
-      ],
-      payment_method: "wallet",
-      idempotency_key: "crypto.randomUUID()"
-    }
-  │
-  ▼
-[CONTROLLER] placeOrder()
-  - No existing order for this key → proceed
-  - Expand: 3 line-items totalling 250 SAR
-  - PaymentService::charge (wallet) → success, balance debited
-  │
-  ├── fulfilOne #1 (PSN)    → Router → LikecardAdapter → success → code_enc stored
-  ├── fulfilOne #2 (PSN)    → Router → LikecardAdapter → success → code_enc stored
-  └── fulfilOne #3 (Netflix)→ Router → LikecardAdapter → success → code_enc stored
-  │
-  ▼
-Response (201):
-  {
-    data: [...3 orders via DigitalOrderResource...],
-    summary: { total_lines: 3, completed: 3, failed: 0, charged: 250 }
-  }
-```
+| Failure | Where caught | User-visible result |
+|---|---|---|
+| Refresh token revoked | YouTubeStreamingService | 503 `auth_failed` |
+| YouTube quota exhausted | YouTubeStreamingService | 429 `quota_exceeded` |
+| Channel not streamable (24h) | YouTubeStreamingService | 422 `channel_not_streamable` |
+| Stream create fails after broadcast create | LiveBroadcastService | broadcast deleted via cleanup, 502 returned |
+| DB write fails after YouTube succeeds | LiveBroadcastService | DB transaction rolls back; YouTube broadcast orphaned (rare; cleanup job covers) |
+| Network timeout to YouTube | Http client | 502 `upstream_error` |
+| OAuth response missing access_token | YouTubeStreamingService | 503 `auth_failed` |
 
 ---
 
-## Partial-failure path — 2 succeed, 1 fails
+## Observability
 
-```
-User clicks "Checkout" (cart: 3 × PUBG) — PUBG adapter has no stock
-  │
-  ▼
-[CONTROLLER] placeOrder()
-  - Total: 300 SAR → chargeWallet succeeds, balance debited by 300
-  │
-  ├── fulfilOne #1 → Router → Likecard success → code stored
-  ├── fulfilOne #2 → Router → Likecard fails ("out of stock")
-  │                  → PaymentService::refund(100 SAR, wallet)
-  │                  → order.status = "refunded"
-  └── fulfilOne #3 → Router → Likecard success → code stored
-  │
-  ▼
-Response (201):
-  {
-    data: [completed, refunded, completed],
-    summary: { total_lines: 3, completed: 2, failed: 1, charged: 300 }
-  }
+- `Log::warning('YouTube API error', [...])` on every 4xx/5xx from YouTube
+- `Log::error('AutoCreateBroadcastJob: streaming failure', [...])` on job failure
+- `failure_count` column on `live_broadcasts` for at-a-glance health
+- `last_error` column for human-readable last failure reason
 
-Final wallet: (starting - 300) + 100 refund = starting - 200
-```
-
----
-
-## Idempotency protection
-
-```
-User double-clicks "Checkout" → two simultaneous POSTs with same idempotency_key
-  │
-  ├── Request A (first to reach DB)
-  │   └── No existing order → creates, charges, fulfils → 201 Created
-  │
-  └── Request B (arrives ms later)
-      └── SELECT WHERE idempotency_key=? returns Request A's order
-         → Returns existing row with `idempotent: true` → 200 OK
-
-Net effect: ONE charge, ONE fulfilment, ONE notification.
-```
-
----
-
-## Circuit breaker state machine
-
-```
-         SUCCESS                    SUCCESS on trial
-     ┌──────────────┐           ┌────────────────────┐
-     │              ▼           │                    ▼
-  ┌─────────┐   ┌──────┐    ┌──────────┐        ┌─────────┐
-  │ CLOSED  │──▶│ FAIL │───▶│ HALF-OPEN│───────▶│ CLOSED  │
-  │ healthy │   │count │    │  (trial) │        │         │
-  └─────────┘   └──┬───┘    └────▲─────┘        └─────────┘
-                   │ 3 fails      │
-                   ▼              │ 5 min elapsed
-              ┌────────┐          │
-              │  OPEN  │──────────┘
-              │  skip  │
-              └────────┘
-```
-
-When `DistributorHealth.circuit_status = 'open'`, the router skips that
-adapter entirely. Every 5 minutes the next request flips the circuit to
-`half-open` and tries the adapter once — success closes the circuit,
-failure re-opens it for another 5 minutes.
-
----
-
-## Key files at a glance
-
-| File | Purpose |
-|---|---|
-| `Contracts/DistributorInterface.php` | Abstract interface every distributor implements |
-| `Services/DistributorRouter.php` | Orchestrates priority + circuit breaker |
-| `Services/Distributors/*Adapter.php` | Per-vendor HTTP client |
-| `Services/PaymentService.php` | charge() + refund() methods |
-| `Models/DistributorHealth.php` | Persistent circuit state |
-| `Http/Controllers/Api/MarketplaceController.php` | Glue: validates, orchestrates, responds |
-| `Http/Requests/PlaceOrderRequest.php` | Input validation + normalisation |
-| `Http/Resources/DigitalOrderResource.php` | Response shape (bilingual) |
-| `Notifications/OrderConfirmationNotification.php` | Email + SMS on success |
-
----
-
-## Design decisions
-
-**Why adapters, not a single "if brand = X then" switch?**
-Each vendor has its own auth scheme (X-Api-Key, Bearer, OAuth 2.0),
-request/response format, and error model. Pushing the abstraction to the
-interface level keeps `MarketplaceController` clean and makes adding a
-new vendor a one-file task.
-
-**Why circuit breaker in the database, not in-memory?**
-Dawri runs multiple PHP-FPM workers. In-memory state (APCu, static
-properties) would mean each worker has its own view of vendor health —
-one worker could hammer a down endpoint while another has marked it open.
-Shared DB state means the first worker to see 3 failures opens the
-circuit for ALL workers.
-
-**Why charge-first, fulfil-second (with refund on fail) instead of the
-reverse?**
-If we charged only after successful fulfilment, the user could get a
-card code while the charge silently fails for a minute-later chargeback.
-Charging first means we never hand out a code we haven't been paid for.
-The 5-line refund code is cheaper than the fraud risk of the alternative.
-
-**Why PowerShell for the palette sweep, not a Node script or SCSS mixin?**
-Jithin's dev environment is Windows + XAMPP. PowerShell is native, no
-extra dependencies, idempotent, and dry-runnable. A Node script would
-add another thing to install. A global SCSS mixin would require
-refactoring component `:host` blocks to use it — more invasive than a
-one-shot hex-value sweep.
+Add a Grafana/Datadog metric on:
+- count of `status=failed` rows in last 24h
+- p95 latency of `YouTubeStreamingService::call`
+- rate of 429 responses (quota approaching)

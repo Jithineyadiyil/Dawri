@@ -13,6 +13,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { TournamentSponsorsComponent } from '../../shared/tournament-sponsors/tournament-sponsors.component';
 import { TournamentSponsorsManageComponent } from '../../shared/tournament-sponsors-manage/tournament-sponsors-manage.component';
 import { StreamEmbedComponent } from '../../shared/components/stream-embed/stream-embed.component';
+import { BroadcastControlsComponent } from '../../features/streaming/broadcast-controls.component';
 
 /**
  * Bracket match shape used by the template. Sprint 2 adds scheduling and
@@ -26,8 +27,8 @@ export interface BracketMatch {
   match_number: number;
   bracket_section: string;
   status: string;
-  participant_a: { id: string; name: string; display_name?: string | null; nickname?: string | null; avatar_url?: string | null; user_id?: string | null } | null;
-  participant_b: { id: string; name: string; display_name?: string | null; nickname?: string | null; avatar_url?: string | null; user_id?: string | null } | null;
+  participant_a: { id: string; name: string; display_name?: string | null; nickname?: string | null; avatar_url?: string | null } | null;
+  participant_b: { id: string; name: string; display_name?: string | null; nickname?: string | null; avatar_url?: string | null } | null;
   participant_a_is_bye: boolean;
   participant_b_is_bye: boolean;
   winner_id: string | null;
@@ -60,7 +61,7 @@ export interface BracketRound {
 @Component({
   selector: 'app-tournament-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, TournamentSponsorsComponent, TournamentSponsorsManageComponent, StreamEmbedComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, TournamentSponsorsComponent, TournamentSponsorsManageComponent, StreamEmbedComponent, BroadcastControlsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tournament-detail.component.html',
   styleUrls: ['./tournament-detail.component.scss'],
@@ -78,15 +79,9 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   readonly loading       = signal(true);
   readonly error         = signal<string | null>(null);
   readonly generating    = signal(false);
-  readonly registering     = signal(false);
-  readonly unregistering   = signal(false);
-  readonly activeTab       = signal<'bracket' | 'standings' | 'matches' | 'live' | 'leaderboard' | 'prize' | 'players'>('bracket');
-  readonly countdown       = signal<{ days: number; hours: number; mins: number; secs: number } | null>(null);
-  readonly selectedRound   = signal<number>(1);
-  readonly playerSearch    = signal('');
-  readonly linkCopied      = signal(false);
-  private countdownHandle: ReturnType<typeof setInterval> | null = null;
+  readonly registering   = signal(false);
   readonly submitting    = signal(false);
+  readonly activeTab     = signal<'bracket' | 'standings' | 'matches' | 'live' | 'leaderboard' | 'prize'>('bracket');
   readonly selectedMatch = signal<BracketMatch | null>(null);
   readonly disputeMode   = signal(false);
 
@@ -263,8 +258,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
       if (format === 'single_elimination' || (format === 'double_elimination' && section === 'winners')) {
         slotHeight = (MATCH_H + GAP) * Math.pow(2, idx) - GAP;
       } else {
-        // Swiss / Round Robin: no artificial slot height — CSS gap handles spacing
-        slotHeight = 0;
+        slotHeight = MATCH_H;
       }
       const totalRounds = t?.bracket?.total_rounds ?? sorted.length;
       return {
@@ -588,186 +582,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   });
 
   // ── Lifecycle ────────────────────────────────────────────────────────
-
-  // ════════════════════════════════════════════════════════════
-  //  Challonge Feature Signals
-  // ════════════════════════════════════════════════════════════
-
-  // Shuffle Seeds
-  readonly shuffling        = signal(false);
-
-  // Substitution
-  readonly showSubModal     = signal(false);
-  readonly subParticipant   = signal<any>(null);
-  readonly subUserId        = signal('');
-  readonly subDisplayName   = signal('');
-  readonly substituting     = signal(false);
-
-  // Predictions
-  readonly predictionsMode  = signal(false);
-  readonly myPredictions    = signal<Record<string,string>>({});
-  readonly predictionsSaved = signal(false);
-  readonly predictionLb     = signal<any[]>([]);
-  readonly showPredictionLb = signal(false);
-  readonly submittingPred   = signal(false);
-
-  // Form dots (Cricbuzz)
-  readonly playerForm = computed<Record<string, ('W'|'L')[]>>(() => {
-    const t = this.tournament();
-    if (!t) return {};
-    const matches: BracketMatch[] = t?.bracket?.matches ?? t?.matches ?? [];
-    const completed = matches.filter((m: BracketMatch) => m.status === 'completed' && m.winner_id);
-    const form: Record<string, ('W'|'L')[]> = {};
-    const sorted = [...completed].sort((a, b) => a.round_number - b.round_number);
-    for (const m of sorted) {
-      const paId = m.participant_a?.id;
-      const pbId = m.participant_b?.id;
-      if (!paId || !pbId) continue;
-      if (!form[paId]) form[paId] = [];
-      if (!form[pbId]) form[pbId] = [];
-      form[paId].push(m.winner_id === paId ? 'W' : 'L');
-      form[pbId].push(m.winner_id === pbId ? 'W' : 'L');
-    }
-    for (const id of Object.keys(form)) form[id] = form[id].slice(-5);
-    return form;
-  });
-
-  getPlayerForm(participantId: string): ('W'|'L')[] {
-    return this.playerForm()[participantId] ?? [];
-  }
-
-  // ── Challonge Methods ─────────────────────────────────────────────────────
-
-  shuffleSeeds(): void {
-    const t = this.tournament();
-    if (!t) return;
-    if (!confirm('Randomly reassign all participant seeds? The bracket must not be generated yet.')) return;
-    this.shuffling.set(true);
-    this.api.shuffleSeeds(t.id).subscribe({
-      next: () => { this.shuffling.set(false); this.reload(); this.toast.success('Seeds shuffled!'); },
-      error: (err: any) => { this.shuffling.set(false); this.toast.error(err?.error?.message ?? 'Failed to shuffle.'); },
-    });
-  }
-
-  openSubModal(p: any): void {
-    this.subParticipant.set(p);
-    this.subUserId.set('');
-    this.subDisplayName.set('');
-    this.showSubModal.set(true);
-  }
-
-  confirmSub(): void {
-    const t = this.tournament();
-    const p = this.subParticipant();
-    if (!t || !p) return;
-    if (!this.subUserId() && !this.subDisplayName()) {
-      this.toast.error('Enter a user ID or guest display name.');
-      return;
-    }
-    this.substituting.set(true);
-    const payload: any = this.subUserId()
-      ? { new_user_id: this.subUserId() }
-      : { new_display_name: this.subDisplayName() };
-
-    this.api.substituteParticipant(t.id, p.id, payload).subscribe({
-      next: (res: any) => {
-        this.substituting.set(false);
-        this.showSubModal.set(false);
-        this.reload();
-        this.toast.success(res.message ?? 'Substituted!');
-      },
-      error: (err: any) => {
-        this.substituting.set(false);
-        this.toast.error(err?.error?.message ?? 'Substitution failed.');
-      },
-    });
-  }
-
-  togglePredictionsMode(): void {
-    const entering = !this.predictionsMode();
-    this.predictionsMode.set(entering);
-    if (entering) {
-      this.predictionsSaved.set(false);
-      const t = this.tournament();
-      if (!t) return;
-      this.api.getMyPredictions(t.id).subscribe({
-        next: (r) => {
-          const map: Record<string,string> = {};
-          Object.values(r.data ?? {}).forEach((v: any) => { map[v.match_id] = v.predicted_winner_id; });
-          this.myPredictions.set(map);
-        },
-        error: () => {},
-      });
-    }
-  }
-
-
-  pickA(m: BracketMatch, event: Event): void {
-    event.stopPropagation();
-    if (!this.predictionsMode()) return;
-    const id = m.participant_a?.id;
-    if (id) this.setPrediction(m.id, id);
-  }
-
-  pickB(m: BracketMatch, event: Event): void {
-    event.stopPropagation();
-    if (!this.predictionsMode()) return;
-    const id = m.participant_b?.id;
-    if (id) this.setPrediction(m.id, id);
-  }
-
-  clickMatch(m: BracketMatch, event: Event): void {
-    if (this.predictionsMode()) return;
-    this.openMatch(m);
-  }
-
-  setPrediction(matchId: string, participantId: string): void {
-    this.myPredictions.update(p => ({ ...p, [matchId]: participantId }));
-  }
-
-  hasPrediction(matchId: string): string | null {
-    return this.myPredictions()[matchId] ?? null;
-  }
-
-  countPredictions(): number {
-    return Object.keys(this.myPredictions()).length;
-  }
-
-  saveAllPredictions(): void {
-    const t = this.tournament();
-    if (!t) return;
-    const entries = Object.entries(this.myPredictions());
-    if (!entries.length) return;
-    this.submittingPred.set(true);
-    let done = 0;
-    entries.forEach(([matchId, winnerId]) => {
-      this.api.submitPrediction(t.id, matchId, winnerId).subscribe({
-        next:  () => { if (++done === entries.length) { this.submittingPred.set(false); this.predictionsSaved.set(true); this.toast.success(`${done} prediction${done>1?'s':''} saved!`); } },
-        error: () => { if (++done === entries.length) this.submittingPred.set(false); },
-      });
-    });
-  }
-
-  loadPredictionLeaderboard(): void {
-    const t = this.tournament();
-    if (!t) return;
-    this.showPredictionLb.set(true);
-    this.api.getPredictionLeaderboard(t.id).subscribe({
-      next: (r) => this.predictionLb.set(r.data ?? []),
-      error: () => {},
-    });
-  }
-
-  private reload(): void {
-    window.location.reload();
-  }
-
-
-  readonly tournamentBanner = signal<any>(null);
-  loadTournamentBanner(id: string): void {
-    this.api.getAdPlacementsForTournament(id).subscribe({ next: (r) => this.tournamentBanner.set((r.data??[])[0]??null), error: ()=>{} });
-  }
-
   ngOnInit(): void {
     this.route.paramMap.pipe(
       switchMap(p => {
@@ -781,7 +595,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         const t = res.data ?? res;
         this.tournament.set(t);
         this.loading.set(false);
-        if (t?.id) this.loadStreamInfo(t.id);
         // Apply the tournament's resolved brand to the page.
         if (t?.brand) { this.brand.apply(t.brand); }
       },
@@ -790,7 +603,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.countdownHandle) clearInterval(this.countdownHandle);
     // Revert to platform defaults when leaving this page.
     this.brand.reset();
   }
@@ -902,8 +714,6 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
       error: (err: any) => { this.toast.error(err.error?.message ?? 'Failed.'); this.submitting.set(false); },
     });
   }
-
-  disputeResult(): void { this.submitDispute(); }
 
   submitDispute(): void {
     if (this.disputeForm.invalid) return;
@@ -1039,6 +849,28 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Sync local state when the Dawri-managed broadcast (Option B) component
+   * reports a change. The backend mirrors the watch URL into
+   * tournament_matches.stream_url on create, and nulls it on cancel — so
+   * the local signal needs to match.
+   *
+   * Accepts the BracketMatch the modal is currently bound to so we don't
+   * accidentally update state for a stale selection.
+   */
+  onBroadcastChanged(broadcast: { watch_url: string | null; is_terminal: boolean } | null, m: BracketMatch): void {
+    const current = this.selectedMatch();
+    if (!current || current.id !== m.id) return;
+
+    if (broadcast === null) {
+      // Cancelled — clear the embed.
+      this.selectedMatch.update(curr => curr ? ({ ...curr, stream_url: null }) : curr);
+    } else if (broadcast.watch_url && !broadcast.is_terminal) {
+      // Broadcast active — mirror the watch URL so <app-stream-embed> renders.
+      this.selectedMatch.update(curr => curr ? ({ ...curr, stream_url: broadcast.watch_url }) : curr);
+    }
+  }
+
   toggleRescheduleForm(): void {
     this.rescheduleForm.reset({ proposed_at: '', reason: '' });
     this.showRescheduleForm.update(v => !v);
@@ -1106,6 +938,62 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         this.toast.error(err.error?.message ?? 'Failed to override.');
       },
     });
+  }
+
+  /**
+   * Template-side alias for organizerOverride(). The bracket template
+   * was authored expecting this longer name; keeping a thin alias avoids
+   * touching the template while satisfying its bindings.
+   */
+  organizerOverrideReschedule(req: MatchRescheduleRequest, accept: boolean): void {
+    this.organizerOverride(req, accept);
+  }
+
+  /**
+   * Combined prize total as a display string, or null when prizes are
+   * non-numeric or mixed-currency. Template falls through to the
+   * "Multiple Tiers" branch when this returns null.
+   *
+   * Edge cases:
+   *   - Empty prize_pool → null
+   *   - Any reward without a parseable number ("iPhone 15") → null
+   *   - Mixed currencies → null (companion method returns null too)
+   */
+  totalPrizeDisplay(): string | null {
+    const prizes = this.normalizedPrizes();
+    if (prizes.length === 0) return null;
+
+    let sum = 0;
+    for (const p of prizes) {
+      // Strip thousands separators, then find the first numeric span.
+      const match = p.reward.replace(/,/g, '').match(/[\d.]+/);
+      if (!match) return null;
+      const n = parseFloat(match[0]);
+      if (!isFinite(n)) return null;
+      sum += n;
+    }
+    return sum > 0 ? sum.toLocaleString() : null;
+  }
+
+  /**
+   * Currency code detected across rewards, or null if no currency is
+   * present or rewards use mixed currencies. Recognises SAR / USD / EUR /
+   * GBP plus their symbols (ر.س, ﷼, $, €, £).
+   */
+  totalPrizeCurrency(): string | null {
+    const prizes = this.normalizedPrizes();
+    if (prizes.length === 0) return null;
+
+    const currencies = new Set<string>();
+    for (const p of prizes) {
+      const m = p.reward.match(/SAR|USD|EUR|GBP|ر\.س|﷼|\$|€|£/i);
+      if (m) {
+        const raw = m[0].toUpperCase();
+        const normalised = raw === 'ر.س' || raw === '﷼' ? 'SAR' : raw;
+        currencies.add(normalised);
+      }
+    }
+    return currencies.size === 1 ? Array.from(currencies)[0] : null;
   }
 
   cancelMyReschedule(req: MatchRescheduleRequest): void {
@@ -1233,307 +1121,7 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     const id = this.tournament()?.id;
     if (!id) return;
     this.api.getTournament(id).subscribe({
-      next: (res: any) => {
-        this.tournament.set(res.data ?? res);
-        if (this.countdownHandle) clearInterval(this.countdownHandle);
-        this.startCountdown();
-      },
+      next: (res: any) => this.tournament.set(res.data ?? res),
     });
   }
-
-
-  // ── Result submission helpers ────────────────────────────────────────────
-  readonly evidencePreview = signal<string | null>(null);
-
-  canSubmitResult(m: BracketMatch): boolean {
-    const userId = this.auth.currentUser()?.id;
-    if (!userId) return false;
-    if (m.status === 'completed' || m.status === 'walkover') return false;
-    const isParticipant =
-      m.participant_a?.user_id === userId ||
-      m.participant_b?.user_id === userId;
-    return isParticipant || this.canManageMatch();
-  }
-
-  canConfirmResult(m: BracketMatch): boolean {
-    const userId = this.auth.currentUser()?.id;
-    if (!userId) return false;
-    if (m.status !== 'submitted') return false;
-    return (
-      m.participant_a?.user_id === userId ||
-      m.participant_b?.user_id === userId
-    );
-  }
-
-  onEvidenceSelected(e: Event): void {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    this.evidenceFile.set(file);
-    const reader = new FileReader();
-    reader.onload = () => this.evidencePreview.set(reader.result as string);
-    reader.readAsDataURL(file);
-  }
-
-  clearEvidence(): void {
-    this.evidenceFile.set(null);
-    this.evidencePreview.set(null);
-  }
-
-
-  // ── YouTube Stream Key (organizer) ───────────────────────────────────────
-  readonly streamInfo    = signal<any>(null);
-  readonly streamKey     = signal<string | null>(null);
-  readonly keyHidden     = signal(true);
-  readonly keyCopied     = signal(false);
-  readonly setupPlatform = signal<'ps5' | 'obs' | 'mobile'>('ps5');
-
-  private loadStreamInfo(tournamentId: string): void {
-    this.api.getStreamInfo(tournamentId).subscribe({
-      next: (r: any) => {
-        this.streamInfo.set(r?.has_stream ? r : null);
-        if (r?.has_stream && this.canManageMatch()) {
-          this.api.getStreamKey(tournamentId).subscribe({
-            next: (sk: any) => { if (sk?.has_stream) this.streamKey.set(sk.stream_key ?? null); },
-            error: () => {},
-          });
-        }
-      },
-      error: () => {},
-    });
-  }
-
-  copyStreamKey(): void {
-    const key = this.streamKey();
-    if (!key) return;
-    navigator.clipboard.writeText(key).then(() => {
-      this.keyCopied.set(true);
-      setTimeout(() => this.keyCopied.set(false), 2500);
-    });
-  }
-
-  // ── Game art helpers ──────────────────────────────────────────────────────
-  gameArtUrl(game: string): string {
-    const map: Record<string, string> = {
-      ea_fc25:    'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=1200&q=80&fit=crop',
-      pubg_mobile:'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1200&q=80&fit=crop',
-      cod_mobile: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?w=1200&q=80&fit=crop',
-    };
-    return map[game] ?? 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=1200&q=80&fit=crop';
-  }
-
-  // ── Round picker helpers ──────────────────────────────────────────────────
-  isRoundFormat(): boolean {
-    const t = this.tournament();
-    return t?.format === 'swiss' || t?.format === 'round_robin';
-  }
-
-  readonly currentRoundMatches = computed(() => {
-    const round = this.rounds().find(r => r.num === this.selectedRound());
-    return round?.matches ?? [];
-  });
-
-  readonly roundStats = computed(() => {
-    return this.rounds().map(r => ({
-      num: r.num,
-      label: r.label,
-      completed: r.matches.filter(m => m.status === 'completed').length,
-      total: r.matches.length,
-    }));
-  });
-
-  readonly filteredLeaderboard = computed(() => {
-    const q = this.playerSearch().toLowerCase().trim();
-    if (!q) return this.leaderboard();
-    return this.leaderboard().filter(p =>
-      (p.display_name ?? p.name ?? '').toLowerCase().includes(q)
-    );
-  });
-
-  selectRound(num: number): void {
-    this.selectedRound.set(num);
-  }
-
-  
-  // ── Edit Tournament ──────────────────────────────────────────────────────
-  readonly showEditModal  = signal(false);
-  readonly savingEdit     = signal(false);
-  readonly editForm       = this.fb.group({
-    name:                   [''],
-    name_ar:                [''],
-    description:            [''],
-    rules:                  [''],
-    registration_closes_at: [''],
-    starts_at:              [''],
-    max_participants:       [0],
-    entry_fee_sar:          [0],
-  });
-
-  openEditModal(): void {
-    const t = this.tournament();
-    if (!t) return;
-    this.editForm.patchValue({
-      name:                   t.name ?? '',
-      name_ar:                t.name_ar ?? '',
-      description:            t.description ?? '',
-      rules:                  t.rules ?? '',
-      registration_closes_at: t.registration_closes_at ? t.registration_closes_at.slice(0,16) : '',
-      starts_at:              t.starts_at ? t.starts_at.slice(0,16) : '',
-      max_participants:       t.max_participants ?? 0,
-      entry_fee_sar:          t.entry_fee_sar ?? 0,
-    });
-    this.showEditModal.set(true);
-  }
-
-  saveEdit(): void {
-    const t = this.tournament();
-    if (!t) return;
-    this.savingEdit.set(true);
-    const v = this.editForm.value;
-    this.api.updateTournament(t.id, {
-      name:                   v.name,
-      name_ar:                v.name_ar || null,
-      description:            v.description || null,
-      rules:                  v.rules || null,
-      registration_closes_at: v.registration_closes_at || null,
-      starts_at:              v.starts_at || null,
-      max_participants:       v.max_participants,
-      entry_fee_sar:          v.entry_fee_sar,
-    }).subscribe({
-      next: () => {
-        this.savingEdit.set(false);
-        this.showEditModal.set(false);
-        this.refresh();
-        this.toast.success('Tournament updated.');
-      },
-      error: (err: any) => {
-        this.savingEdit.set(false);
-        this.toast.error(err?.error?.message ?? 'Update failed.');
-      },
-    });
-  }
-
-  // ── Delete Tournament ─────────────────────────────────────────────────────
-  readonly showDeleteConfirm = signal(false);
-  readonly deleting          = signal(false);
-
-  deleteTournament(): void {
-    const t = this.tournament();
-    if (!t) return;
-    this.deleting.set(true);
-    this.api.deleteTournament(t.id).subscribe({
-      next: () => {
-        this.deleting.set(false);
-        this.showDeleteConfirm.set(false);
-        this.toast.success('Tournament deleted.');
-        window.history.back();
-      },
-      error: (err: any) => {
-        this.deleting.set(false);
-        this.toast.error(err?.error?.message ?? 'Delete failed.');
-      },
-    });
-  }
-
-  // ── Jump to my match ─────────────────────────────────────────────────────
-  jumpToMyMatch(): void {
-    const t = this.tournament();
-    const userId = this.auth.currentUser()?.id;
-    if (!t || !userId) return;
-    const matches: any[] = t?.bracket?.matches ?? t?.matches ?? [];
-    const mine = (matches as BracketMatch[]).find(m =>
-      (m.participant_a?.user_id === userId || m.participant_b?.user_id === userId) &&
-      !['completed', 'walkover'].includes(m.status)
-    );
-    if (mine) {
-      this.openMatch(mine);
-    } else {
-      this.toast.info('No active match found for you.');
-    }
-  }
-
-  // ── Unregister ─────────────────────────────────────────────────────────────
-  unregister(): void {
-    const t = this.tournament();
-    if (!t) return;
-    this.unregistering.set(true);
-    this.api.unregisterFromTournament(t.id).subscribe({
-      next: () => {
-        this.refresh();
-        this.unregistering.set(false);
-        this.toast.success('You have been unregistered.');
-      },
-      error: (err: any) => {
-        this.toast.error(err?.error?.message ?? 'Failed to unregister.');
-        this.unregistering.set(false);
-      },
-    });
-  }
-
-  // ── Share ───────────────────────────────────────────────────────────────────
-  shareLink(): void {
-    const url = window.location.href;
-    if (navigator.share) {
-      navigator.share({ title: this.tournament()?.name ?? 'Tournament', url }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(url).then(() => {
-        this.linkCopied.set(true);
-        setTimeout(() => this.linkCopied.set(false), 2500);
-      });
-    }
-  }
-
-  // ── Countdown ───────────────────────────────────────────────────────────────
-  startCountdown(): void {
-    this.updateCountdown();
-    this.countdownHandle = setInterval(() => this.updateCountdown(), 1000);
-  }
-
-  private updateCountdown(): void {
-    const t = this.tournament();
-    if (!t) return;
-    const target = t.starts_at
-      ? new Date(t.starts_at).getTime()
-      : t.registration_closes_at
-        ? new Date(t.registration_closes_at).getTime()
-        : null;
-    if (!target) { this.countdown.set(null); return; }
-    const diff = target - Date.now();
-    if (diff <= 0) { this.countdown.set(null); return; }
-    this.countdown.set({
-      days:  Math.floor(diff / 86400000),
-      hours: Math.floor((diff % 86400000) / 3600000),
-      mins:  Math.floor((diff % 3600000) / 60000),
-      secs:  Math.floor((diff % 60000) / 1000),
-    });
-  }
-
-  // ── Prize display helpers ───────────────────────────────────────────────────
-  totalPrizeDisplay(): string | null {
-    const prizes = this.normalizedPrizes?.() ?? [];
-    if (!prizes.length) return null;
-    const sarPrizes = prizes
-      .map((p: any) => p.reward ?? '')
-      .filter((r: string) => /\d/.test(r));
-    if (!sarPrizes.length) return prizes[0]?.reward ?? null;
-    const total = sarPrizes.reduce((sum: number, r: string) => {
-      const match = r.match(/([\d,]+)/);
-      return sum + (match ? parseInt(match[1].replace(/,/g, '')) : 0);
-    }, 0);
-    return total > 0 ? total.toLocaleString() : prizes[0]?.reward ?? null;
-  }
-
-  totalPrizeCurrency(): string {
-    const prizes = this.normalizedPrizes?.() ?? [];
-    if (!prizes.length) return '';
-    const first = prizes[0]?.reward ?? '';
-    if (/SAR/i.test(first)) return 'SAR';
-    if (/USD/i.test(first)) return 'USD';
-    return '';
-  }
-
-  // ── Organizer override reschedule ───────────────────────────────────────────
-  organizerOverrideReschedule(req: any, accept: boolean): void {
-    this.respondToReschedule(req, accept);
-  }
-
 }

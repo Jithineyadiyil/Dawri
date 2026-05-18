@@ -81,6 +81,9 @@ Route::prefix('v1')->group(function () {
     // ── Authenticated ──────────────────────────────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
 
+        // Sprint 5 — YouTube Live (Option B) routes
+        require __DIR__ . '/api.streaming.php';
+
         Route::get('/dashboard', [DashboardController::class, 'index']);
 
         // Sprint 9: sponsor catalog for organizer dropdowns
