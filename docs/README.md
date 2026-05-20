@@ -1,200 +1,141 @@
-# Dawri — YouTube Live Streaming Module (Sprint 5, Option B)
+# Dawri — OBS Setup Wizard (Sprint 5 add-on)
 
-Dawri-managed YouTube broadcasts: backend creates the broadcast via the
-YouTube Data API v3, returns RTMP credentials to the organizer, and tracks
-the full lifecycle. Coexists with the existing "paste a Twitch/YouTube URL"
-flow (Option A) — that one is untouched.
+Six-step bilingual (EN / AR + RTL) wizard that walks tournament organizers
+through configuring **OBS Studio** to push RTMP to a Dawri-managed YouTube
+broadcast. Built against the **real codebase** at
+github.com/Jithineyadiyil/Dawri @ `1ce9254d`.
 
----
+## What this module assumes already exists
 
-## What ships in this module
+Everything from the merged Sprint 5 streaming PR:
 
-| Layer | Files |
+- `App\Models\LiveBroadcast` with UUID PK, `created_by`, `status`, `source`
+- `App\Services\Streaming\LiveBroadcastService` (`goLive`, `complete`, `cancel`)
+- `App\Repositories\Eloquent\LiveBroadcastRepository` + interface
+- `App\Http\Controllers\Api\LiveBroadcastController` with `credentials()` endpoint
+- Routes in `routes/api.streaming.php` (broadcasts/{id}/credentials etc.)
+- Frontend `LiveBroadcastService` + `BroadcastControlsComponent` in
+  `frontend/src/app/features/streaming/`
+
+## What this module adds
+
+| Layer | What |
 |---|---|
-| Migration | `live_broadcasts` table (UUID PK, encrypted stream key) |
-| Model | `LiveBroadcast` (HasUuids, encrypted cast, soft-deletes) |
-| Service | `YouTubeStreamingService` (low-level API), `LiveBroadcastService` (orchestration) |
-| Repository | `LiveBroadcastRepositoryInterface` + `LiveBroadcastRepository` |
-| HTTP | `LiveBroadcastController`, `CreateBroadcastRequest`, `LiveBroadcastResource` |
-| Job | `AutoCreateBroadcastJob` (for featured tournaments) |
-| Exception | `StreamingException` (typed error codes → HTTP statuses) |
-| Frontend | `LiveBroadcastService`, `BroadcastControlsComponent`, model interfaces |
-| Tests | `YouTubeStreamingServiceTest` (Unit), `LiveBroadcastApiTest` (Feature) |
+| Migration | `broadcast_setup_logs` (UUID FKs to live_broadcasts, tournaments, users) |
+| Model | `BroadcastSetupLog` (append-only, `UPDATED_AT = null`) |
+| Repository | `BroadcastSetupLogRepository` + interface in `Eloquent/` namespace |
+| Service | `App\Services\Streaming\ObsWizardService` (auth, config, log, finishAndGoLive) |
+| Controller | `App\Http\Controllers\Api\ObsWizardController` (5 endpoints) |
+| Request | `LogWizardEventRequest` |
+| Resource | `WizardConfigResource` |
+| Frontend | `SetupWizardComponent` standalone (signals, OnPush, bilingual RTL) |
+| Frontend | `ObsWizardService` (typed HTTP client) |
+| Frontend | `wizard.model.ts` (types mirror Laravel resources exactly) |
 
----
+## 🚀 Install (one pass)
 
-## Install — backend
+### Backend
 
-1. **Copy files** into the Dawri backend, mirroring paths exactly.
+1. Copy backend files preserving the namespace structure:
 
-2. **Append the `youtube` block** to `config/services.php` (see
-   `backend/config/services.youtube-snippet.php`). Then:
-   ```bash
-   php artisan config:clear
+   ```
+   app/Models/BroadcastSetupLog.php
+   app/Repositories/Contracts/BroadcastSetupLogRepositoryInterface.php
+   app/Repositories/Eloquent/BroadcastSetupLogRepository.php
+   app/Services/Streaming/ObsWizardService.php
+   app/Http/Controllers/Api/ObsWizardController.php
+   app/Http/Requests/LogWizardEventRequest.php
+   app/Http/Resources/WizardConfigResource.php
+   database/migrations/2026_05_18_120000_create_broadcast_setup_logs_table.php
+   tests/Unit/ObsWizardServiceTest.php
    ```
 
-3. **Add env variables** to `backend/.env` (see `backend/.env.streaming-additions`):
-   ```dotenv
-   YOUTUBE_CLIENT_ID=...
-   YOUTUBE_CLIENT_SECRET="..."
-   YOUTUBE_REFRESH_TOKEN="..."
-   YOUTUBE_CHANNEL_ID=UC...
-   YOUTUBE_ENABLED=true
-   ```
+2. Add ONE binding line to `app/Providers/AppServiceProvider.php` inside
+   `register()` (see `app/Providers/_WizardBinding.snippet.php`):
 
-4. **Register the repository binding** in `app/Providers/AppServiceProvider.php`:
    ```php
    $this->app->bind(
-       \App\Repositories\Contracts\LiveBroadcastRepositoryInterface::class,
-       \App\Repositories\Eloquent\LiveBroadcastRepository::class,
+       \App\Repositories\Contracts\BroadcastSetupLogRepositoryInterface::class,
+       \App\Repositories\Eloquent\BroadcastSetupLogRepository::class
    );
    ```
 
-5. **Merge the routes** from `backend/routes/api.routes-snippet.php` into
-   the existing `routes/api.php` inside the `auth:sanctum` group.
+3. Append the routes from `routes/api.streaming.wizard-snippet.php` into your
+   existing `routes/api.streaming.php`. The `$uuid` regex variable is already
+   declared there; the snippet reuses it.
 
-6. **Run the migration**:
+4. Run:
+
    ```bash
+   cd backend
    php artisan migrate
+   php artisan route:cache
+   php artisan test --filter=ObsWizard
    ```
 
-7. **Verify**:
-   ```bash
-   php artisan tinker
-   >>> config('services.youtube.enabled')   // true
-   >>> Schema::hasTable('live_broadcasts')  // true
+### Frontend
+
+1. Copy frontend files:
+
+   ```
+   src/app/features/streaming/setup-wizard/
+       wizard.model.ts
+       obs-wizard.service.ts
+       obs-wizard.service.spec.ts
+       setup-wizard.component.ts
    ```
 
----
+2. Merge both routes from `src/app/wizard.routes-snippet.ts` into your
+   existing `app.routes.ts` array — both `/broadcasts/:id/setup-wizard` and
+   `/tournaments/:id/setup-wizard` are registered.
 
-## Install — frontend
+3. Add a "Setup Wizard" button to your existing `BroadcastControlsComponent`
+   that links to `/broadcasts/{{broadcast.id}}/setup-wizard`. (Optional —
+   organizers can also navigate directly.)
 
-1. **Copy files** into `frontend/src/app/features/streaming/`.
+## 🔗 API endpoints (added)
 
-2. **Use the component** anywhere a match is displayed (e.g. the match
-   modal). The component is standalone — just import it:
+| Method | URL | Auth | Purpose |
+|---|---|---|---|
+| GET  | `/api/v1/broadcasts/{uuid}/setup-wizard/config`     | creator or admin     | Wizard config (no key) |
+| POST | `/api/v1/broadcasts/{uuid}/setup-wizard/event`      | creator or admin     | Record analytics event |
+| POST | `/api/v1/broadcasts/{uuid}/setup-wizard/finish`     | creator or admin     | Transition to LIVE + log completion |
+| GET  | `/api/v1/tournaments/{uuid}/setup-wizard/config`    | organizer/mod/admin  | Tournament-scoped config |
+| POST | `/api/v1/tournaments/{uuid}/setup-wizard/event`     | organizer/mod/admin  | Record analytics event |
 
-   ```typescript
-   import { BroadcastControlsComponent } from './features/streaming/broadcast-controls.component';
+All five inherit `auth:sanctum` from the parent `routes/api.streaming.php`
+group, plus `throttle:60,1` from the wizard sub-group. UUID format is
+enforced via `->where()` constraints reusing the existing regex.
 
-   @Component({
-     standalone: true,
-     imports: [BroadcastControlsComponent /* + others */],
-     template: `
-       <dawri-broadcast-controls
-         [matchId]="match.id"
-         [defaultTitle]="'Quarterfinal 3 — ' + match.title"
-         (broadcastChanged)="onBroadcastChanged($event)"
-       />
-     `,
-   })
-   export class MatchModalComponent { /* … */ }
-   ```
+## 🔒 Security
 
-3. The existing `<app-stream-embed>` component already handles the watch
-   side — no changes needed. When a broadcast goes live, the matching
-   `tournament_matches.stream_url` is populated automatically, so the
-   embed appears for all viewers.
+- The wizard endpoints **never return the stream key** — it stays on the
+  existing rate-limited `GET /broadcasts/{id}/credentials` endpoint (5/min),
+  which is what Step 2 of the wizard calls.
+- The Step-2 UI flow shows the key with `type="password"` by default and
+  requires an explicit "Show" click before plaintext is rendered.
+- Server-side metadata sanitisation strips keys named `stream_key`,
+  `stream_key_enc`, `token`, `access_token`, `refresh_token`, `password`,
+  `secret`, `rtmp_url` before persisting to the analytics table — defence
+  in depth against accidental leakage from frontend payloads.
+- Authorization in `ObsWizardService` exactly mirrors
+  `LiveBroadcastController::authorizeCreator()` and `authorizeOrganizer()` —
+  no divergence possible.
 
----
+## 🧪 Test strategy
 
-## Auto-trigger (featured tournaments)
+| Layer | Tool | Cases |
+|---|---|---|
+| Service unit | PHPUnit + Mockery | 13 — auth (creator/admin/organizer/moderator/player), config builders for both scopes, log validation, secret sanitisation, finish + go-live |
+| Service Angular | Jest | 8 — config (both scopes), error mapping (403/410/429), event posting, finish, platform detection |
 
-Dispatch `AutoCreateBroadcastJob` from wherever you schedule matches:
+## 📋 Deliverable Summary
 
-```php
-use App\Jobs\AutoCreateBroadcastJob;
-
-if ($tournament->is_featured && $match->scheduled_at) {
-    AutoCreateBroadcastJob::dispatch($match->id)
-        ->delay($match->scheduled_at->subMinutes(15));
-}
-```
-
-The job is idempotent — re-running returns the existing broadcast.
-
----
-
-## Security notes
-
-- **Stream key is encrypted at rest** via the Eloquent `encrypted` cast.
-- **API Resource never returns the stream key** — only the dedicated
-  `/credentials` endpoint, which is rate-limited (5/min/user) and sends
-  `Cache-Control: no-store`.
-- **Client Secret + Refresh Token** must live in `.env`, never in code.
-- **Refresh token** is long-lived. If leaked: revoke at
-  `myaccount.google.com/permissions` and regenerate via OAuth Playground.
-
----
-
-## Running tests
-
-```bash
-cd backend
-php artisan test --filter=YouTubeStreamingServiceTest
-php artisan test --filter=LiveBroadcastApiTest
-```
-
-Both suites mock the YouTube HTTP layer with `Http::fake()`, so they run
-offline and don't consume real quota.
-
----
-
-## YouTube quota notes
-
-YouTube's free quota is 10,000 units/day. Per broadcast:
-
-| Action | Cost (units) |
+| Field | Detail |
 |---|---|
-| Create broadcast | 50 |
-| Create stream | 50 |
-| Bind stream | 50 |
-| Transition to live | 50 |
-| Transition to complete | 50 |
-| **Total per broadcast** | **~250** |
-
-= ~40 broadcasts/day on the free tier. For more, apply for an audit at
-[Google API Console](https://console.cloud.google.com/iam-admin/quotas).
-
----
-
-## Files in this drop
-
-```
-backend/
-├── app/
-│   ├── Http/
-│   │   ├── Controllers/Api/LiveBroadcastController.php
-│   │   ├── Requests/CreateBroadcastRequest.php
-│   │   └── Resources/LiveBroadcastResource.php
-│   ├── Jobs/AutoCreateBroadcastJob.php
-│   ├── Models/LiveBroadcast.php
-│   ├── Providers/_ServiceProviderBinding.snippet.php
-│   ├── Repositories/
-│   │   ├── Contracts/LiveBroadcastRepositoryInterface.php
-│   │   └── Eloquent/LiveBroadcastRepository.php
-│   └── Services/Streaming/
-│       ├── DTOs/BroadcastDetails.php
-│       ├── Exceptions/StreamingException.php
-│       ├── LiveBroadcastService.php
-│       └── YouTubeStreamingService.php
-├── config/services.youtube-snippet.php
-├── database/migrations/2026_05_17_120000_create_live_broadcasts_table.php
-├── routes/api.routes-snippet.php
-├── tests/
-│   ├── Unit/YouTubeStreamingServiceTest.php
-│   └── Feature/LiveBroadcastApiTest.php
-└── .env.streaming-additions
-
-frontend/
-└── src/app/features/streaming/
-    ├── broadcast-controls.component.ts
-    ├── live-broadcast.model.ts
-    └── live-broadcast.service.ts
-
-docs/
-├── README.md          (this file)
-├── API.md
-├── ARCHITECTURE.md
-└── CHANGELOG.md
-```
+| **Purpose** | Walk creators/organizers through OBS configuration for a Dawri-managed YouTube broadcast, with copy buttons, encoder presets, troubleshooting, and a one-click Go Live finale that calls the existing `LiveBroadcastService::goLive()`. |
+| **Inputs** | URL param `:id` (UUID — broadcast or tournament, scope auto-detected) · Sanctum-authenticated user · User-Agent for OS detection |
+| **Outputs** | Wizard UI · rows in `broadcast_setup_logs` · broadcast transitioned to `live` status on finish |
+| **Edge Cases** | Tournament without broadcast → "Create broadcast first" banner + CTA · non-creator user → 403 · 410 if broadcast already terminal · 429 if credential reveal hit rate-limit · YouTube transition failure → StreamingException mapped to proper HTTP status · Arabic RTL · clipboard unavailable → textarea fallback |
+| **Test Strategy** | PHPUnit unit tests with Mockery (no Laravel kernel) · Jest service tests with `HttpClientTestingModule` |
+| **Standards** | PSR-12 · SOLID · `declare(strict_types=1)` · PHPDoc on every public method · Angular Style Guide · `OnPush` · signals + `effect()` + `takeUntilDestroyed` · standalone components · JSDoc |
