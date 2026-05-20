@@ -258,14 +258,24 @@ export class AdminStreamsComponent implements OnInit {
     if (!t) return;
     this.creating.set(true);
     this.error.set(null);
-    this.api.createYouTubeStream(t.id).pipe(catchError(err => {
+    this.api.createYouTubeStream(t.id, t.name + ' — Dawri Esports').pipe(catchError(err => {
       this.error.set(err?.error?.message ?? 'Failed to create YouTube stream. Check YOUTUBE_* env variables.');
       this.creating.set(false);
       return of(null);
     })).subscribe((r: any) => {
       if (r) {
-        this.newStream.set(r);
-        this.tournament.update(t => ({ ...t, youtube_broadcast_id: r.broadcast_id, youtube_stream_key: r.stream_key, youtube_stream_url: r.watch_url }));
+        const broadcast = r.data ?? r;
+        this.newStream.set({
+          broadcast_id: broadcast.id,
+          stream_key:   broadcast.stream_key ?? '(key revealed after credentials endpoint)',
+          watch_url:    broadcast.watch_url,
+          rtmp_url:     broadcast.rtmp_url ?? 'rtmp://a.rtmp.youtube.com/live2',
+        });
+        this.tournament.update(t => ({
+          ...t,
+          youtube_broadcast_id: broadcast.id,
+          youtube_stream_url:   broadcast.watch_url,
+        }));
         this.creating.set(false);
       }
     });
@@ -273,9 +283,10 @@ export class AdminStreamsComponent implements OnInit {
 
   refreshStatus(): void {
     const t = this.tournament();
-    if (!t) return;
-    this.api.getYouTubeStreamStatus(t.id).pipe(catchError(() => of(null))).subscribe(r => {
-      if (r) this.streamStatus.set(r.status);
+    const broadcastId = t?.youtube_broadcast_id;
+    if (!t || !broadcastId) return;
+    this.api.getYouTubeStreamStatus(broadcastId).pipe(catchError(() => of(null))).subscribe((r: any) => {
+      if (r) this.streamStatus.set(r.data?.status ?? r.status ?? 'pending');
     });
   }
 
@@ -283,7 +294,9 @@ export class AdminStreamsComponent implements OnInit {
     const t = this.tournament();
     if (!t || !confirm('End this YouTube broadcast?')) return;
     this.ending.set(true);
-    this.api.endYouTubeStream(t.id).pipe(catchError(() => of(null))).subscribe(() => {
+    const broadcastId = t?.youtube_broadcast_id;
+    if (!broadcastId) { this.ending.set(false); return; }
+    this.api.endYouTubeStream(broadcastId).pipe(catchError(() => of(null))).subscribe(() => {
       this.ending.set(false);
       this.streamStatus.set('ended');
     });
