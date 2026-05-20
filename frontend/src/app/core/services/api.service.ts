@@ -782,4 +782,14 @@ export class ApiService {
   }
 
 
+
+  shuffleTournamentSeeds(tournamentId: string): Observable<any> {
+    return this.http.post<any>(`${API_BASE}/tournaments/${tournamentId}/shuffle-seeds`, {}, { headers: this.authHeaders() });
+  }
+
+  saveBracketPredictions(tournamentId: string, predictions: any[]): Observable<any> {
+    return this.http.post<any>(`${API_BASE}/tournaments/${tournamentId}/predictions`, { predictions }, { headers: this.authHeaders() });
+  }
+
+
 }

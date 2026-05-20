@@ -3,7 +3,7 @@ import {
   inject, signal, computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { switchMap } from 'rxjs/operators';
 import { ApiService, MatchEvidence, MatchRescheduleRequest } from '../../core/services/api.service';
@@ -67,7 +67,8 @@ export interface BracketRound {
   styleUrls: ['./tournament-detail.component.scss'],
 })
 export class TournamentDetailComponent implements OnInit, OnDestroy {
-  private readonly route = inject(ActivatedRoute);
+  private readonly route  = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly api   = inject(ApiService);
   readonly auth          = inject(AuthService);
   private readonly toast = inject(ToastService);
@@ -581,6 +582,135 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
     return reqs.find(r => r.is_pending && r.requested_by.id === String(u.id)) ?? null;
   });
 
+
+  // ── Sprint signals (stream, predictions, edit, evidence, challonge) ───────
+
+  readonly streamInfo    = signal<any>(null);
+  readonly streamKey     = signal<string | null>(null);
+  readonly keyHidden     = signal(true);
+  readonly keyCopied     = signal(false);
+  readonly setupPlatform = signal<'ps5'|'obs'|'mobile'|'browser'>('ps5');
+  readonly tournamentBanner = signal<any>(null);
+  readonly linkCopied    = signal(false);
+  readonly unregistering = signal(false);
+  readonly showEditModal     = signal(false);
+  readonly savingEdit        = signal(false);
+  readonly showDeleteConfirm = signal(false);
+  readonly deleting          = signal(false);
+  readonly editForm          = this.fb.group({ name: [''], description: [''], starts_at: [''], max_participants: [null as number | null] });
+  readonly shuffling         = signal(false);
+  readonly predictionsMode   = signal(false);
+  readonly predictionsSaved  = signal(false);
+  readonly submittingPred    = signal(false);
+  readonly showPredictionLb  = signal(false);
+  readonly predictionLb      = signal<any[]>([]);
+  readonly showSubModal      = signal(false);
+  readonly subParticipant    = signal<any>(null);
+  readonly subUserId         = signal('');
+  readonly subDisplayName    = signal('');
+  readonly substituting      = signal(false);
+  readonly selectedRound     = signal(1);
+  readonly playerSearch      = signal('');
+  readonly evidencePreview   = signal<string | null>(null);
+  private  _preds: Record<string,string> = {};
+
+  private loadStreamInfo(): void {
+    const t = this.tournament() as any;
+    if (!t) return;
+    if (t.youtube_stream_url) {
+      this.streamInfo.set({ has_stream:true, stream_status: t.youtube_stream_status??'pending', watch_url: t.youtube_stream_url });
+      if (this.canManageMatch() && t.youtube_broadcast_id) {
+        this.api.getStreamKey(t.youtube_broadcast_id).subscribe({
+          next:(sk:any)=>{ const c=sk?.data??sk; if(c?.stream_key) this.streamKey.set(c.stream_key); }, error:()=>{}
+        });
+      }
+    } else { this.streamInfo.set(null); }
+  }
+  copyStreamKey(): void {
+    const k=this.streamKey(); if(!k) return;
+    navigator.clipboard.writeText(k).then(()=>{ this.keyCopied.set(true); setTimeout(()=>this.keyCopied.set(false),2500); });
+  }
+  loadTournamentBanner(id:string): void {
+    this.api.getAdPlacementsForTournament(id).subscribe({ next:(r:any)=>this.tournamentBanner.set((r?.data??[])[0]??null), error:()=>{} });
+  }
+  gameArtUrl(game:string): string {
+    const m:Record<string,string>={ea_fc_25:'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=400&q=80',pubg_mobile:'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80',cod_mobile:'https://images.unsplash.com/photo-1614294148960-9aa740632a87?w=400&q=80'};
+    return m[game?.toLowerCase().replace(/\s+/g,'_')]??'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&q=80';
+  }
+  shareLink(): void { navigator.clipboard.writeText(window.location.href).then(()=>{ this.linkCopied.set(true); setTimeout(()=>this.linkCopied.set(false),2500); }); }
+  unregister(): void {
+    const t=this.tournament(); if(!t) return;
+    this.unregistering.set(true);
+    this.api.unregisterFromTournament(t.id).subscribe({ next:()=>{ this.unregistering.set(false); this.refresh(); }, error:()=>this.unregistering.set(false) });
+  }
+  openEditModal(): void { this.showEditModal.set(true); }
+  saveEdit(): void {
+    const t=this.tournament(); if(!t) return;
+    this.savingEdit.set(true);
+    this.api.updateTournament(t.id, this.editForm.value).subscribe({ next:()=>{ this.savingEdit.set(false); this.showEditModal.set(false); this.refresh(); }, error:()=>this.savingEdit.set(false) });
+  }
+  deleteTournament(): void {
+    const t=this.tournament(); if(!t) return;
+    this.deleting.set(true);
+    this.api.deleteTournament(t.id).subscribe({ next:()=>{ this.deleting.set(false); this.router.navigate(['/tournaments']); }, error:()=>this.deleting.set(false) });
+  }
+  shuffleSeeds(): void {
+    const t=this.tournament(); if(!t) return;
+    this.shuffling.set(true);
+    this.api.shuffleTournamentSeeds(t.id).subscribe({ next:()=>{ this.shuffling.set(false); this.refresh(); }, error:()=>this.shuffling.set(false) });
+  }
+  togglePredictionsMode(): void { this.predictionsMode.update(v=>!v); }
+  hasPrediction(id:string): string|null { return this._preds[id]??null; }
+  countPredictions(): number { return Object.keys(this._preds).length; }
+  pickA(m:any, e:Event): void { e.stopPropagation(); if(m.participant_a_id) this._preds[m.id]=m.participant_a_id; }
+  pickB(m:any, e:Event): void { e.stopPropagation(); if(m.participant_b_id) this._preds[m.id]=m.participant_b_id; }
+  clickMatch(m:any, e:Event): void { if(!this.predictionsMode()) this.openMatch(m); }
+  saveAllPredictions(): void {
+    const t=this.tournament(); if(!t||!Object.keys(this._preds).length) return;
+    this.submittingPred.set(true);
+    const p=Object.entries(this._preds).map(([match_id,participant_id])=>({match_id,participant_id}));
+    this.api.saveBracketPredictions(t.id,p).subscribe({ next:()=>{ this.submittingPred.set(false); this.predictionsSaved.set(true); setTimeout(()=>this.predictionsSaved.set(false),3000); }, error:()=>this.submittingPred.set(false) });
+  }
+  loadPredictionLeaderboard(): void {
+    const t=this.tournament(); if(!t) return;
+    this.showPredictionLb.set(true);
+    this.api.getPredictionLeaderboard(t.id).subscribe({ next:(r:any)=>this.predictionLb.set(r.data??[]), error:()=>{} });
+  }
+  openSubModal(p:any): void { this.subParticipant.set(p); this.subUserId.set(''); this.subDisplayName.set(''); this.showSubModal.set(true); }
+  confirmSub(): void {
+    const t=this.tournament(); const p=this.subParticipant(); if(!t||!p) return;
+    this.substituting.set(true);
+    this.api.substituteParticipant(t.id,p.id,{new_user_id:this.subUserId(),new_display_name:this.subDisplayName()}).subscribe({ next:()=>{ this.substituting.set(false); this.showSubModal.set(false); this.refresh(); }, error:()=>this.substituting.set(false) });
+  }
+  isRoundFormat(): boolean { const f=this.tournament()?.format; return f==='swiss'||f==='round_robin'; }
+  roundStats(): any[] { const b=(this.tournament() as any)?.bracket; if(!b?.rounds) return []; return b.rounds.map((r:any)=>({num:r.round_number,total:r.matches?.length??0,completed:r.matches?.filter((m:any)=>m.status==='completed').length??0})); }
+  selectRound(n:number): void { this.selectedRound.set(n); }
+  currentRoundMatches(): any[] { const b=(this.tournament() as any)?.bracket; if(!b?.rounds) return []; return b.rounds.find((r:any)=>r.round_number===this.selectedRound())?.matches??[]; }
+  jumpToMyMatch(): void { document.querySelector('[data-my-match]')?.scrollIntoView({behavior:'smooth',block:'center'}); }
+  filteredLeaderboard(): any[] {
+    const s=this.playerSearch().toLowerCase(); const lb=(this as any).leaderboard?.()??[];
+    return s?lb.filter((p:any)=>(p.name??p.display_name??'').toLowerCase().includes(s)):lb;
+  }
+  clearEvidence(): void { this.evidencePreview.set(null); }
+  onEvidenceSelected(e:Event): void {
+    const f=(e.target as HTMLInputElement)?.files?.[0]; if(!f) return;
+    const r=new FileReader(); r.onload=(ev)=>this.evidencePreview.set(ev.target?.result as string); r.readAsDataURL(f);
+  }
+  canSubmitResult(m:any): boolean {
+    const u=this.auth.currentUser(); if(!u) return false; const id=String(u.id);
+    return (String(m.participant_a?.user_id)===id||String(m.participant_b?.user_id)===id)&&m.status!=='completed';
+  }
+  canConfirmResult(m:any): boolean {
+    const u=this.auth.currentUser(); if(!u) return false; const id=String(u.id);
+    const sub=String(m.submitted_by_id??m.submitted_by?.id??'');
+    return m.status==='pending'&&sub!==id&&(String(m.participant_a?.user_id)===id||String(m.participant_b?.user_id)===id);
+  }
+  disputeResult(): void {
+    const m=this.selectedMatch(); if(!m) return;
+    const reason=(this as any).disputeForm?.value?.reason??'';
+    this.api.disputeResult(m.id,reason).subscribe({ next:()=>{ this.toast.success('Dispute raised.'); this.closeModal(); this.refresh(); }, error:(e:any)=>this.toast.error(e?.error?.message??'Failed.') });
+  }
+
   // ── Lifecycle ────────────────────────────────────────────────────────
   ngOnInit(): void {
     this.route.paramMap.pipe(
@@ -595,6 +725,8 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
         const t = res.data ?? res;
         this.tournament.set(t);
         this.loading.set(false);
+        this.loadStreamInfo();
+        if(t?.id){this.loadTournamentBanner(t.id);}
         // Apply the tournament's resolved brand to the page.
         if (t?.brand) { this.brand.apply(t.brand); }
       },
