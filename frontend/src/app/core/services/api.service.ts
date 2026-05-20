@@ -753,20 +753,28 @@ export class ApiService {
     );
   }
 
-  createYouTubeStream(tournamentId: string): Observable<any> {
-    return this.http.post<any>(`${API_BASE}/admin/tournaments/${tournamentId}/youtube-stream`, {}, { headers: this.authHeaders() });
+  getTournamentBroadcast(tournamentId: string): Observable<any> {
+    return this.http.get<any>(`${API_BASE}/tournaments/${tournamentId}/broadcast/active`, { headers: this.authHeaders() });
   }
 
-  endYouTubeStream(tournamentId: string): Observable<any> {
-    return this.http.delete<any>(`${API_BASE}/admin/tournaments/${tournamentId}/youtube-stream`, { headers: this.authHeaders() });
+  createYouTubeStream(tournamentId: string, title: string): Observable<any> {
+    return this.http.post<any>(
+      `${API_BASE}/tournaments/${tournamentId}/broadcast`,
+      { title, privacy: 'unlisted' },
+      { headers: this.authHeaders() }
+    );
   }
 
-  getYouTubeStreamStatus(tournamentId: string): Observable<any> {
-    return this.http.get<any>(`${API_BASE}/admin/tournaments/${tournamentId}/youtube-stream/status`, { headers: this.authHeaders() });
+  endYouTubeStream(broadcastId: string): Observable<any> {
+    return this.http.post<any>(`${API_BASE}/broadcasts/${broadcastId}/complete`, {}, { headers: this.authHeaders() });
   }
 
-  getStreamKey(tournamentId: string): Observable<any> {
-    return this.http.get<any>(`${API_BASE}/tournaments/${tournamentId}/stream-key`, { headers: this.authHeaders() });
+  getYouTubeStreamStatus(broadcastId: string): Observable<any> {
+    return this.http.get<any>(`${API_BASE}/broadcasts/${broadcastId}`, { headers: this.authHeaders() });
+  }
+
+  getStreamKey(broadcastId: string): Observable<any> {
+    return this.http.get<any>(`${API_BASE}/broadcasts/${broadcastId}/credentials`, { headers: this.authHeaders() });
   }
 
   getStreamInfo(tournamentId: string): Observable<any> {

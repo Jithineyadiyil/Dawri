@@ -194,7 +194,137 @@
     }
 
     <!-- ── Tabs ─────────────────────────────────────────────────── -->
-    <div class="tab-bar-wrap">
+    
+<!-- ── YouTube Stream Panel (organizer/admin only) ── -->
+@if (canManageMatch()) {
+  <div class="stream-panel">
+    @if (!streamInfo()) {
+      <div class="stream-panel__empty">
+        <span>📡</span>
+        <div>
+          <div class="stream-panel__label">Live Streaming</div>
+          <div class="stream-panel__hint">No YouTube stream configured yet. Ask your Dawri admin to set one up via Admin → Live Streams.</div>
+        </div>
+      </div>
+    } @else {
+      <div class="stream-panel__active" [class.stream-panel__active--live]="streamInfo()?.stream_status === 'live'">
+        <div class="stream-status-badge" [class]="'stream-status-badge--' + (streamInfo()?.stream_status || 'pending')">
+          @if (streamInfo()?.stream_status === 'live') { <span class="dot"></span> LIVE NOW }
+          @else if (streamInfo()?.stream_status === 'ended') { ✓ Stream Ended }
+          @else { ⏳ Waiting for stream }
+        </div>
+        @if (streamKey()) {
+          <div class="stream-key-section">
+            <div class="stream-key-label">🔑 Your Stream Key</div>
+            <div class="stream-key-wrap">
+              <code class="stream-key-val" [class.stream-key-val--hidden]="keyHidden()">{{ keyHidden() ? '•••••••••••••••••••••' : streamKey() }}</code>
+              <button class="stream-key-btn" (click)="keyHidden.set(!keyHidden())">{{ keyHidden() ? '👁 Show' : '🙈 Hide' }}</button>
+              <button class="stream-key-btn" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : '📋 Copy' }}</button>
+            </div>
+            <div class="stream-key-rtmp"><span>RTMP URL:</span><code>rtmp://a.rtmp.youtube.com/live2</code></div>
+            <!-- Setup tabs -->
+            <div class="setup-guides">
+              <div class="setup-tabs-row">
+                <button class="setup-tab" [class.setup-tab--active]="setupPlatform() === 'ps5'" (click)="setupPlatform.set('ps5')">🎮 PS5</button>
+                <button class="setup-tab" [class.setup-tab--active]="setupPlatform() === 'obs'" (click)="setupPlatform.set('obs')">🖥 OBS (PC)</button>
+                <button class="setup-tab" [class.setup-tab--active]="setupPlatform() === 'mobile'" (click)="setupPlatform.set('mobile')">📱 Mobile</button>
+                <button class="setup-tab" [class.setup-tab--active]="setupPlatform() === 'browser'" (click)="setupPlatform.set('browser')">🌐 Browser</button>
+              </div>
+              @if (setupPlatform() === 'ps5') {
+                <div class="setup-guide-card">
+                  <div class="setup-guide-card__head">
+                    <span class="setup-platform-icon">🎮</span>
+                    <div><div class="setup-platform-name">PlayStation 5</div><div class="setup-platform-sub">Built-in broadcaster — no extra software</div></div>
+                  </div>
+                  <ol class="setup-steps">
+                    <li>PS5 → Settings → Captures and Broadcasts → Broadcast → Broadcasting Service → <strong>Custom RTMP</strong></li>
+                    <li>RTMP URL: <code>rtmp://a.rtmp.youtube.com/live2</code></li>
+                    <li>Stream Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : 'Copy Key' }}</button></li>
+                    <li>Press <strong>Start Broadcasting</strong> when your match begins</li>
+                  </ol>
+                  <div class="setup-note">💡 Works for EA FC 25, Call of Duty, and any PS5 game</div>
+                </div>
+              }
+              @if (setupPlatform() === 'obs') {
+                <div class="setup-guide-card">
+                  <div class="setup-guide-card__head">
+                    <span class="setup-platform-icon">🖥</span>
+                    <div><div class="setup-platform-name">OBS Studio (PC)</div><div class="setup-platform-sub">Free professional streaming software</div></div>
+                    <a href="https://obsproject.com/download" target="_blank" rel="noopener" class="setup-download-btn">⬇ Download OBS Free</a>
+                  </div>
+                  <ol class="setup-steps">
+                    <li>Download <a href="https://obsproject.com/download" target="_blank" rel="noopener" class="setup-link">OBS Studio</a> (free)</li>
+                    <li>Settings → Stream → Service: <strong>Custom…</strong></li>
+                    <li>Server: <code>rtmp://a.rtmp.youtube.com/live2</code></li>
+                    <li>Stream Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : 'Copy Key' }}</button></li>
+                    <li>Add Game Capture source → <strong>Start Streaming</strong></li>
+                  </ol>
+                  <div class="setup-note">⚙️ Recommended: 1080p, 60fps, 6000 Kbps. Works for any PC game.</div>
+                </div>
+              }
+              @if (setupPlatform() === 'mobile') {
+                <div class="setup-guide-card">
+                  <div class="setup-guide-card__head">
+                    <span class="setup-platform-icon">📱</span>
+                    <div><div class="setup-platform-name">Mobile Games</div><div class="setup-platform-sub">PUBG Mobile, CoD Mobile, Free Fire</div></div>
+                    <a href="https://streamlabs.com/mobile-app" target="_blank" rel="noopener" class="setup-download-btn">⬇ StreamLabs</a>
+                  </div>
+                  <ol class="setup-steps">
+                    <li>Download <a href="https://streamlabs.com/mobile-app" target="_blank" rel="noopener" class="setup-link">StreamLabs Mobile</a> (free)</li>
+                    <li>Settings → Streaming → Platform: <strong>Custom RTMP</strong></li>
+                    <li>RTMP URL: <code>rtmp://a.rtmp.youtube.com/live2</code></li>
+                    <li>Stream Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : 'Copy Key' }}</button></li>
+                    <li>Tap <strong>Go Live</strong> — grant screen recording permission</li>
+                  </ol>
+                  <div class="setup-note">💡 Keep your phone plugged in — streaming drains battery fast.</div>
+                </div>
+              }
+              @if (setupPlatform() === 'browser') {
+                <div class="setup-guide-card">
+                  <div class="setup-guide-card__head">
+                    <span class="setup-platform-icon">🌐</span>
+                    <div><div class="setup-platform-name">Browser Streaming</div><div class="setup-platform-sub">No software to install — Chrome or Edge</div></div>
+                  </div>
+                  <div class="browser-options">
+                    <div class="browser-option">
+                      <div class="browser-option__head">
+                        <span class="browser-option__badge browser-option__badge--free">Free</span>
+                        <div class="browser-option__name">YouTube Studio</div>
+                        <div class="browser-option__sub">No install needed</div>
+                      </div>
+                      <ol class="setup-steps">
+                        <li>Go to <a href="https://studio.youtube.com" target="_blank" rel="noopener" class="setup-link">studio.youtube.com</a> → Go Live → Share screen</li>
+                        <li>Copy YouTube URL → give to admin → Admin → Live Streams → Manual URL</li>
+                      </ol>
+                    </div>
+                    <div class="browser-option">
+                      <div class="browser-option__head">
+                        <span class="browser-option__badge browser-option__badge--free">Free Plan</span>
+                        <div class="browser-option__name">Streamyard</div>
+                        <div class="browser-option__sub">Browser studio with screen share and overlays</div>
+                        <a href="https://streamyard.com" target="_blank" rel="noopener" class="setup-download-btn">Open ↗</a>
+                      </div>
+                      <ol class="setup-steps">
+                        <li>Go to <a href="https://streamyard.com" target="_blank" rel="noopener" class="setup-link">streamyard.com</a> → Add Destination → <strong>Custom RTMP</strong></li>
+                        <li>Server: <code>rtmp://a.rtmp.youtube.com/live2</code> &nbsp; Key: <button class="inline-copy" (click)="copyStreamKey()">{{ keyCopied() ? '✓ Copied!' : 'Copy Key' }}</button></li>
+                        <li>Share screen → <strong>Go Live</strong></li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+            @if (streamInfo()?.watch_url) {
+              <a [href]="streamInfo()!.watch_url" target="_blank" rel="noopener" class="stream-watch-btn">▶ Watch on YouTube ↗</a>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+}
+
+<div class="tab-bar-wrap">
       <div class="tab-bar" role="tablist">
         <button class="tab" role="tab" [class.tab--active]="activeTab()==='bracket'" (click)="activeTab.set('bracket')">Bracket</button>
         @if (isFlatFormat()) {

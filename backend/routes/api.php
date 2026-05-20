@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdPlacementController;
+use App\Http\Controllers\Api\YouTubeStreamController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\ChallongeFeatureController;
@@ -46,6 +47,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/games',                     [GameController::class, 'index']);
     Route::get('/games/active',              [GameController::class, 'active']);
     Route::get('/leaderboard',               [LeaderboardController::class, 'index']);
+    Route::get('/tournaments/{id}/stream-info', [YouTubeStreamController::class, 'streamInfo']);
     Route::get('/ad-placements',             [AdPlacementController::class, 'index']);
     Route::post('/ad-placements/{id}/click', [AdPlacementController::class, 'click']);
     Route::get('/tournaments/{id}/predictions/leaderboard', [ChallongeFeatureController::class, 'predictionLeaderboard']);
@@ -80,9 +82,6 @@ Route::prefix('v1')->group(function () {
 
     // ── Authenticated ──────────────────────────────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
-
-        // Sprint 5 — YouTube Live (Option B) routes
-        require __DIR__ . '/api.streaming.php';
 
         Route::get('/dashboard', [DashboardController::class, 'index']);
 
@@ -122,6 +121,8 @@ Route::prefix('v1')->group(function () {
         Route::post  ('/notifications/{id}/read',     [NotificationController::class, 'markRead']);
         Route::delete('/notifications/{id}',          [NotificationController::class, 'destroy']);
 
+        Route::get   ('/tournaments/{id}/stream-key',                  [YouTubeStreamController::class, 'streamKey']);
+        Route::patch ('/tournaments/{id}/stream-url',                 [YouTubeStreamController::class, 'setManualUrl']);
         Route::post  ('/tournaments/{id}/shuffle-seeds',                       [ChallongeFeatureController::class, 'shuffleSeeds']);
         Route::patch ('/tournaments/{id}/participants/{participantId}/substitute', [ChallongeFeatureController::class, 'substitute']);
         Route::post  ('/tournaments/{id}/predictions',                         [ChallongeFeatureController::class, 'submitPrediction']);
@@ -189,6 +190,9 @@ Route::prefix('v1')->group(function () {
         // Admin
         Route::prefix('admin')->middleware('admin')->group(function () {
             Route::get ('/overview',               [AdminController::class, 'overview']);
+            Route::post  ('/tournaments/{id}/youtube-stream',           [YouTubeStreamController::class, 'create']);
+            Route::delete('/tournaments/{id}/youtube-stream',           [YouTubeStreamController::class, 'end']);
+            Route::get   ('/tournaments/{id}/youtube-stream/status',    [YouTubeStreamController::class, 'status']);
             Route::get   ('/ad-placements',          [AdPlacementController::class, 'adminIndex']);
             Route::post  ('/ad-placements',          [AdPlacementController::class, 'store']);
             Route::put   ('/ad-placements/{id}',     [AdPlacementController::class, 'update']);
