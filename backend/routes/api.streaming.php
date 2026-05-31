@@ -4,49 +4,52 @@ declare(strict_types=1);
 
 /*
 |--------------------------------------------------------------------------
-| Streaming Routes (Sprint 5 — YouTube Live, Option B)
+| BROWSER-BROADCAST ROUTE ADDITIONS  (Sprint 6 — May 2026)
 |--------------------------------------------------------------------------
+| These lines MUST be appended to your existing
+|   D:\xamp new\htdocs\Dawri\backend\routes\api.streaming.php
 |
-| Pulled in by `routes/api.php` via `require` inside the existing
-| `Route::prefix('v1')->group(... auth:sanctum group ...)` block.
+| The file is already `require`d from routes/api.php inside the
+| `Route::prefix('v1')->middleware('auth:sanctum')` group, so the routes
+| below inherit that prefix/middleware automatically.
 |
-| Because `require` preserves the calling scope, every route declared here
-| inherits the parent group's `prefix('v1')` and `middleware('auth:sanctum')`.
-|
-| Do NOT wrap these in another `Route::prefix(...)` or `Route::middleware(...)`
-| — the parent group already provides them.
-|
+| The webhook route is registered OUTSIDE the auth:sanctum group because
+| Mux is an unauthenticated caller — it proves itself via the
+| Mux-Signature HMAC header, not Sanctum tokens.
 */
 
-use App\Http\Controllers\Api\LiveBroadcastController;
+use App\Http\Controllers\Api\BrowserBroadcastController;
+use App\Http\Controllers\Api\Webhooks\MuxWebhookController;
 use Illuminate\Support\Facades\Route;
 
-$uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+// ── Authenticated browser-broadcast endpoints (inside auth:sanctum) ─────
+Route::prefix('broadcasts/{broadcast}')
+    ->whereUuid('broadcast')
+    ->group(function (): void {
+        Route::post('browser-session', [BrowserBroadcastController::class, 'store'])
+            ->name('broadcasts.browser-session.store');
 
-// ── Create ───────────────────────────────────────────────────────────
-Route::post('/matches/{match}/broadcast',          [LiveBroadcastController::class, 'createForMatch'])
-    ->where('match', $uuid);
+        Route::delete('browser-session', [BrowserBroadcastController::class, 'destroy'])
+            ->name('broadcasts.browser-session.destroy');
+    });
 
-Route::post('/tournaments/{tournament}/broadcast', [LiveBroadcastController::class, 'createForTournament'])
-    ->where('tournament', $uuid);
-
-// ── Read ─────────────────────────────────────────────────────────────
-Route::get('/broadcasts/{broadcast}', [LiveBroadcastController::class, 'show'])
-    ->where('broadcast', $uuid);
-
-// ── State transitions ────────────────────────────────────────────────
-Route::post('/broadcasts/{broadcast}/go-live',  [LiveBroadcastController::class, 'goLive'])
-    ->where('broadcast', $uuid);
-
-Route::post('/broadcasts/{broadcast}/complete', [LiveBroadcastController::class, 'complete'])
-    ->where('broadcast', $uuid);
-
-// ── Cancel ───────────────────────────────────────────────────────────
-Route::delete('/broadcasts/{broadcast}', [LiveBroadcastController::class, 'destroy'])
-    ->where('broadcast', $uuid);
-
-// ── Reveal RTMP credentials (rate-limited — 5/min/user) ─────────────
-Route::middleware('throttle:5,1')->group(function () use ($uuid): void {
-    Route::get('/broadcasts/{broadcast}/credentials', [LiveBroadcastController::class, 'credentials'])
-        ->where('broadcast', $uuid);
-});
+/*
+|--------------------------------------------------------------------------
+| MUX WEBHOOK — must be registered OUTSIDE auth:sanctum group
+|--------------------------------------------------------------------------
+| Append this to routes/api.php directly (NOT inside the auth group).
+| Add it ABOVE the existing `Route::middleware('auth:sanctum')->group(...)`
+| block, like so:
+|
+|     Route::prefix('v1')->group(function () {
+|         // PUBLIC routes (no auth) — webhooks live here
+|         Route::post('webhooks/mux', \App\Http\Controllers\Api\Webhooks\MuxWebhookController::class)
+|              ->name('webhooks.mux');
+|
+|         // Then the existing auth:sanctum group...
+|         Route::middleware('auth:sanctum')->group(function () {
+|             require __DIR__ . '/api.streaming.php';
+|             // ...
+|         });
+|     });
+*/

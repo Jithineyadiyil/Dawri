@@ -1,166 +1,122 @@
-# Live Broadcast API Reference
+# API Reference — Browser Broadcast
 
-Base URL: `http://localhost:8001/api/v1`
-Auth: `Bearer <dawri_token>` (Sanctum) on all endpoints
+All endpoints prefixed with `/api/v1`. Auth via Sanctum Bearer token in
+`Authorization: Bearer {token}` (the `dawri_token` from `localStorage`).
 
----
+## `POST /broadcasts/{broadcast}/browser-session`
 
-## POST /matches/{match}/broadcast
+Open a browser-broadcast session.
 
-Create a new broadcast for a tournament match. Idempotent: if an active
-broadcast exists for the match, returns it.
+### Auth
+Required. Caller must be admin or the tournament organizer.
 
-**Auth**: tournament organizer, moderator, or admin
-**Path**: `match` — UUID of `tournament_matches.id`
-
-### Request
-
-```json
-{
-  "title": "EA FC 25 — Quarterfinal 3",
-  "description": "Player A vs Player B",
-  "privacy": "public",
-  "source": "obs",
-  "scheduled_start_at": "2026-05-17T16:00:00Z"
-}
-```
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `title` | string(3-100) | yes | YouTube hard-limits to 100 chars |
-| `description` | string(0-5000) | no | YouTube limit |
-| `privacy` | enum | no | `public` (default) / `unlisted` / `private` |
-| `source` | enum | no | `obs` (default) / `browser` / `rtmp` |
-| `scheduled_start_at` | ISO 8601 | no | Defaults to `now + 5min` |
-
-### Response (201 Created)
-
-```json
-{
-  "data": {
-    "id": "9b1c...",
-    "tournament_id": "...",
-    "match_id": "...",
-    "title": "EA FC 25 — Quarterfinal 3",
-    "privacy": "public",
-    "status": "ready",
-    "source": "obs",
-    "trigger": "manual",
-    "watch_url":  "https://www.youtube.com/watch?v=BCAST_xyz",
-    "embed_url":  "https://www.youtube.com/embed/BCAST_xyz?autoplay=1",
-    "rtmp_url":   "rtmp://a.rtmp.youtube.com/live2",
-    "scheduled_start_at": "2026-05-17T16:00:00+00:00",
-    "actual_start_at":    null,
-    "actual_end_at":      null,
-    "created_at":         "2026-05-17T15:45:12+00:00",
-    "is_live":            false,
-    "is_terminal":        false
-  }
-}
-```
-
-### Error codes
-
-| HTTP | Body code | When |
+### Path parameters
+| Name | Type | Description |
 |---|---|---|
-| 401 | — | Not authenticated |
-| 403 | — | Not the organizer/moderator/admin |
-| 404 | — | Match not found |
-| 422 | (validation) | Invalid title/privacy/etc. |
-| 422 | `channel_not_streamable` | Channel live-streaming not enabled (24h wait) |
-| 429 | `quota_exceeded` | YouTube daily quota exhausted |
-| 502 | `upstream_error` | Other YouTube API failure |
-| 503 | `auth_failed` | OAuth refresh failed (rotate creds) |
-| 503 | `feature_disabled` | `YOUTUBE_ENABLED=false` |
+| `broadcast` | UUID | LiveBroadcast row ID |
 
----
-
-## POST /tournaments/{tournament}/broadcast
-
-Same as above, but creates a tournament-level broadcast (not tied to a
-specific match). Useful for opening ceremonies, finals, etc.
-
----
-
-## GET /broadcasts/{broadcast}
-
-Fetch a single broadcast.
-
-**Auth**: any authenticated user
-**Response**: same shape as the create response.
-**Note**: `rtmp_url` is only populated for the creator.
-
----
-
-## POST /broadcasts/{broadcast}/go-live
-
-Transition the broadcast from `ready` to `live`. The organizer must
-already be pushing video to the RTMP endpoint — YouTube returns 403 if
-no signal is detected.
-
-**Auth**: broadcast creator or admin
-
-### Response (200)
-
+### Request body (all optional)
 ```json
 {
-  "data": { "id": "...", "status": "live", "is_live": true, ... }
+  "capture_mode": "webcam",
+  "preferred_resolution": "720p"
 }
 ```
 
----
+| Field | Type | Values | Notes |
+|---|---|---|---|
+| `capture_mode` | string | `webcam` \| `screen` \| `screen_with_cam` | Hint only — frontend chooses what it sends. |
+| `preferred_resolution` | string | `720p` \| `1080p` | Hint only. Mux negotiates the actual resolution from the WebRTC offer. |
 
-## POST /broadcasts/{broadcast}/complete
-
-End the broadcast and finalise the archive video on the channel.
-
-**Auth**: broadcast creator or admin
-**Response**: broadcast object with `status: "complete"`
-
----
-
-## DELETE /broadcasts/{broadcast}
-
-Cancel a pre-live broadcast and delete the YouTube event. Once `live`, use
-`/complete` instead — this endpoint returns 422.
-
-**Auth**: broadcast creator or admin
-
-### Response (200)
-
-```json
-{ "data": { "cancelled": true } }
-```
-
----
-
-## GET /broadcasts/{broadcast}/credentials
-
-Reveal the RTMP URL + stream key so the organizer can configure OBS.
-
-**Auth**: broadcast creator only
-**Rate limit**: 5 requests/minute/user
-**Headers returned**: `Cache-Control: no-store, no-cache, must-revalidate`
-
-### Response (200)
-
+### Response — 201 Created
 ```json
 {
   "data": {
-    "rtmp_url":   "rtmp://a.rtmp.youtube.com/live2",
-    "stream_key": "aaaa-bbbb-cccc-dddd-eeee",
-    "instructions": {
-      "obs":     "OBS → Settings → Stream → ...",
-      "go_live": "After you start streaming in OBS, click \"Go Live\"."
+    "broadcast_id": "01234567-89ab-cdef-0123-456789abcdef",
+    "whip_url":     "https://global-live.mux.com/api/v1/whip/sk-abc-123",
+    "whip_token":   null,
+    "playback_url": "https://stream.mux.com/pb-xyz.m3u8",
+    "watch_url":    "https://www.youtube.com/watch?v=Yt-vid-123",
+    "expires_at":   "2026-05-20T14:05:00+00:00",
+    "provider":     "mux",
+    "capabilities": {
+      "webcam": true,
+      "screen": true,
+      "screen_with_cam": true,
+      "max_resolution": "1080p",
+      "max_framerate": 30,
+      "recommended_bitrate_kbps": 4500
     }
   }
 }
 ```
 
-### Error codes
+### Error responses
 
-| HTTP | When |
+| Status | Cause |
 |---|---|
-| 403 | Not the creator |
-| 410 | Broadcast already terminal |
-| 429 | Rate limit exceeded |
+| `401` | No / invalid Sanctum token |
+| `403` | Caller is not admin and not the tournament organizer |
+| `404` | Broadcast UUID not found |
+| `409` | YouTube broadcast cannot be provisioned for this LiveBroadcast |
+| `422` | Validation failure (e.g. `capture_mode=invalid`) |
+| `429` | Mux quota exceeded |
+| `502` | Mux rejected the request (bad token or upstream error) |
+| `503` | Mux is unreachable |
+
+---
+
+## `DELETE /broadcasts/{broadcast}/browser-session`
+
+Close the browser-broadcast session.
+
+### Auth
+Required. Caller must be admin or the tournament organizer.
+
+### Response — 204 No Content
+
+No body.
+
+### Error responses
+
+| Status | Cause |
+|---|---|
+| `401` / `403` / `404` | Same as POST |
+| `502` / `503` | Mux cleanup failed but the local state was reset anyway |
+
+---
+
+## `POST /webhooks/mux`  (public, signed)
+
+Mux webhook receiver. **Not for direct human consumption.**
+
+### Auth
+None — proven by `Mux-Signature` HMAC header.
+
+### Request body
+Whatever Mux sends. We care about `type` and `object.id`.
+
+### Response
+- `204 No Content` — handled (or harmlessly ignored as orphan)
+- `401 Unauthorized` — `Mux-Signature` missing, malformed, or wrong
+- `204` even for unknown event types (forward-compatibility)
+
+### Handled events
+| Event | Effect |
+|---|---|
+| `video.live_stream.active` | Set `live_broadcasts.status` = `live` |
+| `video.live_stream.idle` | Set status = `ready` |
+| `video.live_stream.disconnected` | Set status = `reconnecting` |
+| `video.live_stream.recording.ready` | (No status change; future: trigger VOD ingest) |
+
+---
+
+## TypeScript types (frontend)
+
+See `frontend/src/app/features/streaming/browser-broadcast/browser-broadcast.model.ts`.
+
+## PHP types (backend)
+
+- DTO: `App\Services\Streaming\DTOs\BrowserBroadcastSession`
+- Resource: `App\Http\Resources\BrowserBroadcastSessionResource`
+- Exceptions: `App\Services\Streaming\Exceptions\StreamingBridgeException`
