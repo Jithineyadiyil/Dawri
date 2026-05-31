@@ -1,63 +1,44 @@
-# Changelog
+# Changelog — Dawri Streaming Module
 
-## [Sprint 5 wizard add-on] — 2026-05-18
-
-Built against `Jithineyadiyil/Dawri @ 1ce9254d` after a full ground-truth
-read of the merged Sprint 5 streaming PR.
+## [Sprint 6] – 2026-05-20 — Browser Broadcast
 
 ### Added
+- `POST /api/v1/broadcasts/{broadcast}/browser-session` — open a one-click browser broadcast
+- `DELETE /api/v1/broadcasts/{broadcast}/browser-session` — clean up the session
+- `POST /api/v1/webhooks/mux` — receives Mux events to keep `live_broadcasts.status` synced
+- Pluggable bridge architecture (`StreamingBridgeInterface`) — Mux today, ffmpeg/Cloudflare later without app-code changes
+- `MuxClient` — typed wrapper for the Mux Video API
+- `MuxBridge` — Mux Live implementation of the bridge
+- `BrowserBroadcastService` — orchestration with admin/organizer authorization
+- Angular `BrowserBroadcastComponent` (standalone, OnPush, signals) with three capture modes: webcam, screen, screen + cam PIP
+- `WhipClient` — minimal IETF WHIP publisher for WebRTC ingest
+- `MediaCaptureService` — getUserMedia/getDisplayMedia + canvas-based PIP composition
+- `SourcePickerComponent` — bilingual-aware (LTR + RTL) capture-mode picker
+- Database migration: `bridge_provider`, `mux_stream_id`, `mux_playback_id`, `mux_simulcast_target_id`, `whip_url` on `live_broadcasts`
+- 18 PHPUnit cases (`MuxClient`, `MuxBridge`, `BrowserBroadcastService`, `BrowserBroadcastApi`)
+- 11 Jest cases (`WhipClient`, `BrowserBroadcastComponent`)
 
-**Backend**
-- `App\Services\Streaming\ObsWizardService` — wizard business logic with two
-  config builders (broadcast scope + tournament scope, both with
-  authorization mirrored exactly from `LiveBroadcastController`).
-- `App\Http\Controllers\Api\ObsWizardController` — 5 endpoints, UUID-safe
-  route-model binding.
-- `App\Http\Requests\LogWizardEventRequest` + `WizardConfigResource`.
-- `App\Models\BroadcastSetupLog` — UUID PK, `UPDATED_AT = null`, append-only.
-- Migration `2026_05_18_120000_create_broadcast_setup_logs_table` with
-  UUID FKs to `live_broadcasts`, `tournaments`, `users` (matches the real
-  schema — no bigint/UUID mismatches this time).
-- `App\Repositories\Eloquent\BroadcastSetupLogRepository` (correct
-  namespace this time — alongside `LiveBroadcastRepository`).
-- PHPUnit unit tests with Mockery (13 cases — no Laravel kernel needed).
+### Changed
+- `live_broadcasts` table extended with 5 new columns (all nullable, additive)
+- `LiveBroadcastRepository` gains `findByMuxStreamId()` for webhook lookups
+- `LiveBroadcast` model `$fillable` extended
 
-**Frontend**
-- `SetupWizardComponent` standalone — signals, OnPush, bilingual EN/AR with
-  RTL, six steps, broadcast-status polling on Step 6.
-- `ObsWizardService` typed HTTP client that auto-detects scope.
-- `wizard.model.ts` with types mirroring Laravel resources exactly.
-- Route snippet for both `/broadcasts/:id/setup-wizard` and
-  `/tournaments/:id/setup-wizard`.
-- Jest tests (8 cases) including 429 rate-limit + 410 terminal-broadcast
-  error mappings.
+### Configuration
+- New `.env` variables: `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET`, `MUX_WEBHOOK_SECRET`, `MUX_TEST_MODE`, `MUX_WHIP_BASE_URL`, `MUX_HTTP_TIMEOUT`, `MUX_SESSION_TTL`, `YOUTUBE_RTMP_URL`
+- New service-provider registration: `App\Providers\StreamingBridgeServiceProvider`
 
-### Integration with existing Sprint 5 streaming module
+### Compatibility
+- Sprint 5 OBS broadcast path is **completely unchanged** — both modes coexist
+- New mode toggle in `broadcast-controls.component` lets users pick OBS or Browser per broadcast
 
-- **Reuses** the existing `GET /broadcasts/{id}/credentials` endpoint for
-  RTMP/key reveal (no duplication — wizard Step 2 calls
-  `LiveBroadcastService.getCredentials()` from frontend).
-- **Reuses** `LiveBroadcastService::goLive()` for the wizard's final-step
-  transition (`POST /broadcasts/{id}/setup-wizard/finish` is a thin wrapper
-  that adds analytics logging around the existing service call).
-- **Reuses** `LiveBroadcastService.get()` from frontend for status polling
-  on Step 6 (no duplicate `GET /status` endpoint).
+### Security
+- All endpoints behind `auth:sanctum` except the webhook (HMAC-SHA256 signed)
+- Service-layer authorization rejects players (brand safety on Dawri's official YouTube channel)
+- Webhook secret missing ⇒ all webhooks rejected (deny-by-default)
+- Single-broadcast Mux stream keys; rotated each session
 
-### Decisions documented
-
-- **Scope auto-detection**: route URL prefix (`/broadcasts/` vs
-  `/tournaments/`) drives the scope signal in the component; the component
-  is a single shared standalone.
-- **Auto-call on finish**: per user direction — one-flow experience.
-- **Analytics kept**: `broadcast_setup_logs` table for funnel tracking
-  with composite indexes on (broadcast_id, created_at),
-  (tournament_id, created_at), (user_id, created_at), (event, created_at).
-- **CHECK constraint** on (broadcast_id OR tournament_id IS NOT NULL) —
-  emitted via raw SQL post-create, with try/catch fallback for MySQL <8.0.16.
-
-### Pending (deferred)
-
-- Cypress E2E spec (UI fully covered by Jest component tests; E2E left for
-  a future sprint when the test infra is wired in CI).
-- Funnel analytics dashboard reading from `broadcast_setup_logs`.
-- Sprint 5b admin endpoint for `recentForBroadcast()` / `recentForTournament()`.
+### Known limitations
+- Browser capture quality is bandwidth-bound — for high-fidelity game capture, OBS is still the recommended path
+- Mux test mode (free, default) has a 10-minute per-stream cap; plenty for development but not for full matches
+- Webhook URL must be publicly reachable — local development requires ngrok or similar
+- Production cost is non-zero (~$3/match for 2-hour matches via Mux); `FfmpegBridge` is the recommended migration path post-MVP
