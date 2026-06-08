@@ -66,18 +66,40 @@ export class CommunityStateService {
   loadCommunities(): void {
     this.api.list().subscribe(list => {
       this.communities.set(list);
-      // Auto-hydrate channels for the global community on first load
-      const global = list.find(c => c.type === 'global');
-      if (global && !this.channelsByCommunity()[global.id]) {
-        this.loadChannels(global.id);
+      // Auto-hydrate channels for the global community on first load and
+      // make it the active community so the channel list renders without
+      // requiring the user to first navigate into a specific channel URL.
+      const global = list.find(c => c.type === 'global') ?? list[0];
+      if (global) {
+        if (!this.activeCommunityId()) {
+          this.activeCommunityId.set(global.id);
+        }
+        if (!this.channelsByCommunity()[global.id]) {
+          this.loadChannels(global.id, true);
+        } else if (!this.activeChannelId()) {
+          this.selectFirstChannel(global.id);
+        }
       }
     });
   }
 
-  loadChannels(communityId: string): void {
+  loadChannels(communityId: string, selectFirst = false): void {
     this.api.channels(communityId).subscribe(channels => {
       this.channelsByCommunity.update(prev => ({ ...prev, [communityId]: channels }));
+      if (selectFirst && !this.activeChannelId() && channels.length > 0) {
+        this.activeChannelId.set(channels[0].id);
+        this.loadMessages(channels[0].id);
+      }
     });
+  }
+
+  /** Select the first available channel of a community (no-op if none). */
+  private selectFirstChannel(communityId: string): void {
+    const channels = this.channelsByCommunity()[communityId] ?? [];
+    if (channels.length > 0) {
+      this.activeChannelId.set(channels[0].id);
+      this.loadMessages(channels[0].id);
+    }
   }
 
   loadMessages(channelId: string, append = false): void {

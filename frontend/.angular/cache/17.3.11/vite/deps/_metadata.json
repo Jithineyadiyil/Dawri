@@ -1,85 +1,100 @@
 {
-  "hash": "8ce8f3f6",
-  "configHash": "bd454a71",
-  "lockfileHash": "7c430572",
-  "browserHash": "d261e878",
+  "hash": "1db61940",
+  "configHash": "3c446cb0",
+  "lockfileHash": "2c832738",
+  "browserHash": "4e1e2c26",
   "optimized": {
     "@angular/common": {
       "src": "../../../../../node_modules/@angular/common/fesm2022/common.mjs",
       "file": "@angular_common.js",
-      "fileHash": "c4471d44",
+      "fileHash": "b61be372",
       "needsInterop": false
     },
     "@angular/common/http": {
       "src": "../../../../../node_modules/@angular/common/fesm2022/http.mjs",
       "file": "@angular_common_http.js",
-      "fileHash": "ae76ac7a",
+      "fileHash": "596f47d3",
       "needsInterop": false
     },
     "@angular/core": {
       "src": "../../../../../node_modules/@angular/core/fesm2022/core.mjs",
       "file": "@angular_core.js",
-      "fileHash": "980b1981",
+      "fileHash": "18aa70eb",
       "needsInterop": false
     },
     "@angular/core/rxjs-interop": {
       "src": "../../../../../node_modules/@angular/core/fesm2022/rxjs-interop.mjs",
       "file": "@angular_core_rxjs-interop.js",
-      "fileHash": "41a9294c",
+      "fileHash": "931f7b17",
       "needsInterop": false
     },
     "@angular/forms": {
       "src": "../../../../../node_modules/@angular/forms/fesm2022/forms.mjs",
       "file": "@angular_forms.js",
-      "fileHash": "88517b3b",
+      "fileHash": "bb37917e",
       "needsInterop": false
     },
     "@angular/platform-browser": {
       "src": "../../../../../node_modules/@angular/platform-browser/fesm2022/platform-browser.mjs",
       "file": "@angular_platform-browser.js",
-      "fileHash": "4ea76059",
+      "fileHash": "f8a9ff8c",
       "needsInterop": false
     },
     "@angular/router": {
       "src": "../../../../../node_modules/@angular/router/fesm2022/router.mjs",
       "file": "@angular_router.js",
-      "fileHash": "08a6a1b2",
+      "fileHash": "2bb34692",
       "needsInterop": false
+    },
+    "laravel-echo": {
+      "src": "../../../../../node_modules/laravel-echo/dist/echo.js",
+      "file": "laravel-echo.js",
+      "fileHash": "8f48d056",
+      "needsInterop": false
+    },
+    "pusher-js": {
+      "src": "../../../../../node_modules/pusher-js/dist/web/pusher.js",
+      "file": "pusher-js.js",
+      "fileHash": "e896ec1f",
+      "needsInterop": true
     },
     "rxjs": {
       "src": "../../../../../node_modules/rxjs/dist/esm5/index.js",
       "file": "rxjs.js",
-      "fileHash": "1a487b24",
+      "fileHash": "9e7aac8a",
       "needsInterop": false
     },
     "rxjs/operators": {
       "src": "../../../../../node_modules/rxjs/dist/esm5/operators/index.js",
       "file": "rxjs_operators.js",
-      "fileHash": "f5637164",
+      "fileHash": "d7f812d6",
       "needsInterop": false
     }
   },
   "chunks": {
-    "chunk-5JPM4WIJ": {
-      "file": "chunk-5JPM4WIJ.js"
+    "chunk-SSOTMLQO": {
+      "file": "chunk-SSOTMLQO.js"
     },
-    "chunk-GKUSOWRW": {
-      "file": "chunk-GKUSOWRW.js"
+    "chunk-NBCWZJRS": {
+      "file": "chunk-NBCWZJRS.js"
     },
-    "chunk-HIDBSJAM": {
-      "file": "chunk-HIDBSJAM.js"
+    "chunk-HHRLSUXK": {
+      "file": "chunk-HHRLSUXK.js"
     },
-    "chunk-CPEVLEBX": {
-      "file": "chunk-CPEVLEBX.js"
+    "chunk-OKCFY2CG": {
+      "file": "chunk-OKCFY2CG.js"
     },
-    "chunk-V2DXGMIT": {
-      "file": "chunk-V2DXGMIT.js"
+    "chunk-SG3BCSKH": {
+      "file": "chunk-SG3BCSKH.js"
     },
-    "chunk-UKEHM6V6": {
-      "file": "chunk-UKEHM6V6.js"
+    "chunk-SAVXX6OM": {
+      "file": "chunk-SAVXX6OM.js"
     },
-    "chunk-ZDOIMVJD": {
-      "file": "chunk-ZDOIMVJD.js"
+    "chunk-PQ7O3X3G": {
+      "file": "chunk-PQ7O3X3G.js"
+    },
+    "chunk-WKYGNSYM": {
+      "file": "chunk-WKYGNSYM.js"
     }
   }
 }

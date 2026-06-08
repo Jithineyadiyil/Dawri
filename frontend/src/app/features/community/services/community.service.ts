@@ -5,7 +5,7 @@
  * sit under /api/v1 and require auth:sanctum (Bearer token interceptor
  * is already wired in the core HttpInterceptor).
  */
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
@@ -37,8 +37,14 @@ export class CommunityService {
   }
 
   members(communityId: string, search?: string): Observable<MembersResponse> {
-    const params = search ? { search } : {};
-    return this.http.get<MembersResponse>(`${this.base}/communities/${communityId}/members`, { params });
+    let params = new HttpParams();
+    if (search) {
+      params = params.set('search', search);
+    }
+    return this.http.get<MembersResponse>(
+      `${this.base}/communities/${communityId}/members`,
+      { params },
+    );
   }
 
   leave(communityId: string): Observable<{ message: string }> {

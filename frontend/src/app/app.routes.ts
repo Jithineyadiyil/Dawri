@@ -160,6 +160,16 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/privacy/privacy.component').then(m => m.PrivacyComponent),
     title: 'Privacy Policy — Dawri',
   },
+  // Sprint 15: Dawri Community (chat). The 'admin' sub-route is declared
+  // inside COMMUNITY_ROUTES as a sibling of the shell, so loadChildren
+  // covers /community, /community/:slug, /community/:slug/channel/:id,
+  // and /community/admin.
+  {
+    path: 'community',
+    canActivate: [authGuard],
+    loadChildren: () => import('./features/community/community.routes').then(m => m.COMMUNITY_ROUTES),
+    title: 'Community — Dawri',
+  },
   {
     path: '**',
     redirectTo: '',

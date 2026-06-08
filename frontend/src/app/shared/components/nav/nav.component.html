@@ -8,6 +8,9 @@
     <a routerLink="/tournaments" routerLinkActive="active" class="nav-link">Tournaments</a>
     <a routerLink="/marketplace" routerLinkActive="active" class="nav-link">Marketplace</a>
     <a routerLink="/pricing"     routerLinkActive="active" class="nav-link">Pricing</a>
+    @if (auth.isLoggedIn()) {
+      <a routerLink="/community" routerLinkActive="active" class="nav-link">Community</a>
+    }
   </div>
 
   <div class="nav-actions">
@@ -33,6 +36,7 @@
     <a routerLink="/pricing"     class="drawer-link">Pricing</a>
     @if (auth.isLoggedIn()) {
       <a routerLink="/dashboard"   class="drawer-link">Dashboard</a>
+      <a routerLink="/community"   class="drawer-link">Community</a>
       <button class="drawer-link drawer-btn" (click)="logout()">Sign out</button>
     } @else {
       <a routerLink="/auth" class="drawer-link">Sign In</a>
