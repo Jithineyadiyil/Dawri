@@ -87,6 +87,9 @@ Route::prefix('v1')->group(function () {
         // Streaming routes (broadcasts, credentials)
         require __DIR__ . '/api.streaming.php';
 
+        // Sprint 15 — Dawri Community
+        require __DIR__ . '/api.community.php';
+
         // ── YouTube Live Broadcast routes ──────────────────────────────────
         $uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 

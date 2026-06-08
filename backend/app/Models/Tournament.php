@@ -70,6 +70,18 @@ class Tournament extends Model
         );
     }
 
+    /**
+     * Sprint 15 — private community room for this tournament.
+     * Auto-provisioned by TournamentObserver on tournament create;
+     * archived on tournament complete.
+     *
+     * @return HasOne
+     */
+    public function community(): HasOne
+    {
+        return $this->hasOne(Community::class)->where('type', 'tournament');
+    }
+
     protected function coverImageUrl(): Attribute
     {
         return Attribute::make(

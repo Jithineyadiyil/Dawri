@@ -1,122 +1,138 @@
-# API Reference — Browser Broadcast
+# Sprint 15 — API Reference
 
-All endpoints prefixed with `/api/v1`. Auth via Sanctum Bearer token in
-`Authorization: Bearer {token}` (the `dawri_token` from `localStorage`).
+Base URL: `http://localhost:8001/api/v1`
+All endpoints require `Authorization: Bearer {sanctum_token}` unless marked **public**.
 
-## `POST /broadcasts/{broadcast}/browser-session`
+## Communities
 
-Open a browser-broadcast session.
-
-### Auth
-Required. Caller must be admin or the tournament organizer.
-
-### Path parameters
-| Name | Type | Description |
-|---|---|---|
-| `broadcast` | UUID | LiveBroadcast row ID |
-
-### Request body (all optional)
-```json
-{
-  "capture_mode": "webcam",
-  "preferred_resolution": "720p"
-}
-```
-
-| Field | Type | Values | Notes |
+| Method | URL | Body | Returns |
 |---|---|---|---|
-| `capture_mode` | string | `webcam` \| `screen` \| `screen_with_cam` | Hint only — frontend chooses what it sends. |
-| `preferred_resolution` | string | `720p` \| `1080p` | Hint only. Mux negotiates the actual resolution from the WebRTC offer. |
+| GET | `/communities` | — | `{ data: Community[] }` — communities the user belongs to |
+| GET | `/communities/{slug}` | — | `{ data: Community }` (404 if non-member) |
+| GET | `/communities/{community}/members?search=` | — | `{ data: Member[], presence: {userId: {status, last_seen_at}} }` |
+| POST | `/communities/{community}/leave` | — | `{ message }` (403 on global) |
+| POST | `/communities/{community}/moderate` | `{ action, user_id, minutes?, reason? }` | `{ data: Member }` |
 
-### Response — 201 Created
+`action` ∈ `mute` (requires `minutes`), `unmute`, `ban` (requires `reason`), `unban`.
+`minutes` ∈ `[5, 30, 60, 240, 1440, 10080]`.
+
+## Channels
+
+| Method | URL | Body | Returns |
+|---|---|---|---|
+| GET | `/communities/{community}/channels` | — | `{ data: Channel[] }` with `unread_count` |
+| POST | `/communities/{community}/channels` | `{ name, topic?, type?, position? }` | `{ data: Channel }` (admin/owner) |
+| PATCH | `/channels/{channel}` | partial Channel | `{ data: Channel }` |
+| DELETE | `/channels/{channel}` | — | archives (soft) |
+| POST | `/channels/{channel}/mark-read` | `{ last_message_id? }` | — |
+
+`name` must match `/^[a-z0-9][a-z0-9\-]*[a-z0-9]$/` (lowercase, hyphens).
+`type` ∈ `text`, `announcement`.
+
+## Messages
+
+| Method | URL | Body | Returns |
+|---|---|---|---|
+| GET | `/channels/{channel}/messages?cursor=&limit=50` | — | `{ data: Message[], next_cursor, prev_cursor }` |
+| GET | `/channels/{channel}/messages/pinned` | — | `{ data: Message[] }` |
+| POST | `/channels/{channel}/messages` | `{ content }` | `{ data: Message }` · **30/min** |
+| PATCH | `/messages/{message}` | `{ content }` | `{ data: Message }` (author only, ≤15 min) |
+| DELETE | `/messages/{message}` | — | `{ message }` (author or moderator) |
+| POST | `/messages/{message}/pin` | — | `{ data: Message }` (moderator) |
+| DELETE | `/messages/{message}/pin` | — | `{ data: Message }` |
+| POST | `/messages/{message}/reactions` | `{ emoji }` | `{ message }` · **60/min** |
+| DELETE | `/messages/{message}/reactions/{emoji}` | — | `{ message }` |
+
+`content` is 1–4000 chars. Empty / whitespace-only is rejected.
+
+## Resources
+
+### Community
 ```json
 {
-  "data": {
-    "broadcast_id": "01234567-89ab-cdef-0123-456789abcdef",
-    "whip_url":     "https://global-live.mux.com/api/v1/whip/sk-abc-123",
-    "whip_token":   null,
-    "playback_url": "https://stream.mux.com/pb-xyz.m3u8",
-    "watch_url":    "https://www.youtube.com/watch?v=Yt-vid-123",
-    "expires_at":   "2026-05-20T14:05:00+00:00",
-    "provider":     "mux",
-    "capabilities": {
-      "webcam": true,
-      "screen": true,
-      "screen_with_cam": true,
-      "max_resolution": "1080p",
-      "max_framerate": 30,
-      "recommended_bitrate_kbps": 4500
-    }
-  }
+  "id": "uuid",
+  "type": "global|tournament",
+  "tournament_id": "uuid|null",
+  "name": "string",
+  "slug": "string",
+  "description": "string|null",
+  "icon_url": "string|null",
+  "is_active": true,
+  "is_archived": false,
+  "archived_at": "iso8601|null",
+  "channels": [Channel],
+  "member_count": 1234,
+  "created_at": "iso8601"
 }
 ```
 
-### Error responses
+### Channel
+```json
+{
+  "id": "uuid",
+  "community_id": "uuid",
+  "name": "general",
+  "topic": "Welcome to Dawri",
+  "type": "text|announcement",
+  "position": 0,
+  "is_archived": false,
+  "unread_count": 12
+}
+```
 
-| Status | Cause |
+### Message
+```json
+{
+  "id": "uuid",
+  "channel_id": "uuid",
+  "author": {
+    "id": "uuid|null",
+    "nickname": "shadow_fox",
+    "avatar": "url|null",
+    "is_self": true
+  },
+  "content": "string|null",
+  "edited_at": "iso8601|null",
+  "is_deleted": false,
+  "is_pinned": false,
+  "pinned_at": "iso8601|null",
+  "reactions": [{ "emoji": "🔥", "count": 3, "users": ["uuid", "uuid", "uuid"] }],
+  "mentions": ["uuid"],
+  "created_at": "iso8601"
+}
+```
+
+## Broadcasting
+
+Connect via Laravel Echo with the Reverb driver. Subscribe presence channels:
+
+```ts
+echo.join(`community.channel.${channelId}`)
+  .listen('.message.posted',  (e) => /* { message: Message } */)
+  .listen('.message.edited',  (e) => /* { message: Message } */)
+  .listen('.message.deleted', (e) => /* { channel_id, message_id, deleted_by_moderator } */)
+  .listen('.reaction.added',  (e) => /* { channel_id, message_id, user_id, emoji } */)
+  .listen('.reaction.removed',(e) => /* same shape */);
+```
+
+User-private channels for moderation:
+```ts
+echo.private(`user.${userId}`)
+  .listen('.moderation.muted',  (e) => /* { community_id, muted_until, reason } */)
+  .listen('.moderation.banned', (e) => /* { community_id, reason } */);
+```
+
+## Errors
+
+Standard JSON envelope:
+```json
+{ "message": "human readable", "errors": { "field": ["..."] } }
+```
+
+| Status | When |
 |---|---|
-| `401` | No / invalid Sanctum token |
-| `403` | Caller is not admin and not the tournament organizer |
-| `404` | Broadcast UUID not found |
-| `409` | YouTube broadcast cannot be provisioned for this LiveBroadcast |
-| `422` | Validation failure (e.g. `capture_mode=invalid`) |
-| `429` | Mux quota exceeded |
-| `502` | Mux rejected the request (bad token or upstream error) |
-| `503` | Mux is unreachable |
-
----
-
-## `DELETE /broadcasts/{broadcast}/browser-session`
-
-Close the browser-broadcast session.
-
-### Auth
-Required. Caller must be admin or the tournament organizer.
-
-### Response — 204 No Content
-
-No body.
-
-### Error responses
-
-| Status | Cause |
-|---|---|
-| `401` / `403` / `404` | Same as POST |
-| `502` / `503` | Mux cleanup failed but the local state was reset anyway |
-
----
-
-## `POST /webhooks/mux`  (public, signed)
-
-Mux webhook receiver. **Not for direct human consumption.**
-
-### Auth
-None — proven by `Mux-Signature` HMAC header.
-
-### Request body
-Whatever Mux sends. We care about `type` and `object.id`.
-
-### Response
-- `204 No Content` — handled (or harmlessly ignored as orphan)
-- `401 Unauthorized` — `Mux-Signature` missing, malformed, or wrong
-- `204` even for unknown event types (forward-compatibility)
-
-### Handled events
-| Event | Effect |
-|---|---|
-| `video.live_stream.active` | Set `live_broadcasts.status` = `live` |
-| `video.live_stream.idle` | Set status = `ready` |
-| `video.live_stream.disconnected` | Set status = `reconnecting` |
-| `video.live_stream.recording.ready` | (No status change; future: trigger VOD ingest) |
-
----
-
-## TypeScript types (frontend)
-
-See `frontend/src/app/features/streaming/browser-broadcast/browser-broadcast.model.ts`.
-
-## PHP types (backend)
-
-- DTO: `App\Services\Streaming\DTOs\BrowserBroadcastSession`
-- Resource: `App\Http\Resources\BrowserBroadcastSessionResource`
-- Exceptions: `App\Services\Streaming\Exceptions\StreamingBridgeException`
+| 401 | No / invalid Sanctum token |
+| 403 | Member not in community · muted · banned · announcement-only channel |
+| 404 | Community not visible to caller (we intentionally hide tournament rooms from non-members) |
+| 422 | FormRequest validation failure |
+| 429 | Rate limit (30/min post, 60/min react) |

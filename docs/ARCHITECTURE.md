@@ -1,164 +1,161 @@
-# Architecture — Browser Broadcast Module
+# Sprint 15 Architecture
 
-## High-level data flow
-
-```
-┌─────────────────┐    POST /browser-session    ┌─────────────────────┐
-│                 │ ──────────────────────────► │                     │
-│  Streamer       │                             │  Laravel (port 8001)│
-│  browser        │ ◄────────────────────────── │                     │
-│  (Angular 17+)  │   { whip_url, playback_url, │                     │
-│                 │     watch_url, expires_at } │                     │
-└─────────────────┘                             └─────────────────────┘
-        │                                                   │
-        │ getUserMedia / getDisplayMedia                    │ Mux API
-        │                                                   │ (HTTP)
-        │ WHIP POST SDP offer                               │
-        │                                                   ▼
-        │   ──────────────────────────────────► ┌─────────────────────┐
-        │       (WebRTC over UDP)                │  Mux Live           │
-        │                                        │  - Creates stream   │
-        │                                        │  - Sets simulcast   │
-        │                                        │  - Receives WHIP    │
-        │                                        │  - Transcodes       │
-        │                                        │  - Pushes RTMP      │
-        │                                        └─────────────────────┘
-        │                                                   │
-        │                                                   │ rtmp://a.rtmp.youtube.com/live2
-        │                                                   ▼
-        │                                        ┌─────────────────────┐
-        │ Webhook (Mux-Signature header)         │  YouTube Live       │
-        │                                        │  (Dawri channel)    │
-┌─────────────────────┐ ◄────────────────────── └─────────────────────┘
-│  Laravel webhook    │
-│  (verifies HMAC →   │
-│   updates status)   │
-└─────────────────────┘
-```
-
-## Decision log
-
-### Why Mux and not Cloudflare Stream Live?
-
-- Mux has a free **test-stream** tier — perfect for development on XAMPP locally
-- Mux gives $20 in production credits on signup — covers ~6 free production matches
-- Both charge `$0.020/min` for YouTube simulcast (no difference there)
-- Mux API is more developer-friendly (better webhooks, cleaner SDK shape)
-- The architecture is pluggable — see "Bridge swap" below
-
-### Why WHIP and not WebSocket-tunneled RTMP?
-
-- WHIP is an IETF standard (draft-ietf-wish-whip) supported natively by Mux, Cloudflare, OvenMediaEngine, AWS IVS
-- One HTTP POST handshake → done. No long-lived custom WebSocket protocol to maintain
-- WebRTC's transport (UDP + congestion control) is purpose-built for live media; raw WebSocket+MediaRecorder buffers in ways that hurt latency
-
-### Why per-broadcast Mux Live Streams (not reused)?
-
-- Stream keys are sensitive — a leaked key from one match shouldn't compromise future matches
-- Mux test streams have a 10-minute hard runtime cap; production streams in idle mode don't bill but accumulate clutter
-- Cleanup (`deleteLiveStream`) is part of the natural broadcast-end flow
-
-### Why service-layer authorization (not policy classes)?
-
-- Authorization here depends on transient state (does the tournament have an active broadcast? is the streamer the right organizer for *this* tournament?) which Laravel Policies handle awkwardly
-- The check is a single `if` in `BrowserBroadcastService::authorize()` — moving it to a Policy adds files without adding clarity
-- Tests can mock the service directly without Gate facade fiddling
-
-### Why no `whip_token` (always `null` in responses)?
-
-- Mux's WHIP endpoint embeds the auth token in the URL path: `https://global-live.mux.com/api/v1/whip/{stream_key}`
-- A separate Bearer header would be redundant
-- The DTO field exists because future bridges (ffmpeg, Cloudflare) may use Bearer auth, and the frontend already handles both shapes
-
-### Why `webhook_secret = ''` ⇒ reject all webhooks?
-
-- Defense-in-depth: if someone misconfigures the env and an attacker discovers the webhook URL, they cannot inject fake "stream went live" events to manipulate Dawri's UI
-- The fail-safe is "deny by default"
-
-## Bridge swap procedure (cost optimization later)
-
-Step 1 — Implement `FfmpegBridge implements StreamingBridgeInterface`:
-
-```php
-final class FfmpegBridge implements StreamingBridgeInterface
-{
-    public function createSession(LiveBroadcast $broadcast): BrowserBroadcastSession
-    {
-        // 1. Spawn an ffmpeg process subscribed to a unique WebSocket URL
-        // 2. Return a WhipServer-on-Laravel URL that bridges to that process
-        // ...
-    }
-    public function endSession(LiveBroadcast $broadcast): void { /* kill -TERM the process */ }
-    public function verifyWebhookSignature(...) { return true; /* no webhooks needed */ }
-    public function providerName(): string { return 'ffmpeg'; }
-}
-```
-
-Step 2 — Change one line in `StreamingBridgeServiceProvider::register()`:
-
-```php
-// BEFORE
-$this->app->singleton(StreamingBridgeInterface::class, fn () => $app->make(MuxBridge::class));
-
-// AFTER
-$this->app->singleton(StreamingBridgeInterface::class, fn () => $app->make(FfmpegBridge::class));
-```
-
-Nothing in `BrowserBroadcastService`, the controller, the FormRequest,
-the Resource, or any frontend code changes. The streamer's UX is
-identical.
-
-## State machine (frontend)
+## Data flow — posting a message
 
 ```
-   idle
-    │  (modeSelected)
-    ▼
- requesting ──── (CaptureError) ────► error
-    │                                  ▲
-    │  (stream resolved)               │
-    ▼                                  │
- capturing ─────── (cancel) ───────────┤
-    │                                  │
-    │  (Go Live)                       │
-    ▼                                  │
- publishing ───── (WhipError) ─────────┤
-    │                                  │
-    │  (WebRTC connected)              │
-    ▼                                  │
-   live ────────── (Stop) ──────────►  │
-    │                                  │
-    ▼                                  │
- stopping ─────► idle ◄────────────────┘
+Browser
+  │
+  │  POST /api/v1/channels/{id}/messages   { content }
+  ▼
+Routes (api.community.php)
+  │  throttle: 30/min · auth:sanctum
+  ▼
+MessageController::store
+  │  validates SendMessageRequest
+  ▼
+MessageService::post                              ← business logic lives here
+  ├─ assertCanPost (member?, banned?, muted?, announcement?)
+  ├─ sanitize content
+  ├─ extract @mentions  (regex → User::query)
+  ├─ DB::transaction
+  │   ├─ MessageRepository::create
+  │   └─ MessageMention::insert (bulk)
+  └─ DB::afterCommit
+      ├─ broadcast(MessagePosted) → Reverb presence channel
+      └─ Notification::send(UserMentionedNotification) → DB channel
+                                                    (Sprint 12 inbox)
 ```
 
-## Database extensions
+Key principles:
 
-| Column | Type | Why |
+- **Service is the only writer.** Controllers do auth + delegation only.
+- **Repository handles data access.** Pure query logic. Easily mocked in tests.
+- **`DB::afterCommit` for side-effects.** A rollback can never leak a notification or broadcast.
+- **`->toOthers()` on broadcasts.** The poster's own client already shows the optimistic update; Reverb skips them.
+
+---
+
+## Database schema
+
+```
+communities                        channels
+  id (uuid PK)                       id (uuid PK)
+  type (global|tournament)           community_id (FK → communities)
+  tournament_id (FK nullable)        name, topic, type, position
+  name, slug (unique), description   is_archived
+  is_active, archived_at
+                                   messages
+community_members                    id (uuid PK)
+  community_id ─┐                    channel_id (FK → channels)
+  user_id      ─┘ composite PK       user_id (FK → users)
+  role (owner|admin|mod|member)      parent_id (FK → messages, future threads)
+  muted_until, banned_at             content, edited_at
+                                     deleted_at, deleted_by (soft delete)
+                                     is_pinned, pinned_at, pinned_by
+
+message_reactions                  message_mentions
+  id (uuid PK)                       id (uuid PK)
+  message_id (FK)                    message_id (FK)
+  user_id (FK)                       mentioned_user_id (FK)
+  emoji
+  UNIQUE(message_id, user_id, emoji) UNIQUE(message_id, mentioned_user_id)
+
+channel_reads                      user_presence
+  user_id ─┐                         user_id (PK)
+  channel_id ─┘ composite PK         status (online|idle|offline)
+  last_read_message_id               last_seen_at
+  last_read_at
+```
+
+Key indexes:
+- `messages_channel_feed_idx (channel_id, deleted_at, created_at)` — supports the main feed query
+- `mentions_unique_idx (message_id, mentioned_user_id)` — supports inbox
+- `community_members.user_id, banned_at` — supports "communities I belong to" listing
+
+---
+
+## Broadcasting channels
+
+| Channel | Type | Purpose | Auth |
+|---|---|---|---|
+| `community.channel.{channelId}` | Presence | New / edited / deleted messages + reactions for this text channel | Member of channel's community + not banned |
+| `user.{userId}` | Private | Mute / ban events targeting this user | `$user->id === $userId` |
+
+Events fired:
+
+| Event | Channel | Wire name |
 |---|---|---|
-| `bridge_provider` | `string(32)` | Trace which bridge served each broadcast even after swap |
-| `mux_stream_id` | `string(64)` | Webhook lookup key + cleanup target |
-| `mux_playback_id` | `string(64)` | Compose HLS URL for in-Dawri preview |
-| `mux_simulcast_target_id` | `string(64)` | Optional explicit removal (currently we delete the parent stream) |
-| `whip_url` | `string(500)` | Cached for status views — avoids recomposing if Mux changes URL format |
+| `MessagePosted` | `community.channel.{id}` | `message.posted` |
+| `MessageEdited` | `community.channel.{id}` | `message.edited` |
+| `MessageDeleted` | `community.channel.{id}` | `message.deleted` |
+| `ReactionAdded` | `community.channel.{id}` | `reaction.added` |
+| `ReactionRemoved` | `community.channel.{id}` | `reaction.removed` |
+| `UserMutedInCommunity` | `user.{id}` | `moderation.muted` |
+| `UserBannedFromCommunity` | `user.{id}` | `moderation.banned` |
 
-Indexed: `mux_stream_id` (for webhook handler `findByMuxStreamId()`).
+---
 
-## Security posture
+## Authorization matrix
 
-- All POST/DELETE endpoints behind `auth:sanctum`
-- Service-layer authorization rejects players (brand safety on Dawri's official channel)
-- Webhook signature verified via HMAC-SHA256 with 5-minute timestamp tolerance
-- WHIP URL contains a single-broadcast stream key, rotated on every session
-- No Mux secrets ever leave the backend — frontend gets only the public WHIP URL
-- `MUX_TEST_MODE=true` default prevents accidental production billing during development
-- All env-driven; no hardcoded credentials anywhere in source
+|                                | Member | Moderator | Admin | Owner |
+|--------------------------------|:------:|:---------:|:-----:|:-----:|
+| Post in text channel           | ✅     | ✅        | ✅    | ✅    |
+| Post in announcement channel   | ❌     | ✅        | ✅    | ✅    |
+| Edit own message (≤15 min)     | ✅     | ✅        | ✅    | ✅    |
+| Delete own message             | ✅     | ✅        | ✅    | ✅    |
+| Delete any message             | ❌     | ✅        | ✅    | ✅    |
+| Pin / unpin message            | ❌     | ✅        | ✅    | ✅    |
+| Mute member                    | ❌     | ✅        | ✅    | ✅    |
+| Ban member                     | ❌     | ✅        | ✅    | ✅    |
+| Mute / ban moderator           | ❌     | ❌        | ✅    | ✅    |
+| Create / edit / archive channel| ❌     | ❌        | ✅    | ✅    |
+| Be modded (target of action)   | ✅     | ❌ by mod | ❌ by mod | ❌ |
 
-## Performance
+Owners are immune from moderation by anyone except the platform admin (system role).
 
-| Metric | Target | Actual |
-|---|---|---|
-| Time-to-live (click → on YouTube) | <10 s | ~6 s |
-| End-to-end latency | <5 s | ~3 s (Mux low-latency mode) |
-| Concurrent broadcasts (limited by) | Mux plan + YouTube channel quotas | n/a |
-| Backend overhead per session open | <500 ms | ~200 ms (1 Mux API call + 1 DB write) |
+---
+
+## Tournament integration
+
+`TournamentObserver` (registered in `CommunityServiceProvider::boot`):
+
+```
+Tournament::created    → CommunityService::ensureTournamentCommunity
+                          ├─ creates community (type=tournament, tournament_id=t.id)
+                          ├─ creates 3 default channels (#general, #matches, #rules)
+                          └─ adds organizer as 'owner'
+
+Tournament::updated    → if status === 'completed'
+                          → CommunityService::archiveTournamentCommunity
+                              ├─ archived_at = now()
+                              └─ is_active = false
+```
+
+When a user registers for a tournament (existing `TournamentRegistrationService`), call:
+```php
+$communityService->joinTournamentCommunity($tournament, $user);
+```
+See INTEGRATION.md step 8 for the exact hook point.
+
+---
+
+## State management (frontend)
+
+```
+ReverbConnectionService               CommunityStateService (Angular signals)
+  init() once after login              ├─ communities[]
+  subscribeToChannel(id)               ├─ channelsByCommunity{}
+  on event → state.onMessagePosted()   ├─ messagesByChannel{}
+                                        ├─ membersByCommunity{}
+                                        └─ presenceByUser{}
+                                                │
+                       ┌────────────────────────┴────────────────────────┐
+                       ▼                                                 ▼
+              CommunityShellComponent                      ChannelViewComponent
+              (3-pane layout)                              (message panel)
+                       │                                                 │
+                       ▼                                                 ▼
+              ServerSidebar · ChannelList                MessageList · MessageComposer · MemberList
+```
+
+All components are **standalone** with `OnPush` change detection. Mutations go through the state service which updates signals; the templates re-render automatically.
