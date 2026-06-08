@@ -41,7 +41,7 @@ export class ReverbConnectionService {
 
     this.echo = new Echo({
       broadcaster: 'reverb',
-      key:    'app-key',           // matches REVERB_APP_KEY in .env
+      key:    'chqtxmkwrfl1idgytd3e',   // matches REVERB_APP_KEY in backend .env
       wsHost: 'localhost',
       wsPort: 8080,
       forceTLS: false,
