@@ -86,7 +86,7 @@ export interface UploadResult {
 @Injectable({ providedIn: 'root' })
 export class InventoryService {
   private http = inject(HttpClient);
-  private base = 'http://localhost:8001/api/v1/admin/marketplace';
+  private base = 'http://192.168.100.67:8001/api/v1/admin/marketplace';
 
   /** GET — overview (product meta + stock + recent batches). */
   overview(productId: string): Observable<{ data: InventoryOverview }> {

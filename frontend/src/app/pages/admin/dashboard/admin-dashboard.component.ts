@@ -91,7 +91,7 @@ declare const Chart: any; // loaded from CDN — see ngAfterViewInit
 export class AdminDashboardComponent implements OnInit, AfterViewInit {
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
-  private base = 'http://localhost:8001/api/v1/admin/dashboard';
+  private base = 'http://192.168.100.67:8001/api/v1/admin/dashboard';
 
   readonly payload = signal<DashboardPayload | null>(null);
   readonly loading = signal(false);

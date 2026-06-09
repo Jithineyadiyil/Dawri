@@ -167,7 +167,7 @@ interface CredentialFormShape {
 })
 export class AdminMarketplaceComponent implements OnInit {
   private http = inject(HttpClient);
-  private base = 'http://localhost:8001/api/v1/admin/marketplace';
+  private base = 'http://192.168.100.67:8001/api/v1/admin/marketplace';
 
   readonly tab = signal<'dashboard' | 'products' | 'orders' | 'distributors'>('dashboard');
 

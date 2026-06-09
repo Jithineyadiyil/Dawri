@@ -65,7 +65,7 @@ interface FormShape {
 export class AdminPlatformSponsorsComponent implements OnInit {
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
-  private base = 'http://localhost:8001/api/v1/admin/platform-sponsorships';
+  private base = 'http://192.168.100.67:8001/api/v1/admin/platform-sponsorships';
 
   readonly rows    = signal<PlatformSponsorshipRow[]>([]);
   readonly catalog = signal<SponsorCatalogItem[]>([]);

@@ -41,7 +41,7 @@ export interface VatPayload {
 export class VatReportComponent implements OnInit {
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
-  private base = 'http://localhost:8001/api/v1/admin/finance';
+  private base = 'http://192.168.100.67:8001/api/v1/admin/finance';
 
   readonly payload = signal<VatPayload | null>(null);
   readonly loading = signal(false);
