@@ -48,7 +48,7 @@ declare const Chart: any;
 export class RevenueReportComponent implements OnInit, AfterViewInit {
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
-  private base = 'http://localhost:8001/api/v1/admin/finance';
+  private base = 'http://192.168.100.67:8001/api/v1/admin/finance';
   private readonly CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
 
   readonly payload = signal<RevenuePayload | null>(null);

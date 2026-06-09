@@ -83,7 +83,7 @@ declare const Chart: any;
 export class SubscriptionsDashboardComponent implements OnInit, AfterViewInit, OnChanges {
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
-  private base = 'http://localhost:8001/api/v1/admin/subscriptions/dashboard';
+  private base = 'http://192.168.100.67:8001/api/v1/admin/subscriptions/dashboard';
 
   @Input() isActive = true;
 

@@ -22,7 +22,7 @@ interface ApiEnvelope<T> { data: T; }
 @Injectable({ providedIn: 'root' })
 export class CommunityService {
   private readonly http = inject(HttpClient);
-  private readonly base = 'http://localhost:8001/api/v1';
+  private readonly base = 'http://192.168.100.67:8001/api/v1';
 
   // ── Communities ────────────────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../core/services/auth.service';
 
-const API = 'http://localhost:8001/api/v1';
+const API = 'http://192.168.100.67:8001/api/v1';
 
 /** Tournament chip on the calendar. */
 export interface CalendarEvent {

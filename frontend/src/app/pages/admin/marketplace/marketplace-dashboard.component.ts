@@ -87,7 +87,7 @@ declare const Chart: any;
 export class MarketplaceDashboardComponent implements OnInit, AfterViewInit, OnChanges {
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
-  private base = 'http://localhost:8001/api/v1/admin/marketplace/dashboard';
+  private base = 'http://192.168.100.67:8001/api/v1/admin/marketplace/dashboard';
 
   /** Parent sets this to true only when Dashboard tab is active. */
   @Input() isActive = true;

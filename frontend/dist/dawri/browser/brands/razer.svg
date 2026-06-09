@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Razer">
+  <rect width="120" height="120" rx="18" fill="#0a0a0a"/>
+  <path d="M40 40 L60 58 L40 76 L60 76 L80 58 L60 40 Z" fill="#44d62c"/>
+  <path d="M40 76 L52 90 L58 80 Z M80 76 L92 90 L86 80 Z" fill="#44d62c"/>
+  <text x="60" y="110" font-family="Arial, sans-serif" font-size="11" font-weight="900"
+        letter-spacing="3" text-anchor="middle" fill="#44d62c">RAZER</text>
+</svg>

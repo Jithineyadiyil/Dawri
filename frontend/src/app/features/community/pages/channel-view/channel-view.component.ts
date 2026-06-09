@@ -4,7 +4,7 @@
  * Hydrates messages when the route channelId changes, subscribes to the
  * Reverb presence channel, and unsubscribes on teardown.
  */
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnDestroy, OnInit, computed, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -62,13 +62,14 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly state  = inject(CommunityStateService);
   private readonly reverb = inject(ReverbConnectionService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly channel = this.state.activeChannel;
   private subscribedChannelId: string | null = null;
 
   ngOnInit(): void {
     this.route.paramMap
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(params => this.resolveChannel(params.get('slug'), params.get('channelId')));
   }
 

@@ -32,6 +32,9 @@ import { NotificationBellComponent } from '../../../components/notification-bell
         <a routerLink="/leaderboard" routerLinkActive="active" class="nav-link">Leaderboard</a>
         <a routerLink="/sponsors"    routerLinkActive="active" class="nav-link">Partners</a>
         <a routerLink="/pricing" routerLinkActive="active" class="nav-link">Pricing</a>
+        @if (auth.isLoggedIn()) {
+          <a routerLink="/community" routerLinkActive="active" class="nav-link">Community</a>
+        }
       </div>
 
       <div class="nav-actions">
@@ -78,6 +81,7 @@ import { NotificationBellComponent } from '../../../components/notification-bell
         @if (auth.isLoggedIn()) {
           <a routerLink="/dashboard" class="drawer-link">Dashboard</a>
           <a routerLink="/calendar" class="drawer-link">Calendar</a>
+          <a routerLink="/community" class="drawer-link">Community</a>
           <a routerLink="/profile" class="drawer-link drawer-link--profile">
             <span class="drawer-avatar">
               @if (auth.currentUser()?.avatar_url; as url) {

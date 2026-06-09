@@ -22,7 +22,8 @@ import { ReactionPickerComponent } from '../reaction-picker/reaction-picker.comp
         (close)="pickerOpen.set(false)"
       />
       <textarea
-        [(ngModel)]="content"
+        [ngModel]="content()"
+        (ngModelChange)="content.set($event)"
         (keydown)="onKey($event)"
         [disabled]="!canPost() || isPosting()"
         [placeholder]="placeholder()"
@@ -65,7 +66,7 @@ import { ReactionPickerComponent } from '../reaction-picker/reaction-picker.comp
 export class MessageComposerComponent {
   private readonly state = inject(CommunityStateService);
 
-  content = '';
+  content = signal('');
   readonly pickerOpen = signal(false);
   readonly isPosting  = this.state.isPosting;
 
@@ -80,7 +81,7 @@ export class MessageComposerComponent {
     return !!c && !c.is_archived;
   });
 
-  readonly canSend = computed(() => this.canPost() && this.content.trim().length > 0 && !this.isPosting());
+  readonly canSend = computed(() => this.canPost() && this.content().trim().length > 0 && !this.isPosting());
 
   onKey(ev: KeyboardEvent): void {
     if (ev.key === 'Enter' && !ev.shiftKey) {
@@ -93,8 +94,8 @@ export class MessageComposerComponent {
     if (!this.canSend()) return;
     const channelId = this.state.activeChannelId();
     if (!channelId) return;
-    this.state.post(channelId, this.content.trim());
-    this.content = '';
+    this.state.post(channelId, this.content().trim());
+    this.content.set('');
   }
 
   togglePicker(): void {
@@ -102,7 +103,7 @@ export class MessageComposerComponent {
   }
 
   insertEmoji(emoji: string): void {
-    this.content += emoji;
+    this.content.update(c => c + emoji);
     this.pickerOpen.set(false);
   }
 }

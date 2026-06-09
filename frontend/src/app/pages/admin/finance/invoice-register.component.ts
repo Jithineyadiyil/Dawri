@@ -53,7 +53,7 @@ export interface InvoicePayload {
 export class InvoiceRegisterComponent implements OnInit {
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
-  private base = 'http://localhost:8001/api/v1/admin/finance';
+  private base = 'http://192.168.100.67:8001/api/v1/admin/finance';
 
   readonly payload = signal<InvoicePayload | null>(null);
   readonly loading = signal(false);
@@ -146,7 +146,7 @@ export class InvoiceRegisterComponent implements OnInit {
    * bearer header.
    */
   downloadInvoicePdf(invoiceId: string): void {
-    const base = 'http://localhost:8001/api/v1/admin/finance/invoices';
+    const base = 'http://192.168.100.67:8001/api/v1/admin/finance/invoices';
     const token = localStorage.getItem('dawri_token');
     const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
     window.open(`${base}/${invoiceId}.pdf${tokenParam}`, '_blank');

@@ -42,11 +42,11 @@ export class ReverbConnectionService {
     this.echo = new Echo({
       broadcaster: 'reverb',
       key:    'chqtxmkwrfl1idgytd3e',   // matches REVERB_APP_KEY in backend .env
-      wsHost: 'localhost',
+      wsHost: '192.168.100.67',
       wsPort: 8080,
       forceTLS: false,
       enabledTransports: ['ws'],
-      authEndpoint: 'http://localhost:8001/broadcasting/auth',
+      authEndpoint: 'http://192.168.100.67:8001/broadcasting/auth',
       auth: {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('dawri_token') ?? ''}`,

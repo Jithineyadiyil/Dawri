@@ -10,7 +10,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { BrandingService } from '../../../core/services/branding.service';
 import { ToastService } from '../../../core/services/toast.service';
 
-const API = 'http://localhost:8001/api/v1';
+const API = 'http://192.168.100.67:8001/api/v1';
 
 interface CompanyBrandingDto {
   id: string;

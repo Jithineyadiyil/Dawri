@@ -6,7 +6,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angula
 import { HttpClient } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
 
-const API = 'http://localhost:8001/api/v1';
+const API = 'http://192.168.100.67:8001/api/v1';
 
 interface Game {
   id: number; key: string; name: string; name_ar: string | null;

@@ -15,7 +15,7 @@ import {
  * Endpoint conventions (mirror Sprint 4 services):
  *   - All responses use `{ data: ... }` envelope
  *   - Auth handled globally by the `authInterceptor` (`dawri_token`)
- *   - Base URL comes from `environment.apiUrl` (e.g. http://localhost:8001/api/v1)
+ *   - Base URL comes from `environment.apiUrl` (e.g. http://192.168.100.67:8001/api/v1)
  *
  * Method naming:
  *   createForMatch / createForTournament — start a new broadcast
