@@ -30,7 +30,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
-
+$middleware->validateCsrfTokens(except: [
+        'api/*',
+    ]);
         $middleware->alias([
             'admin'              => \App\Http\Middleware\EnsureAdmin::class,
             'subscription'       => \App\Http\Middleware\CheckSubscription::class,
