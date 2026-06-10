@@ -46,12 +46,36 @@ export class ReverbConnectionService {
       wsPort: 8080,
       forceTLS: false,
       enabledTransports: ['ws'],
-      authEndpoint: 'http://192.168.100.67:8001/broadcasting/auth',
-      auth: {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('dawri_token') ?? ''}`,
+      // Custom authorizer: builds the /broadcasting/auth request per channel
+      // subscription and reads the bearer token FRESH each time. This avoids
+      // the bug where a token captured once at init() (possibly empty if init
+      // ran before login) is reused for the whole session, causing 403s on
+      // presence channel auth.
+      authorizer: (channel: any) => ({
+        authorize: (socketId: string, callback: (error: Error | null, data: any) => void) => {
+          const token = localStorage.getItem('dawri_token') ?? '';
+          fetch('http://192.168.100.67:8001/broadcasting/auth', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              socket_id: socketId,
+              channel_name: channel.name,
+            }),
+          })
+            .then(res => {
+              if (!res.ok) {
+                callback(new Error(`Auth failed: ${res.status}`), null);
+                return;
+              }
+              return res.json().then(data => callback(null, data));
+            })
+            .catch(err => callback(err instanceof Error ? err : new Error(String(err)), null));
         },
-      },
+      }),
     });
   }
 
@@ -61,6 +85,9 @@ export class ReverbConnectionService {
     this.subscribedChannelIds.add(channelId);
 
     this.echo.join(`community.channel.${channelId}`)
+      .here((members: Array<{ id: string }>) => this.state.presenceHere(members ?? []))
+      .joining((member: { id: string }) => this.state.presenceJoin(member))
+      .leaving((member: { id: string }) => this.state.presenceLeave(member))
       .listen('.message.posted',  (e: MessagePostedEvent)  => this.state.onMessagePosted(e.message))
       .listen('.message.edited',  (e: MessageEditedEvent)  => this.state.onMessageEdited(e.message))
       .listen('.message.deleted', (e: MessageDeletedEvent) =>

@@ -28,9 +28,15 @@ final class MessageRepository implements MessageRepositoryInterface
         return $this->model->visible()
             ->where('channel_id', $channelId)
             ->with([
-                'author:id,nickname,avatar,role',
+                'author:id,name,nickname,avatar,role',
                 'reactions:id,message_id,user_id,emoji',
                 'mentions:id,message_id,mentioned_user_id',
+                'parent:id,user_id,content,deleted_at',
+                'parent.author:id,name,nickname',
+                'poll.author:id,name,nickname',
+                'poll.options' => fn ($q) => $q->withCount('votes')->orderBy('position'),
+                'poll.votes:id,poll_id,option_id,user_id',
+                'attachments',
             ])
             ->orderByDesc('created_at')
             ->orderByDesc('id') // tie-breaker for stable cursor
@@ -42,7 +48,7 @@ final class MessageRepository implements MessageRepositoryInterface
         return $this->model->visible()
             ->where('channel_id', $channelId)
             ->where('is_pinned', true)
-            ->with('author:id,nickname,avatar')
+            ->with('author:id,name,nickname,avatar')
             ->orderByDesc('pinned_at')
             ->get();
     }

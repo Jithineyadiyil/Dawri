@@ -43,7 +43,7 @@ final class CommunityMemberRepository implements CommunityMemberRepositoryInterf
         return $this->model
             ->where('community_id', $communityId)
             ->whereNull('banned_at')
-            ->with('user:id,nickname,avatar,role')
+            ->with('user:id,name,nickname,avatar,role')
             ->when($search, fn ($q, $s) => $q->whereHas('user', fn ($u) => $u
                 ->where('nickname', 'like', "%{$s}%")))
             ->orderByRaw("FIELD(role, 'owner', 'admin', 'moderator', 'member')")

@@ -27,6 +27,7 @@ final class ModerationService
 
     public function __construct(
         private readonly CommunityMemberRepositoryInterface $members,
+        private readonly AuditService $audit,
     ) {
     }
 
@@ -48,6 +49,11 @@ final class ModerationService
 
         $until = now()->addMinutes($minutes);
         $updated = $this->members->mute($member, $until);
+
+        $this->audit->record($community->id, $actor->id, 'mute', $target->id, [
+            'minutes' => $minutes,
+            'reason'  => $reason,
+        ]);
 
         DB::afterCommit(fn () => broadcast(new UserMutedInCommunity(
             communityId: $community->id,
@@ -71,6 +77,8 @@ final class ModerationService
             throw new AuthorizationException('Target is not a member of this community.');
         }
 
+        $this->audit->record($community->id, $actor->id, 'unmute', $target->id);
+
         return $this->members->mute($member, now()->subSecond());
     }
 
@@ -92,6 +100,10 @@ final class ModerationService
 
         $updated = $this->members->ban($member, $reason, $actor->id);
 
+        $this->audit->record($community->id, $actor->id, 'ban', $target->id, [
+            'reason' => $reason,
+        ]);
+
         DB::afterCommit(fn () => broadcast(new UserBannedFromCommunity(
             communityId: $community->id,
             userId: $target->id,
@@ -112,6 +124,8 @@ final class ModerationService
         if ($member === null) {
             throw new AuthorizationException('Target is not a member of this community.');
         }
+
+        $this->audit->record($community->id, $actor->id, 'unban', $target->id);
 
         return $this->members->unban($member);
     }

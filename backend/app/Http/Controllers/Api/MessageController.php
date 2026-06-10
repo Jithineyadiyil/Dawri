@@ -76,7 +76,12 @@ final class MessageController extends Controller
     public function store(SendMessageRequest $request, Channel $channel): JsonResponse
     {
         try {
-            $msg = $this->messages->post($channel, $request->user(), $request->string('content')->toString());
+            $msg = $this->messages->post(
+                $channel,
+                $request->user(),
+                $request->string('content')->toString(),
+                $request->input('parent_id'),
+            );
         } catch (AuthorizationException $e) {
             return response()->json(['message' => $e->getMessage()], Response::HTTP_FORBIDDEN);
         }

@@ -55,6 +55,7 @@ final class Message extends Model
         'channel_id',
         'user_id',
         'parent_id',
+        'poll_id',
         'content',
         'edited_at',
         'is_pinned',
@@ -79,6 +80,30 @@ final class Message extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /** The message this one is replying to, if any. */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /** Direct replies to this message. */
+    public function replies(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
+    /** An attached poll, if this message carries one. */
+    public function poll(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Poll::class, 'poll_id');
+    }
+
+    /** Image attachments on this message, ordered for display. */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(MessageAttachment::class)->orderBy('position');
     }
 
     /** @return HasMany<MessageReaction> */

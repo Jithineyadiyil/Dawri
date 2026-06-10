@@ -19,7 +19,7 @@ final class CommunityMemberResource extends JsonResource
             'community_id' => $this->community_id,
             'user'         => [
                 'id'       => $this->user->id ?? $this->user_id,
-                'nickname' => $this->user->nickname ?? null,
+                'nickname' => $this->user->display_name ?? $this->user->nickname ?? null,
                 'avatar'   => $this->user->avatar_url ?? $this->user->avatar ?? null,
             ],
             'role'         => $this->role,

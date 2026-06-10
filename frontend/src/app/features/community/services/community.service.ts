@@ -11,10 +11,20 @@ import { Observable, map } from 'rxjs';
 import {
   Channel,
   Community,
+  CommunityEvent,
+  CommunityInvite,
   CommunityMember,
+  JoinPolicy,
+  JoinRequest,
+  JoinResult,
+  AuditEntry,
+  BlockedWord,
+  WordMode,
   MembersResponse,
   Message,
   PaginatedMessages,
+  Poll,
+  RsvpStatus,
 } from '../models/community.model';
 
 interface ApiEnvelope<T> { data: T; }
@@ -52,10 +62,11 @@ export class CommunityService {
   }
 
   moderate(communityId: string, payload: {
-    action: 'mute' | 'unmute' | 'ban' | 'unban';
+    action: 'mute' | 'unmute' | 'ban' | 'unban' | 'kick' | 'set_role';
     user_id: string;
     minutes?: number;
     reason?: string;
+    role?: 'admin' | 'moderator' | 'member';
   }): Observable<CommunityMember> {
     return this.http.post<ApiEnvelope<CommunityMember>>(
       `${this.base}/communities/${communityId}/moderate`, payload
@@ -102,8 +113,10 @@ export class CommunityService {
       .pipe(map(r => r.data));
   }
 
-  post(channelId: string, content: string): Observable<Message> {
-    return this.http.post<ApiEnvelope<Message>>(`${this.base}/channels/${channelId}/messages`, { content })
+  post(channelId: string, content: string, parentId?: string | null): Observable<Message> {
+    const body: { content: string; parent_id?: string } = { content };
+    if (parentId) { body.parent_id = parentId; }
+    return this.http.post<ApiEnvelope<Message>>(`${this.base}/channels/${channelId}/messages`, body)
       .pipe(map(r => r.data));
   }
 
@@ -132,5 +145,164 @@ export class CommunityService {
 
   unreact(messageId: string, emoji: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`);
+  }
+
+  // ── Polls ──────────────────────────────────────────────────────────────────
+
+  listPolls(channelId: string): Observable<Poll[]> {
+    return this.http.get<ApiEnvelope<Poll[]>>(`${this.base}/channels/${channelId}/polls`)
+      .pipe(map(r => r.data));
+  }
+
+  createPoll(channelId: string, payload: {
+    question: string;
+    options: string[];
+    is_multiple?: boolean;
+    closes_at?: string | null;
+  }): Observable<Poll> {
+    return this.http.post<ApiEnvelope<Poll>>(`${this.base}/channels/${channelId}/polls`, payload)
+      .pipe(map(r => r.data));
+  }
+
+  votePoll(pollId: string, optionId: string): Observable<Poll> {
+    return this.http.post<ApiEnvelope<Poll>>(`${this.base}/polls/${pollId}/vote`, { option_id: optionId })
+      .pipe(map(r => r.data));
+  }
+
+  closePoll(pollId: string): Observable<Poll> {
+    return this.http.post<ApiEnvelope<Poll>>(`${this.base}/polls/${pollId}/close`, {})
+      .pipe(map(r => r.data));
+  }
+
+  deletePoll(pollId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/polls/${pollId}`);
+  }
+
+  // ── Attachments (Phase 3) ────────────────────────────────────────────────
+
+  /**
+   * Upload one or more images into a channel. The server creates a single
+   * message carrying the images and returns it (so it renders inline).
+   */
+  uploadImages(channelId: string, files: File[], caption?: string): Observable<Message> {
+    const form = new FormData();
+    for (const f of files) {
+      form.append('images[]', f, f.name);
+    }
+    if (caption && caption.trim().length > 0) {
+      form.append('caption', caption.trim());
+    }
+    return this.http.post<ApiEnvelope<Message>>(`${this.base}/channels/${channelId}/attachments`, form)
+      .pipe(map(r => r.data));
+  }
+
+  // ── Events (Phase 4) ─────────────────────────────────────────────────────
+
+  listEvents(communityId: string, includePast = false): Observable<CommunityEvent[]> {
+    const url = `${this.base}/communities/${communityId}/events${includePast ? '?past=1' : ''}`;
+    return this.http.get<ApiEnvelope<CommunityEvent[]>>(url).pipe(map(r => r.data));
+  }
+
+  createEvent(communityId: string, payload: {
+    title: string;
+    description?: string | null;
+    location?: string | null;
+    starts_at: string;
+    ends_at?: string | null;
+  }): Observable<CommunityEvent> {
+    return this.http.post<ApiEnvelope<CommunityEvent>>(`${this.base}/communities/${communityId}/events`, payload)
+      .pipe(map(r => r.data));
+  }
+
+  rsvpEvent(eventId: string, status: RsvpStatus): Observable<CommunityEvent> {
+    return this.http.post<ApiEnvelope<CommunityEvent>>(`${this.base}/events/${eventId}/rsvp`, { status })
+      .pipe(map(r => r.data));
+  }
+
+  cancelEvent(eventId: string): Observable<CommunityEvent> {
+    return this.http.post<ApiEnvelope<CommunityEvent>>(`${this.base}/events/${eventId}/cancel`, {})
+      .pipe(map(r => r.data));
+  }
+
+  deleteEvent(eventId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/events/${eventId}`);
+  }
+
+  // ── Join flow (Phase 5) ────────────────────────────────────────────────────
+
+  setJoinPolicy(communityId: string, policy: JoinPolicy): Observable<JoinPolicy> {
+    return this.http.patch<ApiEnvelope<{ join_policy: JoinPolicy }>>(
+      `${this.base}/communities/${communityId}/join-policy`, { join_policy: policy }
+    ).pipe(map(r => r.data.join_policy));
+  }
+
+  listInvites(communityId: string): Observable<CommunityInvite[]> {
+    return this.http.get<ApiEnvelope<CommunityInvite[]>>(`${this.base}/communities/${communityId}/invites`)
+      .pipe(map(r => r.data));
+  }
+
+  createInvite(communityId: string, opts: { max_uses?: number | null; expires_at?: string | null }): Observable<CommunityInvite> {
+    return this.http.post<ApiEnvelope<CommunityInvite>>(`${this.base}/communities/${communityId}/invites`, opts)
+      .pipe(map(r => r.data));
+  }
+
+  revokeInvite(inviteId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/invites/${inviteId}`);
+  }
+
+  redeemInvite(token: string): Observable<{ result: JoinResult; community_id: string; community_slug: string }> {
+    return this.http.post<ApiEnvelope<{ result: JoinResult; community_id: string; community_slug: string }>>(
+      `${this.base}/invites/${token}/redeem`, {}
+    ).pipe(map(r => r.data));
+  }
+
+  requestJoin(communityId: string, message?: string | null): Observable<JoinResult> {
+    return this.http.post<ApiEnvelope<{ result: JoinResult }>>(
+      `${this.base}/communities/${communityId}/join`, { message }
+    ).pipe(map(r => r.data.result));
+  }
+
+  listJoinRequests(communityId: string): Observable<JoinRequest[]> {
+    return this.http.get<ApiEnvelope<JoinRequest[]>>(`${this.base}/communities/${communityId}/join-requests`)
+      .pipe(map(r => r.data));
+  }
+
+  approveRequest(requestId: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/join-requests/${requestId}/approve`, {});
+  }
+
+  denyRequest(requestId: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/join-requests/${requestId}/deny`, {});
+  }
+
+  // ── Admin & safety (Phase 6) ───────────────────────────────────────────────
+
+  getRules(communityId: string): Observable<string | null> {
+    return this.http.get<ApiEnvelope<{ rules: string | null }>>(`${this.base}/communities/${communityId}/rules`)
+      .pipe(map(r => r.data.rules));
+  }
+
+  setRules(communityId: string, rules: string | null): Observable<string | null> {
+    return this.http.put<ApiEnvelope<{ rules: string | null }>>(`${this.base}/communities/${communityId}/rules`, { rules })
+      .pipe(map(r => r.data.rules));
+  }
+
+  listBlockedWords(communityId: string): Observable<BlockedWord[]> {
+    return this.http.get<ApiEnvelope<BlockedWord[]>>(`${this.base}/communities/${communityId}/blocked-words`)
+      .pipe(map(r => r.data));
+  }
+
+  addBlockedWord(communityId: string, word: string, mode: WordMode = 'block'): Observable<BlockedWord> {
+    return this.http.post<ApiEnvelope<BlockedWord>>(`${this.base}/communities/${communityId}/blocked-words`, { word, mode })
+      .pipe(map(r => r.data));
+  }
+
+  removeBlockedWord(communityId: string, wordId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/communities/${communityId}/blocked-words/${wordId}`);
+  }
+
+  getAuditLog(communityId: string): Observable<AuditEntry[]> {
+    return this.http.get<ApiEnvelope<AuditEntry[]>>(`${this.base}/communities/${communityId}/audit-log`)
+      .pipe(map(r => r.data));
   }
 }

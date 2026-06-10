@@ -37,11 +37,19 @@ final class CommunityModerationController extends Controller
         $actor  = $request->user();
 
         try {
+            // Kick removes the membership row entirely — no member to return.
+            if ($request->input('action') === 'kick') {
+                $this->moderation->kick($community, $actor, $target);
+
+                return response()->json(['message' => 'Member removed.']);
+            }
+
             $member = match ($request->input('action')) {
-                'mute'   => $this->moderation->mute($community, $actor, $target, (int) $request->input('minutes', 60), $request->input('reason')),
-                'unmute' => $this->moderation->unmute($community, $actor, $target),
-                'ban'    => $this->moderation->ban($community, $actor, $target, (string) $request->input('reason')),
-                'unban'  => $this->moderation->unban($community, $actor, $target),
+                'mute'     => $this->moderation->mute($community, $actor, $target, (int) $request->input('minutes', 60), $request->input('reason')),
+                'unmute'   => $this->moderation->unmute($community, $actor, $target),
+                'ban'      => $this->moderation->ban($community, $actor, $target, (string) $request->input('reason')),
+                'unban'    => $this->moderation->unban($community, $actor, $target),
+                'set_role' => $this->moderation->setRole($community, $actor, $target, (string) $request->input('role')),
             };
         } catch (AuthorizationException $e) {
             return response()->json(['message' => $e->getMessage()], Response::HTTP_FORBIDDEN);

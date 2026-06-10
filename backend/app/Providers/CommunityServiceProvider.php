@@ -10,10 +10,14 @@ use App\Repositories\Contracts\ChannelRepositoryInterface;
 use App\Repositories\Contracts\CommunityMemberRepositoryInterface;
 use App\Repositories\Contracts\CommunityRepositoryInterface;
 use App\Repositories\Contracts\MessageRepositoryInterface;
+use App\Repositories\Contracts\EventRepositoryInterface;
+use App\Repositories\Contracts\PollRepositoryInterface;
 use App\Repositories\Eloquent\ChannelRepository;
 use App\Repositories\Eloquent\CommunityMemberRepository;
 use App\Repositories\Eloquent\CommunityRepository;
 use App\Repositories\Eloquent\MessageRepository;
+use App\Repositories\Eloquent\EventRepository;
+use App\Repositories\Eloquent\PollRepository;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -30,6 +34,8 @@ final class CommunityServiceProvider extends ServiceProvider
         ChannelRepositoryInterface::class         => ChannelRepository::class,
         MessageRepositoryInterface::class         => MessageRepository::class,
         CommunityMemberRepositoryInterface::class => CommunityMemberRepository::class,
+        PollRepositoryInterface::class            => PollRepository::class,
+        EventRepositoryInterface::class           => EventRepository::class,
     ];
 
     public function register(): void

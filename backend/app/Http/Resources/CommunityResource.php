@@ -24,6 +24,8 @@ final class CommunityResource extends JsonResource
             'description'     => $this->description,
             'icon_url'        => $this->icon_url,
             'is_active'       => $this->is_active,
+            'join_policy'     => $this->join_policy,
+            'rules'           => $this->rules,
             'is_archived'     => $this->isArchived(),
             'archived_at'     => $this->archived_at?->toIso8601String(),
             'channels'        => ChannelResource::collection($this->whenLoaded('channels')),

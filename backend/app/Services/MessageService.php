@@ -35,6 +35,8 @@ final class MessageService
         private readonly MessageRepositoryInterface $messages,
         private readonly ChannelRepositoryInterface $channels,
         private readonly CommunityMemberRepositoryInterface $members,
+        private readonly WordFilterService $wordFilter,
+        private readonly AuditService $audit,
     ) {
     }
 
@@ -50,6 +52,21 @@ final class MessageService
         $this->assertCanPost($channel, $author);
 
         $cleanContent = $this->sanitize($content);
+
+        // Phase 6 — keyword auto-moderation. Blocked words in 'block' mode
+        // reject the message up-front; 'flag' mode allows it but is recorded to
+        // the audit log AFTER creation (so we can store the message id, enabling
+        // moderators to jump to / remove the flagged message).
+        $match = $this->wordFilter->check($channel->community_id, $cleanContent);
+        if ($match !== null && $match['mode'] === \App\Models\CommunityBlockedWord::MODE_BLOCK) {
+            throw ValidationException::withMessages([
+                'content' => 'Your message contains a word that is not allowed in this community.',
+            ]);
+        }
+        $flagWord = ($match !== null && $match['mode'] === \App\Models\CommunityBlockedWord::MODE_FLAG)
+            ? $match['word']
+            : null;
+
         $mentionedUserIds = $this->extractMentionedUserIds($cleanContent, $channel);
 
         $message = DB::transaction(function () use ($channel, $author, $cleanContent, $mentionedUserIds) {
@@ -85,6 +102,18 @@ final class MessageService
 
             return $msg;
         });
+
+        // Record the flag now that the message exists (so the audit entry can
+        // link to it for jump-to / remove).
+        if ($flagWord !== null) {
+            $this->audit->record(
+                $channel->community_id,
+                null,
+                'word_flagged',
+                $author->id,
+                ['word' => $flagWord, 'channel_id' => $channel->id, 'message_id' => $message->id],
+            );
+        }
 
         return $message->fresh(['author', 'reactions', 'mentions']);
     }
