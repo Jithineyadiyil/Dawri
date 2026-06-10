@@ -25,21 +25,21 @@ import { CommunityMember } from '../../models/community.model';
         rows="1"
       ></textarea>
       <ul class="suggestions" *ngIf="suggestions().length > 0">
-        <li *ngFor="let s of suggestions()" (click)="apply(s)">@{{ s.user.nickname }}</li>
+        <li *ngFor="let s of suggestions()" (click)="apply(s)">&#64;{{ s.user.nickname }}</li>
       </ul>
     </div>
   `,
   styles: [`
     .wrap { position: relative; flex: 1; }
-    textarea { width: 100%; padding: 0.6rem; background: #0e1428; color: #e6e8f5; border: 1px solid #1a1f3a; border-radius: 6px; resize: none; }
+    textarea { width: 100%; padding: 0.6rem; background: #0d0d17; color: #eaeaf2; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; resize: none; font-family: 'Archivo', system-ui, sans-serif; } textarea:focus { outline: none; border-color: rgba(0,255,163,0.5); box-shadow: 0 0 0 1px rgba(0,255,163,0.3); }
     .suggestions {
       position: absolute; bottom: 100%; left: 0; right: 0;
-      background: #060810; border: 1px solid #1a1f3a; border-radius: 6px;
+      background: #0d0d17; border: 1px solid rgba(0,255,163,0.25); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
       list-style: none; padding: 0.25rem; margin: 0;
       max-height: 160px; overflow-y: auto;
     }
-    li { padding: 0.4rem 0.6rem; cursor: pointer; color: #c8cbe0; border-radius: 4px; }
-    li:hover { background: #1a1f3a; color: var(--cyan, #00e5ff); }
+    li { padding: 0.4rem 0.6rem; cursor: pointer; color: #cfcfe0; border-radius: 6px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.85rem; }
+    li:hover { background: #16161f; color: #00ffa3; }
   `],
 })
 export class MentionTextareaComponent {

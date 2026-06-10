@@ -24,6 +24,11 @@ final class SendMessageRequest extends FormRequest
                 'min:1',
                 'max:' . Message::MAX_LENGTH,
             ],
+            'parent_id' => [
+                'nullable',
+                'uuid',
+                'exists:messages,id',
+            ],
         ];
     }
 

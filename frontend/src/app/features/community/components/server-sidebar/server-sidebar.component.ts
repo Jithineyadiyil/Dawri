@@ -1,6 +1,8 @@
 /**
- * Sprint 15 — Far-left rail of server icons (Discord style).
- * Shows the Dawri Community icon + per-tournament rooms the user belongs to.
+ * Sprint 15 — Far-left rail of server icons, redesigned for the Arena look:
+ * squared-then-rounded bubbles, a lime active ring, and a gold ring for the
+ * global Dawri Community. An active item also shows a lime pill on the rail
+ * edge (Discord-style selection indicator).
  */
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -18,6 +20,7 @@ import { CommunityStateService } from '../../services/community-state.service';
          [routerLink]="['/community', c.slug]"
          [class.active]="c.id === activeId()"
          [title]="c.name">
+        <span class="pill"></span>
         <div class="bubble" [class.global]="c.type === 'global'">
           <img *ngIf="c.icon_url" [src]="c.icon_url" [alt]="c.name" />
           <span *ngIf="!c.icon_url">{{ initials(c.name) }}</span>
@@ -26,22 +29,39 @@ import { CommunityStateService } from '../../services/community-state.service';
     </nav>
   `,
   styles: [`
-    nav { display: flex; flex-direction: column; align-items: center; padding: 0.75rem 0; gap: 0.5rem; }
-    a   { text-decoration: none; }
+    :host {
+      --accent: #00ffa3;
+      --gold:   #d4af37;
+      --surface:#1b1b27;
+      --text:   #eaeaf2;
+    }
+    nav { display: flex; flex-direction: column; align-items: center; padding: 1rem 0; gap: 0.65rem; }
+    a   { text-decoration: none; position: relative; display: grid; place-items: center; }
+
+    /* Selection pill on the rail edge */
+    .pill {
+      position: absolute; left: -14px; top: 50%; transform: translateY(-50%) scaleY(0);
+      width: 4px; height: 28px; border-radius: 0 4px 4px 0; background: var(--accent);
+      transition: transform 0.18s ease;
+    }
+    a:hover .pill { transform: translateY(-50%) scaleY(0.5); background: var(--text); }
+    a.active .pill { transform: translateY(-50%) scaleY(1); background: var(--accent); }
+
     .bubble {
-      width: 48px; height: 48px;
-      border-radius: 50%;
-      background: #1a1f3a;
+      width: 50px; height: 50px;
+      border-radius: 16px;
+      background: var(--surface);
       display: grid; place-items: center;
-      color: #e6e8f5;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.1rem;
-      transition: border-radius 0.15s ease, background 0.15s ease;
+      color: var(--text);
+      font-family: 'Anton', 'Bebas Neue', sans-serif;
+      font-size: 1.05rem; letter-spacing: 0.04em;
+      transition: border-radius 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
       cursor: pointer;
     }
-    .bubble:hover { border-radius: 16px; background: var(--cyan, #00e5ff); color: #060810; }
-    .bubble.global { background: var(--gold, #f0a500); color: #060810; }
-    .active .bubble { border-radius: 16px; box-shadow: 0 0 0 2px var(--cyan, #00e5ff); }
+    .bubble:hover { border-radius: 14px; transform: translateY(-1px); box-shadow: 0 0 0 2px rgba(0,255,163,0.4), 0 0 16px rgba(0,255,163,0.25); }
+    .bubble.global { background: #1a1710; color: var(--gold); box-shadow: inset 0 0 0 1px rgba(212,175,55,0.4); }
+    .active .bubble { border-radius: 14px; box-shadow: 0 0 0 2px var(--accent), 0 0 18px rgba(0,255,163,0.35); }
+    .active .bubble.global { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(212,175,55,0.35); }
     img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
   `],
 })

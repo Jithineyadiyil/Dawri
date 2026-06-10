@@ -10,6 +10,11 @@ import { Routes } from '@angular/router';
 
 export const COMMUNITY_ROUTES: Routes = [
   {
+    path: 'join/:token',
+    loadComponent: () => import('./pages/invite-redeem/invite-redeem.component')
+      .then(m => m.InviteRedeemComponent),
+  },
+  {
     path: '',
     loadComponent: () => import('./pages/community-shell/community-shell.component')
       .then(m => m.CommunityShellComponent),

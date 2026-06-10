@@ -21,7 +21,7 @@ final class ModerateUserRequest extends FormRequest
         $action = $this->input('action');
 
         return [
-            'action'   => ['required', Rule::in(['mute', 'unmute', 'ban', 'unban'])],
+            'action'   => ['required', Rule::in(['mute', 'unmute', 'ban', 'unban', 'kick', 'set_role'])],
             'user_id'  => ['required', 'uuid', 'exists:users,id'],
             'minutes'  => [
                 Rule::requiredIf(fn () => $action === 'mute'),
@@ -35,6 +35,11 @@ final class ModerateUserRequest extends FormRequest
                 'string',
                 'max:500',
             ],
+            'role'     => [
+                Rule::requiredIf(fn () => $action === 'set_role'),
+                'nullable',
+                Rule::in(['admin', 'moderator', 'member']),
+            ],
         ];
     }
 
@@ -42,9 +47,11 @@ final class ModerateUserRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'action.in'      => 'Action must be one of: mute, unmute, ban, unban.',
+            'action.in'      => 'Action must be one of: mute, unmute, ban, unban, kick, set_role.',
             'minutes.in'     => 'Mute duration must be one of: 5, 30, 60, 240, 1440, or 10080 minutes.',
             'reason.required'=> 'A ban reason is required.',
+            'role.required'  => 'A role is required when setting a role.',
+            'role.in'        => 'Role must be one of: admin, moderator, member.',
         ];
     }
 }

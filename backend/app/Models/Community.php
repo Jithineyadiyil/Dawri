@@ -54,6 +54,8 @@ final class Community extends Model
         'icon_url',
         'is_active',
         'archived_at',
+        'join_policy',
+        'rules',
     ];
 
     /** @var array<string, string> */
