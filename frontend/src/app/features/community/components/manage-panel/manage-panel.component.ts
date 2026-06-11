@@ -10,14 +10,15 @@ import { CommonModule } from '@angular/common';
 import { ChannelManageComponent } from '../channel-manage/channel-manage.component';
 import { JoinPanelComponent } from '../join-panel/join-panel.component';
 import { AdminPanelComponent } from '../admin-panel/admin-panel.component';
+import { CommunityInsightsComponent } from '../community-insights/community-insights.component';
 import { JoinPolicy } from '../../models/community.model';
 
-type ManageTab = 'channels' | 'join' | 'admin';
+type ManageTab = 'channels' | 'join' | 'admin' | 'insights';
 
 @Component({
   selector: 'app-manage-panel',
   standalone: true,
-  imports: [CommonModule, ChannelManageComponent, JoinPanelComponent, AdminPanelComponent],
+  imports: [CommonModule, ChannelManageComponent, JoinPanelComponent, AdminPanelComponent, CommunityInsightsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="overlay" (click)="onBackdrop($event)">
@@ -31,6 +32,7 @@ type ManageTab = 'channels' | 'join' | 'admin';
           <button [class.active]="tab() === 'channels'" (click)="tab.set('channels')">Channels</button>
           <button [class.active]="tab() === 'join'" (click)="tab.set('join')">Join &amp; invites</button>
           <button [class.active]="tab() === 'admin'" (click)="tab.set('admin')">Admin &amp; safety</button>
+          <button [class.active]="tab() === 'insights'" (click)="tab.set('insights')">Insights</button>
         </nav>
 
         <div class="content">
@@ -50,6 +52,11 @@ type ManageTab = 'channels' | 'join' | 'admin';
             [communityId]="communityId"
             [embedded]="true"
             (jumpToMessage)="jumpToMessage.emit($event)"
+          />
+          <app-community-insights
+            *ngIf="tab() === 'insights'"
+            [communityId]="communityId"
+            [embedded]="true"
           />
         </div>
       </aside>

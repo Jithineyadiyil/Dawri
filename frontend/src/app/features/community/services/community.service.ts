@@ -18,6 +18,8 @@ import {
   JoinRequest,
   JoinResult,
   AuditEntry,
+  CommunityAnalytics,
+  ScheduledMessage,
   BlockedWord,
   WordMode,
   MembersResponse,
@@ -304,5 +306,26 @@ export class CommunityService {
   getAuditLog(communityId: string): Observable<AuditEntry[]> {
     return this.http.get<ApiEnvelope<AuditEntry[]>>(`${this.base}/communities/${communityId}/audit-log`)
       .pipe(map(r => r.data));
+  }
+
+  getAnalytics(communityId: string): Observable<CommunityAnalytics> {
+    return this.http.get<ApiEnvelope<CommunityAnalytics>>(`${this.base}/communities/${communityId}/analytics`)
+      .pipe(map(r => r.data));
+  }
+
+  listScheduled(channelId: string): Observable<ScheduledMessage[]> {
+    return this.http.get<ApiEnvelope<ScheduledMessage[]>>(`${this.base}/channels/${channelId}/scheduled`)
+      .pipe(map(r => r.data));
+  }
+
+  scheduleMessage(channelId: string, content: string, scheduledFor: string): Observable<ScheduledMessage> {
+    return this.http.post<ApiEnvelope<ScheduledMessage>>(
+      `${this.base}/channels/${channelId}/scheduled`,
+      { content, scheduled_for: scheduledFor }
+    ).pipe(map(r => r.data));
+  }
+
+  cancelScheduled(scheduledId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/scheduled/${scheduledId}`);
   }
 }

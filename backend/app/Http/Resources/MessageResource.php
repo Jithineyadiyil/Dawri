@@ -37,6 +37,9 @@ final class MessageResource extends JsonResource
             'poll'       => $this->relationLoaded('poll') && $this->poll !== null
                 ? (new \App\Http\Resources\PollResource($this->poll))->toArray($request)
                 : null,
+            'event'      => $this->relationLoaded('event') && $this->event !== null
+                ? (new \App\Http\Resources\EventResource($this->event))->toArray($request)
+                : null,
             'attachments' => $this->relationLoaded('attachments')
                 ? $this->attachments->map(fn ($a) => [
                     'id'     => $a->id,

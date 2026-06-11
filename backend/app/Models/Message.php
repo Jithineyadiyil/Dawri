@@ -56,6 +56,7 @@ final class Message extends Model
         'user_id',
         'parent_id',
         'poll_id',
+        'event_id',
         'content',
         'edited_at',
         'is_pinned',
@@ -98,6 +99,12 @@ final class Message extends Model
     public function poll(): BelongsTo
     {
         return $this->belongsTo(\App\Models\Poll::class, 'poll_id');
+    }
+
+    /** An attached community event, if this message carries one (Phase 7). */
+    public function event(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\CommunityEvent::class, 'event_id');
     }
 
     /** Image attachments on this message, ordered for display. */

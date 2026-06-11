@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\JoinController;
 use App\Http\Controllers\Api\CommunityAdminController;
 use App\Http\Controllers\Api\PollController;
+use App\Http\Controllers\Api\ScheduledMessageController;
 use Illuminate\Support\Facades\Route;
 
 $uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
@@ -60,6 +61,7 @@ Route::prefix('communities')->group(function () use ($uuid): void {
         Route::post('blocked-words', [CommunityAdminController::class, 'addWord']);
         Route::delete('blocked-words/{word}', [CommunityAdminController::class, 'removeWord'])->whereUuid('word');
         Route::get('audit-log', [CommunityAdminController::class, 'auditLog']);
+        Route::get('analytics', [CommunityAdminController::class, 'analytics']);
     });
 });
 
@@ -94,6 +96,10 @@ Route::prefix('channels/{channel}')->whereUuid('channel')->group(function (): vo
     Route::get('polls',  [PollController::class, 'index']);
     Route::post('polls', [PollController::class, 'store']);
 
+    // Scheduled posts within a channel (moderator+)
+    Route::get('scheduled',  [ScheduledMessageController::class, 'index']);
+    Route::post('scheduled', [ScheduledMessageController::class, 'store']);
+
     // Image attachments (upload creates a carrier message). Rate-limited.
     Route::middleware('throttle:20,1')->group(function (): void {
         Route::post('attachments', [AttachmentController::class, 'store']);
@@ -110,6 +116,8 @@ Route::prefix('polls/{poll}')->whereUuid('poll')->group(function (): void {
     Route::post('close', [PollController::class, 'close']);
     Route::delete('/',   [PollController::class, 'destroy']);
 });
+
+Route::delete('scheduled/{scheduled}', [ScheduledMessageController::class, 'destroy'])->whereUuid('scheduled');
 
 Route::prefix('messages/{message}')->whereUuid('message')->group(function (): void {
     Route::patch('/',   [MessageController::class, 'update']);

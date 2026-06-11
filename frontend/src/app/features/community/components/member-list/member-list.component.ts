@@ -29,7 +29,10 @@ interface MuteOption { label: string; minutes: number; }
         <ul>
           <li *ngFor="let m of group.members" [class.has-menu]="openMenuFor() === m.user.id">
             <span class="dot" [class]="presence(m.user.id)"></span>
-            <img *ngIf="m.user.avatar" [src]="m.user.avatar" [alt]="m.user.nickname ?? ''" />
+            <span class="ava">
+              <img *ngIf="m.user.avatar" [src]="m.user.avatar" [alt]="m.user.nickname ?? ''" />
+              <span *ngIf="!m.user.avatar" class="ava-letter">{{ initials(m.user.nickname) }}</span>
+            </span>
             <span class="nick" [class.muted]="m.is_muted">{{ m.user.nickname ?? '—' }}</span>
             <span class="muted-flag" *ngIf="m.is_muted" title="Muted">🔇</span>
 
@@ -84,7 +87,9 @@ interface MuteOption { label: string; minutes: number; }
     .dot.online  { background: #00ffa3; box-shadow: 0 0 6px rgba(0,255,163,0.6); }
     .dot.idle    { background: #d4af37; }
     .dot.offline { background: #4c4c63; }
-    img { width: 24px; height: 24px; border-radius: 50%; }
+    .ava { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; background: #16161f; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+    .ava img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .ava-letter { font-family: 'Anton', 'Bebas Neue', sans-serif; font-size: 0.7rem; color: #00ffa3; line-height: 1; }
     .nick { flex: 1; color: #cfcfe0; }
     .nick.muted { opacity: 0.55; }
     .kebab {
@@ -220,5 +225,10 @@ export class MemberListComponent {
 
   presence(userId: string): PresenceStatus {
     return this.state.presenceByUser()[userId] ?? 'offline';
+  }
+
+  /** Two-letter fallback shown when a member has no avatar. */
+  initials(nickname: string | null): string {
+    return (nickname ?? '?').slice(0, 2).toUpperCase();
   }
 }

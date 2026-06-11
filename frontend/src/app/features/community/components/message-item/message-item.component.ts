@@ -11,11 +11,12 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { PollDisplayComponent } from '../poll-display/poll-display.component';
 import { ImageLightboxComponent } from '../image-lightbox/image-lightbox.component';
 import { RoleBadgeComponent } from '../role-badge/role-badge.component';
+import { EventCardComponent } from '../event-card/event-card.component';
 
 @Component({
   selector: 'app-message-item',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, MessageItemComponent, PollDisplayComponent, ImageLightboxComponent, RoleBadgeComponent],
+  imports: [CommonModule, FormsModule, DatePipe, MessageItemComponent, PollDisplayComponent, ImageLightboxComponent, RoleBadgeComponent, EventCardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="thread">
@@ -45,6 +46,11 @@ import { RoleBadgeComponent } from '../role-badge/role-badge.component';
             *ngIf="message.poll && !message.is_deleted"
             [poll]="message.poll"
             [channelId]="message.channel_id"
+          />
+          <app-event-card
+            *ngIf="message.event && !message.is_deleted && communityId()"
+            [event]="message.event"
+            [communityId]="communityId()!"
           />
           <div
             class="attachments"
@@ -216,6 +222,12 @@ export class MessageItemComponent {
     const id = this.message.author.id;
     return id ? (this.state.roleByUser()[id] ?? null) : null;
   }
+
+  /** Active community id (for the inline event card). */
+  communityId(): string | null {
+    return this.state.activeCommunityId();
+  }
+
   private readonly auth  = inject(AuthService);
 
   readonly editing = signal(false);

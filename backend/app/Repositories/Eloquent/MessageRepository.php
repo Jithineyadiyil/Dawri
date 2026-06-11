@@ -36,6 +36,8 @@ final class MessageRepository implements MessageRepositoryInterface
                 'poll.author:id,name,nickname',
                 'poll.options' => fn ($q) => $q->withCount('votes')->orderBy('position'),
                 'poll.votes:id,poll_id,option_id,user_id',
+                'event.rsvps:id,event_id,user_id,status',
+                'event.creator:id,name,nickname',
                 'attachments',
             ])
             ->orderByDesc('created_at')
