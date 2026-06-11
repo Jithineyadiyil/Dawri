@@ -14,6 +14,7 @@ use App\Services\AuditService;
 use App\Services\WordFilterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -127,6 +128,81 @@ final class CommunityAdminController extends Controller
 
         return response()->json([
             'data' => AuditEntryResource::collection($this->audit->recent($community->id)),
+        ]);
+    }
+
+    /**
+     * GET /communities/{community}/analytics  (moderator+)
+     *
+     * Activity overview: totals, 14-day message trend, per-channel message
+     * counts, and the most active members. All scoped to this community and
+     * computed with grouped aggregate queries (no per-row N+1).
+     */
+    public function analytics(Request $request, Community $community): JsonResponse
+    {
+        if (! $this->canManage($community->id, $request->user())) {
+            return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $channelIds = DB::table('channels')->where('community_id', $community->id)->pluck('id');
+
+        $baseMessages = DB::table('messages')
+            ->whereIn('channel_id', $channelIds)
+            ->whereNull('deleted_at');
+
+        $totalMessages = (clone $baseMessages)->count();
+        $totalMembers  = DB::table('community_members')->where('community_id', $community->id)->count();
+        $totalChannels = $channelIds->count();
+
+        // 14-day daily message trend (oldest → newest).
+        $since = now()->subDays(13)->startOfDay();
+        $rawTrend = (clone $baseMessages)
+            ->where('created_at', '>=', $since)
+            ->selectRaw('DATE(created_at) as d, COUNT(*) as c')
+            ->groupBy('d')
+            ->pluck('c', 'd');
+
+        $trend = [];
+        for ($i = 13; $i >= 0; $i--) {
+            $day = now()->subDays($i)->toDateString();
+            $trend[] = ['date' => $day, 'count' => (int) ($rawTrend[$day] ?? 0)];
+        }
+
+        // Per-channel message counts (joined to channel names).
+        $perChannel = (clone $baseMessages)
+            ->join('channels', 'channels.id', '=', 'messages.channel_id')
+            ->selectRaw('channels.name as name, COUNT(*) as c')
+            ->groupBy('channels.id', 'channels.name')
+            ->orderByDesc('c')
+            ->get()
+            ->map(fn ($r) => ['channel' => $r->name, 'count' => (int) $r->c])
+            ->all();
+
+        // Top 5 most active members by message count.
+        $topMembers = (clone $baseMessages)
+            ->join('users', 'users.id', '=', 'messages.user_id')
+            ->selectRaw('users.id as id, COALESCE(users.nickname, users.name) as name, COUNT(*) as c')
+            ->groupBy('users.id', 'users.nickname', 'users.name')
+            ->orderByDesc('c')
+            ->limit(5)
+            ->get()
+            ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'count' => (int) $r->c])
+            ->all();
+
+        $messagesLast7 = (clone $baseMessages)->where('created_at', '>=', now()->subDays(7))->count();
+
+        return response()->json([
+            'data' => [
+                'totals' => [
+                    'messages'        => $totalMessages,
+                    'members'         => $totalMembers,
+                    'channels'        => $totalChannels,
+                    'messages_last_7' => $messagesLast7,
+                ],
+                'trend'       => $trend,
+                'per_channel' => $perChannel,
+                'top_members' => $topMembers,
+            ],
         ]);
     }
 

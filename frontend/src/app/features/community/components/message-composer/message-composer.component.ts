@@ -11,11 +11,13 @@ import { CommunityStateService } from '../../services/community-state.service';
 import { ReactionPickerComponent } from '../reaction-picker/reaction-picker.component';
 import { MentionTextareaComponent } from '../mention-textarea/mention-textarea.component';
 import { PollCreateComponent } from '../poll-create/poll-create.component';
+import { ScheduledPostsComponent } from '../scheduled-posts/scheduled-posts.component';
+import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
   selector: 'app-message-composer',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactionPickerComponent, MentionTextareaComponent, PollCreateComponent],
+  imports: [CommonModule, FormsModule, ReactionPickerComponent, MentionTextareaComponent, PollCreateComponent, ScheduledPostsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="composer-wrap">
@@ -47,6 +49,7 @@ import { PollCreateComponent } from '../poll-create/poll-create.component';
       <div class="composer">
         <button class="emoji-btn" (click)="togglePicker()" title="Insert emoji">😊</button>
         <button class="poll-btn" (click)="togglePollForm()" title="Create a poll">📊</button>
+        <button *ngIf="canModerate()" class="sched-btn" (click)="showScheduled.set(true)" title="Scheduled posts">🕐</button>
         <button class="img-btn" (click)="fileInput.click()" title="Attach images">📎</button>
         <input
           #fileInput
@@ -71,6 +74,12 @@ import { PollCreateComponent } from '../poll-create/poll-create.component';
         <button class="send" (click)="send()" [disabled]="!canSend()">Send</button>
       </div>
     </div>
+
+    <app-scheduled-posts
+      *ngIf="showScheduled() && channelId()"
+      [channelId]="channelId()!"
+      (close)="showScheduled.set(false)"
+    />
   `,
   styles: [`
     .composer-wrap { display: flex; flex-direction: column; flex-shrink: 0; }
@@ -107,6 +116,8 @@ import { PollCreateComponent } from '../poll-create/poll-create.component';
     .emoji-btn { background: transparent; color: #7a7a92; font-size: 1.25rem; padding: 0 0.5rem; }
     .poll-btn { background: transparent; color: #7a7a92; font-size: 1.1rem; padding: 0 0.4rem; }
     .poll-btn:hover { color: #00ffa3; }
+    .sched-btn { background: transparent; color: #7a7a92; font-size: 1.05rem; padding: 0 0.4rem; cursor: pointer; border: none; }
+    .sched-btn:hover { color: #00ffa3; }
     .img-btn { background: transparent; color: #7a7a92; font-size: 1.1rem; padding: 0 0.4rem; cursor: pointer; border: none; }
     .img-btn:hover { color: #00ffa3; }
     .preview-strip { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; padding: 0.6rem 1rem; border-top: 1px solid rgba(0,255,163,0.18); background: #0d0d17; }
@@ -120,6 +131,20 @@ import { PollCreateComponent } from '../poll-create/poll-create.component';
 })
 export class MessageComposerComponent {
   private readonly state = inject(CommunityStateService);
+  private readonly auth  = inject(AuthService);
+
+  readonly showScheduled = signal(false);
+
+  /** Mods/admins of the active community see the schedule + (server-enforced). */
+  canModerate(): boolean {
+    const role = this.auth.currentUser()?.role;
+    if (role === 'admin') return true;
+    const uid = this.auth.currentUser()?.id;
+    const cid = this.state.activeCommunityId();
+    if (!uid || !cid) return false;
+    const me = (this.state.membersByCommunity()[cid] ?? []).find(m => m.user?.id === uid);
+    return me ? ['owner', 'admin', 'moderator'].includes(me.role) : false;
+  }
 
   /** Phase 6 — surfaced post error (e.g. a blocked word). */
   readonly postError = this.state.postError;

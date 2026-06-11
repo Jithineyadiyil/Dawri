@@ -63,6 +63,7 @@ export interface Message {
   mentions: string[];
   reply_to?: { id: string; author: string | null; snippet: string | null } | null;
   poll?: Poll | null;
+  event?: CommunityEvent | null;
   attachments?: MessageAttachment[];
   created_at: string;
 }
@@ -204,5 +205,27 @@ export interface AuditEntry {
   meta: Record<string, unknown> | null;
   actor: { id: string | null; nickname: string | null } | null;
   target: { id: string | null; nickname: string | null } | null;
+  created_at: string;
+}
+
+/** Phase 7 — community analytics overview. */
+export interface CommunityAnalytics {
+  totals: {
+    messages: number;
+    members: number;
+    channels: number;
+    messages_last_7: number;
+  };
+  trend: { date: string; count: number }[];
+  per_channel: { channel: string; count: number }[];
+  top_members: { id: string; name: string; count: number }[];
+}
+
+/** Phase 7 — a message scheduled to post to a channel later. */
+export interface ScheduledMessage {
+  id: string;
+  channel_id: string;
+  content: string;
+  scheduled_for: string;
   created_at: string;
 }

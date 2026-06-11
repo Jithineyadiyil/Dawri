@@ -37,15 +37,42 @@ final class EventService
     {
         $this->assertCanManage($community->id, $actor);
 
-        $event = $this->events->create([
-            'community_id' => $community->id,
-            'user_id'      => $actor->id,
-            'title'        => trim($data['title']),
-            'description'  => isset($data['description']) ? trim((string) $data['description']) : null,
-            'location'     => isset($data['location']) ? trim((string) $data['location']) : null,
-            'starts_at'    => $data['starts_at'],
-            'ends_at'      => $data['ends_at'] ?? null,
-        ]);
+        $event = DB::transaction(function () use ($community, $actor, $data) {
+            $event = $this->events->create([
+                'community_id' => $community->id,
+                'user_id'      => $actor->id,
+                'title'        => trim($data['title']),
+                'description'  => isset($data['description']) ? trim((string) $data['description']) : null,
+                'location'     => isset($data['location']) ? trim((string) $data['location']) : null,
+                'starts_at'    => $data['starts_at'],
+                'ends_at'      => $data['ends_at'] ?? null,
+            ]);
+
+            // Phase 7 — drop a carrier message into the community feed so the
+            // event is visible inline (mirrors the poll-carrier pattern). Target
+            // the announcements channel, falling back to the first channel.
+            $channel = $community->channels()
+                ->where('type', \App\Models\Channel::TYPE_ANNOUNCEMENT)
+                ->orderBy('position')
+                ->first()
+                ?? $community->channels()->orderBy('position')->first();
+
+            if ($channel !== null) {
+                $message = \App\Models\Message::create([
+                    'channel_id' => $channel->id,
+                    'user_id'    => $actor->id,
+                    'content'    => '',
+                    'event_id'   => $event->id,
+                ]);
+
+                DB::afterCommit(function () use ($message): void {
+                    $message->load(['author', 'reactions', 'mentions', 'event.rsvps']);
+                    broadcast(new \App\Events\MessagePosted($message))->toOthers();
+                });
+            }
+
+            return $event;
+        });
 
         return $this->events->findWithRsvps($event->id);
     }
