@@ -100,9 +100,10 @@ Route::prefix('channels/{channel}')->whereUuid('channel')->group(function (): vo
     Route::get('scheduled',  [ScheduledMessageController::class, 'index']);
     Route::post('scheduled', [ScheduledMessageController::class, 'store']);
 
-    // Image attachments (upload creates a carrier message). Rate-limited.
+    // Image + voice attachments (upload creates a carrier message). Rate-limited.
     Route::middleware('throttle:20,1')->group(function (): void {
         Route::post('attachments', [AttachmentController::class, 'store']);
+        Route::post('voice',       [AttachmentController::class, 'storeVoice']);
     });
 
     // Post 30/min/user — abuse mitigation

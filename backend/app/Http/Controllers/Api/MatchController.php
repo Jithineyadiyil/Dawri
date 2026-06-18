@@ -26,6 +26,7 @@ use App\Services\StreamUrlService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -153,7 +154,11 @@ class MatchController extends Controller
 
     public function confirmResult(Request $request, string $id): JsonResponse
     {
-        $match = TournamentMatch::findOrFail($id);
+        // Bug #10: Lock the match row so concurrent confirm calls can't both advance the bracket.
+        $match = DB::transaction(function () use ($id) {
+            return TournamentMatch::with('bracket.tournament')->lockForUpdate()->findOrFail($id);
+        });
+
         if ($match->status !== 'submitted') {
             return response()->json(['message' => 'No result to confirm.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -170,6 +175,29 @@ class MatchController extends Controller
             // Notify both players of result
             $this->notifyMatchCompleted($match);
 
+            // Grant XP + advance match-related achievements (best effort).
+            try {
+                $ach = app(\App\Services\AchievementService::class);
+                $pA = $match->participant_a_id ? \App\Models\TournamentParticipant::with('user')->find($match->participant_a_id) : null;
+                $pB = $match->participant_b_id ? \App\Models\TournamentParticipant::with('user')->find($match->participant_b_id) : null;
+                foreach ([$pA, $pB] as $p) {
+                    if ($p?->user) {
+                        $ach->trigger($p->user, 'match_played', ['source_id' => $match->id]);
+                    }
+                }
+                $winnerP = $match->winner_id ? \App\Models\TournamentParticipant::with('user')->find($match->winner_id) : null;
+                if ($winnerP?->user) {
+                    $ach->trigger($winnerP->user, 'match_win', ['source_id' => $match->id]);
+                    $stats = \App\Models\PlayerGameStat::where('user_id', $winnerP->user_id)
+                        ->where('game', $match->bracket?->tournament?->game)->first();
+                    if ($stats && $stats->current_streak > 0) {
+                        $ach->trigger($winnerP->user, 'streak', ['streak' => (int) $stats->current_streak]);
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Achievement grant on match confirm failed', ['error' => $e->getMessage()]);
+            }
+
             return response()->json([
                 'message' => 'Result confirmed and bracket advanced.',
                 'data'    => $this->matchArray($match->fresh()),
@@ -183,18 +211,27 @@ class MatchController extends Controller
     private function notifyMatchCompleted(\App\Models\TournamentMatch $match): void
     {
         try {
+            // Bug #15: match may have no bracket if data is corrupt — guard and skip
             $tournament = $match->bracket?->tournament;
-            if (!$tournament) return;
+            if (! $tournament) {
+                \Illuminate\Support\Facades\Log::warning(
+                    "notifyMatchCompleted: match {$match->id} has no bracket/tournament — skipping notification."
+                );
+                return;
+            }
 
-            $pA = \App\Models\TournamentParticipant::find($match->participant_a_id);
-            $pB = \App\Models\TournamentParticipant::find($match->participant_b_id);
-            $winner = \App\Models\TournamentParticipant::find($match->winner_id);
+            // Bug #14: find() can return null — use null-safe calls throughout
+            $pA         = $match->participant_a_id ? \App\Models\TournamentParticipant::find($match->participant_a_id) : null;
+            $pB         = $match->participant_b_id ? \App\Models\TournamentParticipant::find($match->participant_b_id) : null;
+            $winner     = $match->winner_id        ? \App\Models\TournamentParticipant::find($match->winner_id)        : null;
             $winnerName = $winner?->user?->name ?? 'Unknown';
 
             foreach ([$pA, $pB] as $p) {
-                if (!$p?->user_id) continue;
-                $user = \App\Models\User::find($p->user_id);
-                $user?->notify(new MatchCompletedNotification(
+                if (! $p || ! $p->user_id) continue;
+                $notifUser = \App\Models\User::find($p->user_id);
+                if (! $notifUser) continue;  // Bug #14: explicit null guard before notify()
+
+                $notifUser->notify(new MatchCompletedNotification(
                     tournamentId:   $tournament->id,
                     tournamentName: $tournament->name,
                     matchId:        $match->id,
@@ -273,12 +310,13 @@ class MatchController extends Controller
             'reason'    => ['required', 'string', 'max:1000'],
         ]);
 
-        $user = $request->user();
-        if (! $this->isOrganizerOrAdmin($user)) {
+        $user  = $request->user();
+        // Bug #13: Use canManageMatch (checks actual tournament organizer_id) instead of
+        // isOrganizerOrAdmin which allowed any platform moderator to override ANY match.
+        $match = TournamentMatch::with('bracket.tournament')->findOrFail($id);
+        if (! $this->canManageMatch($user, $match)) {
             return response()->json(['message' => 'Forbidden.'], Response::HTTP_FORBIDDEN);
         }
-
-        $match    = TournamentMatch::findOrFail($id);
         $winnerId = $request->input('winner_id');
         if ($winnerId !== $match->participant_a_id && $winnerId !== $match->participant_b_id) {
             return response()->json(
@@ -294,13 +332,25 @@ class MatchController extends Controller
             'submitted_by_id' => $user->id,
         ]);
 
-        try { $this->advancement->advance($match); } catch (\Throwable $e) { logger()->error($e->getMessage()); }
-        $this->scorePredictions($match->id, $winnerId, $match->round_number ?? 1);
+        // Bug #21: advance() failure was silently swallowed and predictions were
+        // always scored regardless. Now predictions only score on successful advance,
+        // and the failure is surfaced in the response (not just logged).
+        $advanceError = null;
+        try {
+            $this->advancement->advance($match);
+            // Bug #22: only score + notify when advance actually succeeds
+            $this->scorePredictions($match->id, $winnerId, $match->round_number ?? 1);
+            $this->notifyMatchCompleted($match->fresh());
+        } catch (\Throwable $e) {
+            $advanceError = $e->getMessage();
+            \Illuminate\Support\Facades\Log::error('moderatorOverride advance failed: ' . $advanceError);
+        }
 
-        return response()->json([
-            'message' => 'Match result overridden.',
-            'data'    => $this->matchArray($match->fresh()),
-        ]);
+        return response()->json(array_filter([
+            'message'       => 'Match result overridden.',
+            'advance_error' => $advanceError, // surface partial failure to organizer
+            'data'          => $this->matchArray($match->fresh()),
+        ]));
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -414,9 +464,10 @@ class MatchController extends Controller
         $user = $request->user();
 
         $isOrganizer = $this->canManageMatch($user, $match);
-        $isOpponent  = $match->opponentUserId($user->id) === $user->id
-                       ? false
-                       : $match->isParticipantUser($user->id) && $req->requested_by_id !== $user->id;
+        // Bug #12: Previous logic was backwards — used opponentUserId() === user->id as a FALSE condition.
+        // Correct: the opponent is any participant in the match who did NOT submit the reschedule request.
+        $isOpponent  = $match->isParticipantUser($user->id)
+                       && (string) $req->requested_by_id !== (string) $user->id;
 
         // Organizer override path.
         if ($request->wantsOverride()) {
@@ -520,13 +571,19 @@ class MatchController extends Controller
     /**
      * DELETE /api/v1/matches/{match}/evidence/{id}
      */
-    public function deleteEvidence(string $matchId, string $evId): JsonResponse
+    public function deleteEvidence(Request $request, string $matchId, string $evId): JsonResponse
     {
+        // Bug #25: was using global request()->user() helper — inject Request instead for testability and null safety
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], Response::HTTP_UNAUTHORIZED);
+        }
+
         /** @var MatchEvidence $ev */
         $ev = MatchEvidence::where('match_id', $matchId)->findOrFail($evId);
 
         try {
-            $this->evidence->delete($ev, request()->user());
+            $this->evidence->delete($ev, $user);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], Response::HTTP_FORBIDDEN);
         }

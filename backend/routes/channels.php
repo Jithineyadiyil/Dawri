@@ -12,3 +12,4 @@ declare(strict_types=1);
 */
 
 require __DIR__ . '/channels.community.php';
+require __DIR__ . '/channels.social.php';

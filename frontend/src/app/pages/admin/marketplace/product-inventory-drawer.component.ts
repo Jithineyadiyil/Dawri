@@ -45,7 +45,7 @@ import {
       <div class="drawer">
         <header>
           <div>
-            <h2>📦 Inventory</h2>
+            <h2>Inventory</h2>
             @if (overview(); as ov) {
               <p class="subtitle">{{ ov.product.name }}</p>
             }
@@ -141,13 +141,13 @@ import {
             </div>
             @if (isLowStock(ov.stock, ov.product.low_stock_threshold)) {
               <div class="low-stock-warn">
-                ⚠️ Low stock — only {{ ov.stock.available }} code(s) left
+                Low stock — only {{ ov.stock.available }} code(s) left
                 (threshold: {{ ov.product.low_stock_threshold }})
               </div>
             }
             @if (ov.product.fulfillment_mode === 'inventory' && !ov.product.is_active) {
               <div class="hidden-warn">
-                👁️‍🗨️ Product is currently <strong>hidden</strong> from storefront
+                Product is currently <strong>hidden</strong> from storefront
                 @if (ov.product.auto_hide_when_empty) {
                   (auto-hidden, stock = 0)
                 } @else {
@@ -157,7 +157,7 @@ import {
             }
             @if (ov.product.fulfillment_mode === 'inventory' && !ov.product.auto_hide_when_empty && ov.stock.available === 0 && ov.product.is_active) {
               <div class="sold-out-warn">
-                🏷️ Stock is 0 but product stays visible (auto-hide disabled).
+                Stock is 0 but product stays visible (auto-hide disabled).
                 Storefront will render "Sold out".
               </div>
             }
@@ -239,6 +239,17 @@ import {
         (uploaded)="onUploaded($event)"
       />
     }
+
+    @if (confirmMsg()) {
+      <div class="inv-confirm-bar">
+        <span>{{ confirmMsg() }}</span>
+        <div class="inv-confirm-actions">
+          <button class="ghost" (click)="confirmNo()">Cancel</button>
+          <button class="inv-danger" (click)="confirmYes()">Confirm</button>
+        </div>
+      </div>
+    }
+    @if (toastMsg()) { <div class="inv-toast">{{ toastMsg() }}</div> }
   `,
   styles: [`
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(4px); display:flex; align-items:center; justify-content:center; z-index:900; padding:24px; }
@@ -252,13 +263,13 @@ import {
     .error   { color:#fca5a5; background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); padding:12px 16px; margin:16px 24px; border-radius:6px; font-size:13px; }
     section  { padding:16px 24px; border-bottom:1px solid #1f1f2e; }
     section:last-of-type { border-bottom:0; }
-    h3       { margin:0 0 12px; font-size:13px; color:#a855f7; text-transform:uppercase; letter-spacing:1px; font-family: Rajdhani, sans-serif; }
+    h3       { margin:0 0 12px; font-size:13px; color:#d4af37; text-transform:uppercase; letter-spacing:1px; font-family: Rajdhani, sans-serif; }
     label    { display:block; font-size:12px; color:#aaa; margin-bottom:8px; }
     .toggle  { display:flex; gap:0; }
     .toggle button { flex:1; background:#0a0a14; border:1px solid #2a2a3a; color:#888; padding:10px; cursor:pointer; font-size:13px; }
     .toggle button:first-child { border-radius:6px 0 0 6px; }
     .toggle button:last-child { border-radius:0 6px 6px 0; border-left:0; }
-    .toggle button.active { background:#a855f7; border-color:#a855f7; color:#fff; }
+    .toggle button.active { background:#d4af37; border-color:#d4af37; color:#fff; }
     .toggle button:disabled { opacity:.5; cursor:not-allowed; }
     .mode-hint { color:#888; font-size:12px; margin:8px 0 0; }
 
@@ -269,7 +280,7 @@ import {
     .auto-hide-label .mode-hint { margin-top:4px; }
     .switch { flex-shrink:0; width:48px; height:26px; border-radius:13px; background:#2a2a3a; border:0; cursor:pointer; position:relative; padding:0; transition:background .2s; }
     .switch .knob { position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:10px; background:#fff; transition:left .2s; }
-    .switch.on { background:#a855f7; }
+    .switch.on { background:#d4af37; }
     .switch.on .knob { left:25px; }
     .switch:disabled { opacity:.5; cursor:not-allowed; }
 
@@ -292,10 +303,10 @@ import {
     .r       { text-align:right; }
     td.muted { color:#666; }
     .src     { font-size:11px; padding:2px 8px; border-radius:10px; background:#2a2a3a; color:#aaa; }
-    .src-webhook   { background:rgba(168,85,247,.2); color:#c084fc; }
+    .src-webhook   { background:rgba(212,175,55,.2); color:#d4af37; }
     .src-csv_upload{ background:rgba(34,197,94,.2);  color:#86efac; }
     .src-manual    { background:rgba(251,191,36,.2); color:#fbbf24; }
-    button.primary { background:#a855f7; border:0; color:#fff; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px; }
+    button.primary { background:#d4af37; border:0; color:#fff; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px; }
     button.primary:disabled { opacity:.5; cursor:not-allowed; }
     button.ghost   { background:transparent; border:1px solid #2a2a3a; color:#888; padding:8px 16px; border-radius:6px; cursor:pointer; }
     button.ghost:hover { color:#fff; border-color:#888; }
@@ -303,6 +314,10 @@ import {
     button.danger-ghost:hover { color:#ef4444; }
     button.danger-ghost:disabled { opacity:.3; cursor:not-allowed; }
     footer   { display:flex; justify-content:flex-end; padding:16px 24px; border-top:1px solid #2a2a3a; margin-top:auto; }
+    .inv-toast { position:fixed; bottom:24px; right:24px; z-index:950; padding:12px 20px; border-radius:8px; font-size:14px; background:rgba(239,68,68,.18); border:1px solid rgba(239,68,68,.4); color:#fca5a5; box-shadow:0 10px 32px -8px rgba(0,0,0,.5); }
+    .inv-confirm-bar { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:950; display:flex; align-items:center; gap:18px; padding:12px 18px; background:#14141f; border:1px solid #2a2a3a; border-radius:10px; box-shadow:0 10px 32px -8px rgba(0,0,0,.5); font-size:14px; color:#e5e5ea; }
+    .inv-confirm-actions { display:flex; gap:8px; flex-shrink:0; }
+    .inv-danger { background:#ef4444; border:none; color:#fff; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; }
   `],
 })
 export class ProductInventoryDrawerComponent implements OnInit {
@@ -319,6 +334,20 @@ export class ProductInventoryDrawerComponent implements OnInit {
   readonly autoHideBusy    = signal(false);
   readonly deletingBatchId = signal<string | null>(null);
   readonly showUploadModal = signal(false);
+
+  /** Inline toast — replaces alert() dialogs */
+  readonly toastMsg = signal<string | null>(null);
+  private notify(msg: string): void {
+    this.toastMsg.set(msg);
+    setTimeout(() => this.toastMsg.set(null), 3500);
+  }
+
+  /** Inline confirmation — replaces confirm() dialogs */
+  readonly confirmMsg = signal<string | null>(null);
+  private confirmCallback: (() => void) | null = null;
+  confirmYes(): void { this.confirmCallback?.(); this.confirmMsg.set(null); this.confirmCallback = null; }
+  confirmNo():  void { this.confirmMsg.set(null); this.confirmCallback = null; }
+  private ask(msg: string, cb: () => void): void { this.confirmMsg.set(msg); this.confirmCallback = cb; }
 
   ngOnInit(): void {
     this.refresh();
@@ -347,19 +376,19 @@ export class ProductInventoryDrawerComponent implements OnInit {
     const cur = this.overview();
     if (!cur || cur.product.fulfillment_mode === mode || this.modeBusy()) return;
 
-    if (!confirm(`Switch "${cur.product.name}" to ${mode.toUpperCase()} mode?`)) return;
-
-    this.modeBusy.set(true);
-    this.inventory.setMode(this.productId, mode).subscribe({
-      next: () => {
-        this.modeBusy.set(false);
-        this.refresh();
-        this.changed.emit();
-      },
-      error: (err) => {
-        this.modeBusy.set(false);
-        alert(err?.error?.message ?? 'Failed to change mode.');
-      },
+    this.ask(`Switch "${cur.product.name}" to ${mode.toUpperCase()} mode?`, () => {
+      this.modeBusy.set(true);
+      this.inventory.setMode(this.productId, mode).subscribe({
+        next: () => {
+          this.modeBusy.set(false);
+          this.refresh();
+          this.changed.emit();
+        },
+        error: (err) => {
+          this.modeBusy.set(false);
+          this.notify(err?.error?.message ?? 'Failed to change mode.');
+        },
+      });
     });
   }
 
@@ -380,7 +409,7 @@ export class ProductInventoryDrawerComponent implements OnInit {
       },
       error: (err) => {
         this.autoHideBusy.set(false);
-        alert(err?.error?.message ?? 'Failed to change auto-hide setting.');
+        this.notify(err?.error?.message ?? 'Failed to change auto-hide setting.');
       },
     });
   }
@@ -395,23 +424,24 @@ export class ProductInventoryDrawerComponent implements OnInit {
   }
 
   deleteBatch(batch: CodeBatch): void {
-    if (!confirm(
-      `Delete batch from ${batch.supplier_name} (${batch.code_count} codes)?\n\n` +
-      `This is only allowed if NO code from this batch has been delivered.`
-    )) return;
-
-    this.deletingBatchId.set(batch.id);
-    this.inventory.deleteBatch(batch.id).subscribe({
-      next: () => {
-        this.deletingBatchId.set(null);
-        this.refresh();
-        this.changed.emit();
+    this.ask(
+      `Delete batch from ${batch.supplier_name} (${batch.code_count} codes)? ` +
+      `This is only allowed if NO code from this batch has been delivered.`,
+      () => {
+        this.deletingBatchId.set(batch.id);
+        this.inventory.deleteBatch(batch.id).subscribe({
+          next: () => {
+            this.deletingBatchId.set(null);
+            this.refresh();
+            this.changed.emit();
+          },
+          error: (err) => {
+            this.deletingBatchId.set(null);
+            this.notify(err?.error?.message ?? 'Failed to delete batch.');
+          },
+        });
       },
-      error: (err) => {
-        this.deletingBatchId.set(null);
-        alert(err?.error?.message ?? 'Failed to delete batch.');
-      },
-    });
+    );
   }
 
   isLowStock(stock: StockBreakdown, threshold: number): boolean {

@@ -2,7 +2,7 @@
 
   <!-- ── Page header ─────────────────────────────────────────── -->
   <section class="page-head">
-    <div class="page-head-grid">
+    <div class="page-head-inner">
       <div>
         <div class="eyebrow">Browse · جميع البطولات</div>
         <h1 class="page-title">Tournaments</h1>
@@ -45,99 +45,130 @@
     </div>
   </section>
 
-  <!-- ── Filter bar ──────────────────────────────────────────── -->
-  <section class="filters" role="search" aria-label="Tournament filters">
-    <div class="search-box">
-      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24"
-           fill="none" stroke="currentColor" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"/>
-        <path d="m21 21-4.3-4.3"/>
-      </svg>
-      <input
-        class="search-input"
-        type="text"
-        placeholder="Search tournaments by name, organizer, or sponsor…"
-        [value]="search()"
-        (input)="search.set($any($event.target).value)"
-        aria-label="Search tournaments" />
-    </div>
+  <!-- ── UNIFIED FILTER PANEL ──────────────────────────────────── -->
+  <div class="filter-panel" role="search" aria-label="Tournament filters">
 
-    @if (auth.isLoggedIn()) {
-      <button type="button" class="mine-toggle" [class.active]="showMine()" (click)="toggleMine()">
-        {{ showMine() ? '✓ My Tournaments' : 'My Tournaments' }}
-      </button>
-    }
-    <div class="view-toggle" role="group" aria-label="View mode">
-      <button type="button"
-              [class.active]="view() === 'grid'"
-              (click)="setView('grid')">Grid</button>
-      <button type="button"
-              [class.active]="view() === 'list'"
-              (click)="setView('list')">List</button>
-      <button type="button"
-              [class.active]="view() === 'calendar'"
-              (click)="setView('calendar')">Calendar</button>
-    </div>
-  </section>
-
-  <!-- ── Chip rows ───────────────────────────────────────────── -->
-  <section class="chip-rows">
-    <div class="chip-row" role="group" aria-label="Filter by game">
-      <span class="chip-row-label">Game</span>
-      @for (g of games; track g.value) {
-        <button type="button"
-                class="chip"
-                [class.active]="filter.game() === g.value"
-                (click)="setFilter('game', g.value)">
-          {{ g.label }}
-          <span class="count">{{ gameCount(g.value) }}</span>
-        </button>
-      }
-    </div>
-
-    <div class="chip-row" role="group" aria-label="Filter by format">
-      <span class="chip-row-label">Format</span>
-      @for (f of formats; track f.value) {
-        <button type="button"
-                class="chip"
-                [class.active]="filter.format() === f.value"
-                (click)="setFilter('format', f.value)">
-          {{ f.label }}
-        </button>
-      }
-    </div>
-
-    <div class="chip-row" role="group" aria-label="Filter by status">
-      <span class="chip-row-label">Status</span>
-      @for (s of statuses; track s.value) {
-        <button type="button"
-                class="chip"
-                [class.active]="filter.status() === s.value"
-                (click)="setFilter('status', s.value)">
-          @if (s.value === 'live') { <span class="chip-dot"></span> }
-          {{ s.label }}
-          <span class="count">{{ statusCount(s.value) }}</span>
-        </button>
-      }
-    </div>
-  </section>
-
-  <!-- ── Results header ──────────────────────────────────────── -->
-  @if (!loading() && !error()) {
-    <div class="results-head">
-      <span class="results-count">
-        <strong>{{ filtered().length }}</strong> tournaments
-      </span>
-      <select class="sort-select"
-              [value]="sort()"
-              (change)="setSort($any($event.target).value)">
-        @for (o of sortOptions; track o.value) {
-          <option [value]="o.value">{{ o.label }}</option>
+    <!-- Row 1: Search + controls -->
+    <div class="fp-top">
+      <div class="fp-search">
+        <svg class="fp-search-icon" width="16" height="16" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input
+          class="fp-input"
+          type="text"
+          placeholder="Search by name, organizer…"
+          [value]="search()"
+          (input)="onSearchInput($any($event.target).value)"
+          aria-label="Search tournaments" />
+        @if (search()) {
+          <button class="fp-clear-input" (click)="search.set('')" aria-label="Clear search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         }
-      </select>
+      </div>
+
+      <div class="fp-controls">
+        @if (auth.isLoggedIn()) {
+          <button type="button" class="fp-mine" [class.active]="showMine()" (click)="toggleMine()" title="Show only my tournaments">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Mine
+          </button>
+        }
+
+        <!-- Sort -->
+        <div class="fp-sort-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+          <select class="fp-sort" [value]="sort()" (change)="setSort($any($event.target).value)" aria-label="Sort tournaments">
+            @for (o of sortOptions; track o.value) {
+              <option [value]="o.value">{{ o.label }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- View toggle -->
+        <div class="fp-view" role="group" aria-label="View mode">
+          <button type="button" [class.active]="view() === 'grid'" (click)="setView('grid')" title="Grid view">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </button>
+          <button type="button" [class.active]="view() === 'list'" (click)="setView('list')" title="List view">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
-  }
+
+    <!-- Row 2: Chip filters -->
+    <div class="fp-chips">
+      <!-- Game -->
+      <div class="fp-chip-group" role="group" aria-label="Filter by game">
+        @for (g of games; track g.value) {
+          <button type="button"
+                  class="fp-chip"
+                  [class.active]="filter.game() === g.value"
+                  [style.--chip-color]="g.value === 'ea_fc25' ? '#00e05a' : g.value === 'pubg_mobile' ? '#f5b942' : g.value === 'cod_mobile' ? '#ff4d4d' : null"
+                  (click)="setFilter('game', g.value)">
+            @if (g.value) {
+              <span class="fp-chip-dot" [style.background]="g.value === 'ea_fc25' ? '#00e05a' : g.value === 'pubg_mobile' ? '#f5b942' : '#ff4d4d'"></span>
+            }
+            {{ g.short || g.label }}
+            <span class="fp-chip-count">{{ gameCount(g.value) }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="fp-sep" aria-hidden="true"></div>
+
+      <!-- Format -->
+      <div class="fp-chip-group" role="group" aria-label="Filter by format">
+        @for (f of formats; track f.value) {
+          <button type="button"
+                  class="fp-chip"
+                  [class.active]="filter.format() === f.value"
+                  (click)="setFilter('format', f.value)">
+            {{ f.value ? f.label : 'All formats' }}
+          </button>
+        }
+      </div>
+
+      <div class="fp-sep" aria-hidden="true"></div>
+
+      <!-- Status -->
+      <div class="fp-chip-group" role="group" aria-label="Filter by status">
+        @for (s of statuses; track s.value) {
+          <button type="button"
+                  class="fp-chip"
+                  [class.active]="filter.status() === s.value"
+                  (click)="setFilter('status', s.value)">
+            @if (s.value === 'live') { <span class="fp-live-dot"></span> }
+            @if (s.value === 'open') { <span class="fp-open-dot"></span> }
+            {{ s.label }}
+            <span class="fp-chip-count">{{ statusCount(s.value) }}</span>
+          </button>
+        }
+      </div>
+
+      <!-- Active filter count + clear all -->
+      @if (filter.game() || filter.format() || filter.status() || search()) {
+        <div class="fp-sep" aria-hidden="true"></div>
+        <button type="button" class="fp-clear-all"
+                (click)="search.set(''); setFilter('game',''); setFilter('format',''); setFilter('status','')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Clear
+        </button>
+      }
+
+      <!-- Result count — right-aligned -->
+      @if (!loading() && !error()) {
+        <span class="fp-result-count">
+          <strong>{{ filtered().length }}</strong> results
+        </span>
+      }
+    </div>
+
+  </div>
 
   <!-- ── Error ───────────────────────────────────────────────── -->
   @if (error()) {
@@ -168,20 +199,10 @@
     </div>
   }
 
-  <!-- ── Calendar view (placeholder) ─────────────────────────── -->
-  @if (!loading() && !error() && view() === 'calendar' && filtered().length > 0) {
-    <div class="empty">
-      <div class="empty-glyph">📅</div>
-      <h3 class="empty-title">Calendar view coming soon</h3>
-      <p class="empty-sub">In the meantime, switch to Grid or List to browse.</p>
-      <button type="button" class="btn btn-ghost" (click)="setView('grid')">Back to Grid</button>
-    </div>
-  }
-
   <!-- ── Grid view ───────────────────────────────────────────── -->
-  @if (!loading() && !error() && view() === 'grid' && filtered().length > 0) {
+  @if (!loading() && !error() && view() === 'grid' && filteredWithAdsComputed().length > 0) {
     <div class="grid">
-      @for (t of filteredWithAds(); track trackItem($index, t)) {
+      @for (t of filteredWithAdsComputed(); track trackItem($index, t)) {
         @if (t.__adCard) {
           <!-- In-grid sponsor card -->
           <div class="ad-card" [style.--ad-accent]="t.brand_color || '#f0a500'">
@@ -207,7 +228,12 @@
         } @else {
           <!-- Tournament card -->
           <a class="card" [class.card--promoted]="isPromoted(t.id)" [routerLink]="['/tournaments', t.id]">
-            @if (isPromoted(t.id)) { <div class="promoted-badge">⭐ Promoted</div> }
+            @if (isPromoted(t.id)) {
+              <div class="promoted-badge">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Promoted
+              </div>
+            }
 
           <!-- ── Game art ── -->
           <div class="card-art" [style.--accent]="gameAccent(t.game)">
@@ -218,9 +244,23 @@
             }
             <div class="card-art__fade"></div>
             @switch (statusGroup(t.status)) {
-              @case ('live') { <span class="card-badge card-badge--live"><span class="dot"></span>Live now</span> }
-              @case ('open') { <span class="card-badge card-badge--open">Open</span> }
-              @case ('completed') { <span class="card-badge card-badge--done">Completed</span> }
+              @case ('live') {
+                <span class="card-badge card-badge--live">
+                  <span class="dot"></span>Live
+                </span>
+              }
+              @case ('open') {
+                <span class="card-badge card-badge--open">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  Open
+                </span>
+              }
+              @case ('completed') {
+                <span class="card-badge card-badge--done">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Done
+                </span>
+              }
               @default { <span class="card-badge card-badge--soon">{{ t.status_label || 'Soon' }}</span> }
             }
           </div>
@@ -247,9 +287,15 @@
             <div class="card-name">{{ t.name }}</div>
             @if (t.name_ar) { <div class="card-name-ar" dir="rtl">{{ t.name_ar }}</div> }
             @if (prizeTotal(t) > 0) {
-              <div class="card-reward">🏆 Win <strong>{{ prizeLabel(t) }} SAR</strong> in prizes</div>
+              <div class="card-reward">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                Win <strong>{{ prizeLabel(t) }} SAR</strong> in prizes
+              </div>
             } @else {
-              <div class="card-reward card-reward--free">🎮 Free to enter</div>
+              <div class="card-reward card-reward--free">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                Free to enter
+              </div>
             }
             <div class="card-slots">
               <div class="card-slots__bar">
@@ -268,9 +314,13 @@
             <button class="card-cta"
               [class.card-cta--live]="statusGroup(t.status) === 'live'"
               [class.card-cta--done]="statusGroup(t.status) === 'completed'">
-              @if (statusGroup(t.status) === 'live') { 🔴 Watch Live }
-              @else if (statusGroup(t.status) === 'completed') { View Results }
-              @else { Register Now }
+              @if (statusGroup(t.status) === 'live') {
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg> Watch Live
+              } @else if (statusGroup(t.status) === 'completed') {
+                View Results
+              } @else {
+                Register Now
+              }
             </button>
           </div>
           </a>
@@ -323,8 +373,10 @@
     </div>
   }
 
-  <!-- ── Platform sponsors ───────────────────────────────────── -->
-  <div style="margin-top: 40px;">
-    <app-platform-sponsors-strip variant="compact"></app-platform-sponsors-strip>
-  </div>
+  <!-- ── Platform sponsors — only when partners exist ─────────── -->
+  @if (sponsorCards().length > 0) {
+    <div style="margin-top:40px;border-top:1px solid var(--line)">
+      <app-platform-sponsors-strip variant="compact"></app-platform-sponsors-strip>
+    </div>
+  }
 </div>

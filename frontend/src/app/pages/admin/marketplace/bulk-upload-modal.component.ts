@@ -122,13 +122,13 @@ import {
     .close:hover { color:#fff; }
     .tabs    { display:flex; gap:8px; padding:16px 24px 0; }
     .tabs button { background:transparent; border:1px solid #2a2a3a; color:#888; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px; }
-    .tabs button.active { background:#a855f7; border-color:#a855f7; color:#fff; }
+    .tabs button.active { background:#d4af37; border-color:#d4af37; color:#fff; }
     .grid    { display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:16px 24px; }
     .grid .full { grid-column: 1 / -1; }
     label    { display:flex; flex-direction:column; gap:6px; font-size:12px; color:#aaa; }
     input, textarea { background:#0a0a14; border:1px solid #2a2a3a; color:#fff; padding:8px 10px; border-radius:6px; font-size:13px; font-family: inherit; }
     textarea { font-family: 'Space Mono', monospace; font-size:12px; }
-    input:focus, textarea:focus { outline:none; border-color:#a855f7; }
+    input:focus, textarea:focus { outline:none; border-color:#d4af37; }
     .hint    { font-size:12px; color:#888; margin:0 24px 12px; }
     .error   { color:#ef4444; font-size:13px; margin:8px 24px; }
     .result  { background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.3); color:#86efac; padding:12px 16px; margin:8px 24px; border-radius:6px; font-size:13px; }
@@ -137,7 +137,7 @@ import {
     footer   { display:flex; justify-content:flex-end; gap:8px; padding:16px 24px; border-top:1px solid #2a2a3a; margin-top:auto; }
     button.ghost { background:transparent; border:1px solid #2a2a3a; color:#888; padding:8px 16px; border-radius:6px; cursor:pointer; }
     button.ghost:hover { color:#fff; border-color:#888; }
-    button.primary { background:#a855f7; border:0; color:#fff; padding:8px 20px; border-radius:6px; cursor:pointer; font-weight:600; }
+    button.primary { background:#d4af37; border:0; color:#fff; padding:8px 20px; border-radius:6px; cursor:pointer; font-weight:600; }
     button.primary:disabled { opacity:.5; cursor:not-allowed; }
     code, kbd { background:#0a0a14; padding:1px 6px; border-radius:3px; font-size:11px; }
   `],

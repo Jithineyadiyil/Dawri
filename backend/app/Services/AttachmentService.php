@@ -92,6 +92,64 @@ final class AttachmentService
         });
     }
 
+    public const VOICE_MAX_MB = 10;
+    public const VOICE_ALLOWED = ['webm', 'ogg', 'mp3', 'mpeg', 'm4a', 'mp4', 'wav'];
+
+    /**
+     * Upload a single voice note as a carrier message in a channel.
+     *
+     * @throws AuthorizationException|RuntimeException
+     */
+    public function uploadVoiceToChannel(
+        Channel $channel,
+        User $author,
+        ?UploadedFile $file,
+        int $durationMs,
+    ): Message {
+        $this->assertCanPost($channel, $author);
+
+        if ($file === null) {
+            throw new RuntimeException('No audio provided.');
+        }
+        if ($file->getSize() > self::VOICE_MAX_MB * 1024 * 1024) {
+            throw new RuntimeException('Voice note must be under ' . self::VOICE_MAX_MB . 'MB.');
+        }
+        $ext = strtolower($file->getClientOriginalExtension() ?: ($file->extension() ?: 'webm'));
+        if (! in_array($ext, self::VOICE_ALLOWED, true)) {
+            throw new RuntimeException('Unsupported audio format.');
+        }
+
+        return DB::transaction(function () use ($channel, $author, $file, $ext, $durationMs) {
+            $message = Message::create([
+                'channel_id' => $channel->id,
+                'user_id'    => $author->id,
+                'content'    => '',
+            ]);
+
+            $filename = Str::uuid()->toString() . '.' . $ext;
+            $path     = $file->storeAs("voice/{$channel->id}", $filename, 'public');
+
+            MessageAttachment::create([
+                'message_id'  => $message->id,
+                'path'        => $path,
+                'mime'        => $file->getClientMimeType() ?: 'audio/webm',
+                'size'        => $file->getSize() ?: 0,
+                'duration_ms' => max(0, $durationMs),
+                'position'    => 0,
+            ]);
+
+            DB::afterCommit(function () use ($message): void {
+                $fresh = $this->messages->findById($message->id);
+                if ($fresh !== null) {
+                    $fresh->load(['author', 'reactions', 'mentions', 'parent.author', 'attachments']);
+                    broadcast(new \App\Events\MessagePosted($fresh))->toOthers();
+                }
+            });
+
+            return $message->fresh(['author', 'attachments']);
+        });
+    }
+
     /** Store a single image file and create its attachment row. */
     private function storeOne(Message $message, Channel $channel, UploadedFile $file, int $position): void
     {

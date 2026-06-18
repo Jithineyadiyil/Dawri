@@ -31,15 +31,15 @@ import { CommunityMember } from '../../models/community.model';
   `,
   styles: [`
     .wrap { position: relative; flex: 1; }
-    textarea { width: 100%; padding: 0.6rem; background: #0d0d17; color: #eaeaf2; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; resize: none; font-family: 'Archivo', system-ui, sans-serif; } textarea:focus { outline: none; border-color: rgba(0,255,163,0.5); box-shadow: 0 0 0 1px rgba(0,255,163,0.3); }
+    textarea { width: 100%; padding: 0.6rem; background: #110f1e; color: #eaeaf2; border: 1px solid rgba(124,58,237,0.2); border-radius: 8px; resize: none; font-family: 'Archivo', system-ui, sans-serif; } textarea:focus { outline: none; border-color: rgba(124,58,237,0.6); box-shadow: 0 0 0 1px rgba(124,58,237,0.25); }
     .suggestions {
       position: absolute; bottom: 100%; left: 0; right: 0;
-      background: #0d0d17; border: 1px solid rgba(0,255,163,0.25); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      background: #110f1e; border: 1px solid rgba(124,58,237,0.3); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 16px rgba(124,58,237,0.12);
       list-style: none; padding: 0.25rem; margin: 0;
       max-height: 160px; overflow-y: auto;
     }
     li { padding: 0.4rem 0.6rem; cursor: pointer; color: #cfcfe0; border-radius: 6px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.85rem; }
-    li:hover { background: #16161f; color: #00ffa3; }
+    li:hover { background: #1c1833; color: #a78bfa; }
   `],
 })
 export class MentionTextareaComponent {

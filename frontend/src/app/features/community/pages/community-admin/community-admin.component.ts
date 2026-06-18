@@ -65,7 +65,7 @@ import { Channel, Community } from '../../models/community.model';
   styles: [`
     .admin-wrap { padding: 2rem; color: #eaeaf2; }
     h2 { font-family: 'Anton', 'Bebas Neue', sans-serif; text-transform: uppercase; letter-spacing: 0.04em; color: #eaeaf2; }
-    section { margin-bottom: 2rem; padding: 1rem; background: #0d0d17; border-radius: 8px; }
+    section { margin-bottom: 2rem; padding: 1rem; background: #110f1e; border: 1px solid rgba(124,58,237,0.15); border-radius: 8px; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.07); text-align: start; }
     .topic-cell { color: #7a7a92; }
@@ -73,9 +73,10 @@ import { Channel, Community } from '../../models/community.model';
     .edit-row input { width: 100%; }
     .new-channel { margin-top: 1rem; display: flex; gap: 0.5rem; }
     input, select { padding: 0.5rem; background: #07070d; color: #eaeaf2; border: 1px solid rgba(255,255,255,0.07); border-radius: 4px; }
-    button { padding: 0.5rem 1rem; background: #00ffa3; color: #07070d; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+    button { padding: 0.5rem 1rem; background: #7c3aed; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; transition: background 0.14s; }
+    button:hover { background: #6d28d9; }
     button.ghost { background: transparent; color: #7a7a92; padding: 0.5rem; }
-    button.ghost:hover { color: #00ffa3; }
+    button.ghost:hover { color: #a78bfa; }
     button.ghost.danger:hover { color: #ff6b6b; }
   `],
 })

@@ -63,17 +63,23 @@ type ManageTab = 'channels' | 'join' | 'admin' | 'insights';
     </div>
   `,
   styles: [`
-    :host { --accent: #00ffa3; --bg: #0b0b14; --raised: #16161f; --line: rgba(255,255,255,0.09); --text: #eaeaf2; --mut: #8a8a9e; }
-    .overlay { position: fixed; inset: 0; z-index: 960; background: rgba(0,0,0,0.5); display: flex; justify-content: flex-end; }
+    :host { --accent: #7c3aed; --accent-s: #a78bfa; --bg: #0b0a14; --raised: #1c1833; --line: rgba(124,58,237,0.15); --text: #eaeaf2; --mut: #8a8a9e; }
+    .overlay { position: fixed; inset: 0; z-index: 960; background: rgba(0,0,0,0.55); display: flex; justify-content: flex-end; }
     .panel { width: 100%; max-width: 500px; height: 100%; background: var(--bg); border-left: 1px solid var(--line); display: flex; flex-direction: column; animation: slide 0.18s ease-out; }
-    @keyframes slide { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes slide {
+      0%   { transform: translateX(40px); opacity: 0; }
+      60%  { transform: translateX(-6px); opacity: 1; }
+      80%  { transform: translateX(3px); }
+      100% { transform: translateX(0); }
+    }
     .ph { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.1rem; border-bottom: 1px solid var(--line); }
     .title { font-family: 'Anton', 'Bebas Neue', sans-serif; font-size: 1.3rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text); }
     .x { background: none; border: none; color: var(--mut); cursor: pointer; font-size: 1.05rem; width: 32px; height: 32px; border-radius: 50%; }
     .x:hover { background: var(--raised); color: var(--text); }
     .tabs { display: flex; gap: 0.25rem; padding: 0.6rem 1.1rem 0; border-bottom: 1px solid var(--line); }
-    .tabs button { background: none; border: none; border-bottom: 2px solid transparent; color: var(--mut); padding: 0.55rem 0.75rem; cursor: pointer; font-size: 0.86rem; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-    .tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tabs button { background: none; border: none; border-bottom: 2px solid transparent; color: var(--mut); padding: 0.55rem 0.75rem; cursor: pointer; font-size: 0.86rem; font-family: 'JetBrains Mono', ui-monospace, monospace; transition: color 0.13s; }
+    .tabs button:hover { color: var(--accent-s); }
+    .tabs button.active { color: var(--accent-s); border-bottom-color: var(--accent); }
     .content { flex: 1; overflow-y: auto; padding: 0 1.1rem 1.5rem; min-height: 0; }
   `],
 })

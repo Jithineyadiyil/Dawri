@@ -1,12 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 
-type Tab = 'login' | 'register' | 'otp';
+type Tab = 'login' | 'register' | 'otp' | 'forgot' | 'reset' | 'forgot-sent';
 
 @Component({
   selector: 'dw-auth', standalone: true,
@@ -19,49 +19,86 @@ export class AuthComponent {
   private readonly auth   = inject(AuthService);
   private readonly toast  = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly route  = inject(ActivatedRoute);
   private readonly fb     = inject(FormBuilder);
 
   readonly tab      = signal<Tab>('login');
   readonly loading  = signal(false);
   readonly errorMsg = signal('');
 
+  // Password show/hide toggles
+  readonly showLoginPw    = signal(false);
+  readonly showRegPw      = signal(false);
+  readonly showRegConfirm = signal(false);
+  readonly showResetPw    = signal(false);
+  readonly showResetConf  = signal(false);
+
   readonly loginForm = this.fb.group({
     email:    ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
-    // 'remember' currently always defaults to true. Toggling it off is
-    // tracked-only for now — the AuthService stores tokens in localStorage
-    // unconditionally (persistent across browser restarts). A future sprint
-    // will switch to sessionStorage when remember=false. For now we capture
-    // user intent so the UI matches expectation.
     remember: [true],
   });
+
   readonly registerForm = this.fb.group({
-    name: ['', [Validators.required]],
-    email: ['', [Validators.required, Validators.email]],
-    country_code: ['+966'],
-    phone_number: ['', Validators.required],
-    password: ['', [Validators.required, Validators.minLength(8)]],
-    password_confirmation: ['', Validators.required],
-    terms: [false, Validators.requiredTrue],
+    name:                 ['', [Validators.required]],
+    email:                ['', [Validators.required, Validators.email]],
+    country_code:         ['+966'],
+    phone_number:         ['', Validators.required],
+    password:             ['', [Validators.required, Validators.minLength(8)]],
+    password_confirmation:['', Validators.required],
+    terms:                [false, Validators.requiredTrue],
   });
+
   readonly otpForm = this.fb.group({
     otp: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6)]]
   });
 
+  readonly forgotForm = this.fb.group({
+    email: ['', [Validators.required, Validators.email]],
+  });
+
+  readonly resetForm = this.fb.group({
+    password:              ['', [Validators.required, Validators.minLength(8)]],
+    password_confirmation: ['', Validators.required],
+  });
+
+  // Pre-filled from URL params when landing on /auth?token=...&email=...
+  private resetToken = '';
+  private resetEmail = '';
+
   readonly features = [
-    { icon: '🏆', text: 'Enter tournaments for EA FC 25, PUBG Mobile, and COD Mobile' },
-    { icon: '🎁', text: 'Receive digital prizes — PSN, Apple, PUBG UC and more' },
-    { icon: '📊', text: 'Track your ranking and tournament history' },
-    { icon: '🌍', text: 'Full Arabic RTL support and GCC regional coverage' },
+    { text: 'Join tournaments for EA FC 25, PUBG Mobile, and CoD Mobile' },
+    { text: 'Win digital prizes — PSN, iTunes, PUBG UC and more' },
+    { text: 'Track your ranking and full tournament history' },
+    { text: 'Full Arabic RTL support and GCC regional coverage' },
   ];
+
+  readonly countryCodes = [
+    { code: '+966', flag: '🇸🇦', name: 'KSA' },
+    { code: '+971', flag: '🇦🇪', name: 'UAE' },
+    { code: '+965', flag: '🇰🇼', name: 'KWT' },
+    { code: '+974', flag: '🇶🇦', name: 'QAT' },
+    { code: '+973', flag: '🇧🇭', name: 'BHR' },
+    { code: '+968', flag: '🇴🇲', name: 'OMN' },
+  ];
+
+  constructor() {
+    // Check for reset token in URL query params
+    this.route.queryParams.subscribe(params => {
+      if (params['token'] && params['email']) {
+        this.resetToken = params['token'];
+        this.resetEmail = params['email'];
+        this.tab.set('reset');
+      }
+    });
+  }
 
   setTab(t: Tab): void { this.tab.set(t); this.errorMsg.set(''); }
 
+  // ── Login ─────────────────────────────────────────────────────────────
   login(): void {
     if (this.loginForm.invalid) { this.loginForm.markAllAsTouched(); return; }
     this.loading.set(true); this.errorMsg.set('');
-    // Send only the API-expected payload — `remember` is a UI preference
-    // and not part of the backend login contract.
     const payload = {
       email:    this.loginForm.value.email!,
       password: this.loginForm.value.password!,
@@ -82,12 +119,16 @@ export class AuthComponent {
     });
   }
 
+  // ── Register ──────────────────────────────────────────────────────────
   register(): void {
     if (this.registerForm.invalid) { this.registerForm.markAllAsTouched(); return; }
     const v = this.registerForm.value;
     const phone = (v.country_code ?? '+966') + (v.phone_number ?? '');
     this.loading.set(true); this.errorMsg.set('');
-    this.api.register({ name: v.name!, email: v.email!, password: v.password!, password_confirmation: v.password_confirmation!, phone }).subscribe({
+    this.api.register({
+      name: v.name!, email: v.email!,
+      password: v.password!, password_confirmation: v.password_confirmation!, phone
+    }).subscribe({
       next: (res: any) => {
         const token = res?.data?.token ?? res?.token;
         const user  = res?.data?.user  ?? res?.user;
@@ -103,6 +144,7 @@ export class AuthComponent {
     });
   }
 
+  // ── OTP ───────────────────────────────────────────────────────────────
   verifyOtp(): void {
     if (this.otpForm.invalid) return;
     this.loading.set(true); this.errorMsg.set('');
@@ -122,6 +164,42 @@ export class AuthComponent {
     this.api.sendOtp().subscribe({
       next: () => this.toast.info('New OTP sent.'),
       error: () => this.toast.error('Failed to send OTP.'),
+    });
+  }
+
+  // ── Forgot password ───────────────────────────────────────────────────
+  forgotPassword(): void {
+    if (this.forgotForm.invalid) { this.forgotForm.markAllAsTouched(); return; }
+    this.loading.set(true); this.errorMsg.set('');
+    this.api.forgotPassword(this.forgotForm.value.email!).subscribe({
+      next: () => { this.loading.set(false); this.setTab('forgot-sent'); },
+      error: (err: any) => {
+        this.errorMsg.set(err.error?.message ?? 'Failed to send reset link.');
+        this.loading.set(false);
+      },
+    });
+  }
+
+  // ── Reset password ────────────────────────────────────────────────────
+  resetPassword(): void {
+    if (this.resetForm.invalid) { this.resetForm.markAllAsTouched(); return; }
+    this.loading.set(true); this.errorMsg.set('');
+    this.api.resetPassword({
+      token:                 this.resetToken,
+      email:                 this.resetEmail,
+      password:              this.resetForm.value.password!,
+      password_confirmation: this.resetForm.value.password_confirmation!,
+    }).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.toast.success('Password reset! Please sign in.');
+        this.router.navigate(['/auth']);
+        this.setTab('login');
+      },
+      error: (err: any) => {
+        this.errorMsg.set(err.error?.message ?? 'Reset failed. The link may have expired.');
+        this.loading.set(false);
+      },
     });
   }
 }

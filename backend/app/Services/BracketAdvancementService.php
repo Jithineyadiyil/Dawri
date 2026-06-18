@@ -28,6 +28,7 @@ class BracketAdvancementService
 {
     public function __construct(
         private readonly RankingService $ranking,
+        private readonly AchievementService $achievements,
     ) {}
 
     /**
@@ -202,11 +203,14 @@ class BracketAdvancementService
 
     private function checkRRCompletion(Bracket $bracket, Tournament $tournament): void
     {
-        $pending = TournamentMatch::where('bracket_id', $bracket->id)
-            ->whereIn('status', ['pending', 'ongoing'])
+        // Bug #17: Must check ALL non-terminal statuses, not just pending/ongoing.
+        // 'submitted' and 'disputed' matches are not yet complete — tournament
+        // must not be marked done while any match is still awaiting confirmation.
+        $nonTerminal = TournamentMatch::where('bracket_id', $bracket->id)
+            ->whereNotIn('status', ['completed', 'walkover', 'cancelled'])
             ->count();
 
-        if ($pending === 0) {
+        if ($nonTerminal === 0) {
             $this->completeTournament($bracket, $tournament, null);
         }
     }
@@ -217,18 +221,32 @@ class BracketAdvancementService
     {
         $currentRound = $match->round_number;
 
+        // Bug #17 (Swiss): Same fix — check all non-terminal statuses, not just pending/ongoing
         $pendingInRound = TournamentMatch::where('bracket_id', $bracket->id)
             ->where('round_number', $currentRound)
-            ->whereIn('status', ['pending', 'ongoing'])
+            ->whereNotIn('status', ['completed', 'walkover', 'cancelled'])
             ->count();
 
         if ($pendingInRound > 0) {
             return;
         }
 
-        $totalRounds = $bracket->total_rounds
-            ?? $tournament->swiss_rounds
-            ?? (int) ceil(log(max($bracket->participant_count, 2), 2));
+        // Bug #16: total_rounds priority order with explicit fallback logging.
+        // bracket->total_rounds is set at generation time and is authoritative.
+        // tournament->swiss_rounds is the organizer-configured value.
+        // The ceil(log2(N)) fallback is approximate — log it so we can detect drift.
+        if ($bracket->total_rounds !== null) {
+            $totalRounds = $bracket->total_rounds;
+        } elseif ($tournament->swiss_rounds !== null) {
+            $totalRounds = $tournament->swiss_rounds;
+        } else {
+            $totalRounds = (int) ceil(log(max($bracket->participant_count, 2), 2));
+            \Illuminate\Support\Facades\Log::warning(
+                "Swiss bracket {$bracket->id}: total_rounds and swiss_rounds both null — "
+                . "falling back to ceil(log2({$bracket->participant_count})) = {$totalRounds}. "
+                . "Set tournament.swiss_rounds to avoid this."
+            );
+        }
 
         if ($currentRound >= $totalRounds) {
             $this->completeTournament($bracket, $tournament, null);
@@ -384,6 +402,27 @@ class BracketAdvancementService
             $this->ranking->awardTournamentPoints((string) $tournament->id);
         } catch (Throwable $e) {
             logger()->error('Ranking point award failed after tournament completion', [
+                'tournament_id' => $tournament->id,
+                'error'         => $e->getMessage(),
+            ]);
+        }
+
+        // Award XP + advance tournament-related achievements for ALL participants.
+        try {
+            $participants = TournamentParticipant::where('tournament_id', $tournament->id)
+                ->with('user')->get();
+
+            foreach ($participants as $p) {
+                if (! $p->user) { continue; }
+                $this->achievements->trigger($p->user, 'tournament_played', ['source_id' => $tournament->id]);
+            }
+
+            $winner = $participants->firstWhere('id', $winnerId);
+            if ($winner?->user) {
+                $this->achievements->trigger($winner->user, 'tournament_win', ['source_id' => $tournament->id]);
+            }
+        } catch (Throwable $e) {
+            logger()->warning('Achievement grant on tournament complete failed', [
                 'tournament_id' => $tournament->id,
                 'error'         => $e->getMessage(),
             ]);

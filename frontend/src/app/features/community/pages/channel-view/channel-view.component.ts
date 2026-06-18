@@ -5,7 +5,7 @@
  * Reverb presence channel, marks the channel read, loads pinned messages,
  * and unsubscribes on teardown.
  */
-import { ChangeDetectionStrategy, Component, DestroyRef, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -29,7 +29,7 @@ import { Message } from '../../models/community.model';
   template: `
     <header class="channel-header">
       <div class="channel-row">
-        <div>
+        <div class="channel-id">
           <div class="channel-title">
             <span class="hash">#</span>{{ channel()?.name }}
           </div>
@@ -38,31 +38,46 @@ import { Message } from '../../models/community.model';
         <div class="channel-tools">
           <button
             *ngIf="pinned().length > 0"
-            class="pin-toggle"
+            class="tool-btn pin-toggle"
             (click)="showPinned.set(!showPinned())"
             title="Pinned messages"
-          >📌 {{ pinned().length }}</button>
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+            {{ pinned().length }}
+          </button>
           <button
-            class="events-toggle"
+            class="tool-btn events-toggle"
             (click)="showEvents.set(true)"
             title="Community events"
-          >📅 Events</button>
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Events
+          </button>
           <button
-            class="rules-toggle"
+            class="tool-btn rules-toggle"
             (click)="showRules.set(true)"
             title="Community rules"
-          >📜 Rules</button>
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Rules
+          </button>
           <button
             *ngIf="canManageJoin()"
-            class="manage-toggle"
+            class="tool-btn manage-toggle"
             (click)="showManage.set(true)"
             title="Manage community"
-          >🛡️ Manage</button>
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Manage
+          </button>
         </div>
       </div>
 
       <div class="pinned-panel" *ngIf="showPinned() && pinned().length > 0">
-        <div class="pinned-head">Pinned messages</div>
+        <div class="pinned-head">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+          Pinned messages
+        </div>
         <ul>
           <li *ngFor="let p of pinned()">
             <span class="pin-author">{{ p.author.nickname ?? 'Unknown' }}:</span>
@@ -103,57 +118,47 @@ import { Message } from '../../models/community.model';
   styles: [`
     :host { display: flex; flex-direction: column; height: 100%; min-height: 0; }
     .channel-header {
-      padding: 0.75rem 1rem;
-      border-bottom: 1px solid rgba(255,255,255,0.07);
-      background: #0a0a12;
+      padding: 0.7rem 1.1rem;
+      border-bottom: 1px solid rgba(124,58,237,0.18);
+      background: #0e0c1a;
       flex-shrink: 0;
     }
-    .channel-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-    .channel-tools { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+    .channel-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .channel-id { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+    .channel-tools { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
     .channel-title {
       font-family: 'Anton', 'Bebas Neue', sans-serif; text-transform: uppercase;
-      font-size: 1.25rem;
-      letter-spacing: 0.05em;
-      color: #eaeaf2;
+      font-size: 1.2rem; letter-spacing: 0.05em; color: #eaeaf2;
+      display: flex; align-items: center;
     }
-    .hash { opacity: 0.6; margin-inline-end: 0.25rem; color: #00ffa3; }
-    .channel-topic { font-size: 0.82rem; color: #7a7a92; margin-top: 0.25rem; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-    .pin-toggle {
-      background: #16161f; border: 1px solid rgba(0,255,163,0.25); color: #00ffa3;
-      border-radius: 999px; padding: 0.2rem 0.6rem; cursor: pointer; font-size: 0.8rem;
-      white-space: nowrap;
+    .hash { margin-inline-end: 0.2rem; color: #7c3aed; opacity: 0.9; }
+    .channel-topic { font-size: 0.78rem; color: #7a7a92; font-family: 'JetBrains Mono', ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tool-btn {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.22);
+      color: #a78bfa; border-radius: 8px; padding: 0.3rem 0.65rem;
+      cursor: pointer; font-size: 0.78rem; font-family: 'JetBrains Mono', ui-monospace, monospace;
+      white-space: nowrap; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
-    .pin-toggle:hover { border-color: #eaeaf2; }
-    .events-toggle {
-      background: #16161f; border: 1px solid rgba(0,255,163,0.25); color: #00ffa3;
-      border-radius: 999px; padding: 0.2rem 0.7rem; cursor: pointer; font-size: 0.8rem;
-      white-space: nowrap; font-family: 'JetBrains Mono', ui-monospace, monospace;
-    }
-    .events-toggle:hover { border-color: #00ffa3; box-shadow: 0 0 12px rgba(0,255,163,0.25); }
-    .rules-toggle {
-      background: #16161f; border: 1px solid rgba(255,255,255,0.18); color: #cfcfe0;
-      border-radius: 999px; padding: 0.2rem 0.7rem; cursor: pointer; font-size: 0.8rem;
-      white-space: nowrap; font-family: 'JetBrains Mono', ui-monospace, monospace;
-    }
-    .rules-toggle:hover { border-color: #eaeaf2; }
-    .manage-toggle {
-      background: #16161f; border: 1px solid rgba(255,107,107,0.3); color: #ff8a8a;
-      border-radius: 999px; padding: 0.2rem 0.7rem; cursor: pointer; font-size: 0.8rem;
-      white-space: nowrap; font-family: 'JetBrains Mono', ui-monospace, monospace;
-    }
-    .manage-toggle:hover { border-color: #ff6b6b; box-shadow: 0 0 12px rgba(255,107,107,0.25); }
+    .tool-btn:hover { background: rgba(124,58,237,0.18); border-color: #7c3aed; box-shadow: 0 0 12px rgba(124,58,237,0.25); color: #c4b5fd; }
+    .manage-toggle { border-color: rgba(124,58,237,0.35); }
     .pinned-panel {
-      margin-top: 0.6rem; background: #0d0d17; border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 8px; padding: 0.5rem 0.75rem; max-height: 180px; overflow-y: auto;
+      margin-top: 0.6rem; background: rgba(124,58,237,0.07); border: 1px solid rgba(124,58,237,0.2);
+      border-radius: 10px; padding: 0.55rem 0.85rem; max-height: 180px; overflow-y: auto;
     }
-    .pinned-head { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: #00ffa3; margin-bottom: 0.4rem; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .pinned-head {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em;
+      color: #a78bfa; margin-bottom: 0.45rem;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+    }
     .pinned-panel ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
     .pinned-panel li { font-size: 0.82rem; color: #c8cbe0; }
     .pin-author { font-weight: 700; color: #e6e8f5; margin-inline-end: 0.35rem; }
     .pin-content { white-space: pre-wrap; word-wrap: break-word; }
     .channel-body { display: grid; grid-template-columns: 1fr 240px; flex: 1; overflow: hidden; min-height: 0; }
     .messages-pane { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
-    .members-pane  { border-inline-start: 1px solid rgba(255,255,255,0.07); background: #0d0d17; overflow-y: auto; }
+    .members-pane  { border-inline-start: 1px solid rgba(124,58,237,0.15); background: #110f1e; overflow-y: auto; }
     @media (max-width: 1024px) { .members-pane { display: none; } }
   `],
 })
@@ -239,6 +244,38 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
 
   private subscribedChannelId: string | null = null;
 
+  /**
+   * When resolveChannel() fires before communities are loaded (common on first
+   * navigation), these hold the pending params so the retry effect can replay
+   * them once the communities signal populates.
+   */
+  private pendingSlug: string | null = null;
+  private pendingChannelId: string | null = null;
+
+  constructor() {
+    /**
+     * Retry resolution whenever the communities list changes.
+     * This fires the very first time communities finish loading (HTTP response)
+     * and resolves the blank-tab race condition: route params arrive before the
+     * communities array is populated, resolveChannel() bails early, and without
+     * this effect it would never be retried.
+     */
+    effect(() => {
+      const communities = this.state.communities();
+      if (communities.length > 0 && this.pendingSlug) {
+        // Run outside the effect's reactive context so it doesn't create
+        // tracked dependencies that would cause infinite re-runs.
+        untracked(() => {
+          const slug = this.pendingSlug;
+          const channelId = this.pendingChannelId;
+          this.pendingSlug = null;
+          this.pendingChannelId = null;
+          this.resolveChannel(slug, channelId);
+        });
+      }
+    });
+  }
+
   ngOnInit(): void {
     this.route.paramMap
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -254,7 +291,16 @@ export class ChannelViewComponent implements OnInit, OnDestroy {
   private resolveChannel(slug: string | null, channelId: string | null): void {
     if (!slug) return;
     const community = this.state.communities().find(c => c.slug === slug);
-    if (!community) return;
+    if (!community) {
+      // Communities not loaded yet — park the params; the effect() will retry
+      // once the communities signal populates (fixes blank tab on first visit).
+      this.pendingSlug = slug;
+      this.pendingChannelId = channelId;
+      return;
+    }
+    // Successfully resolved — clear any parked params.
+    this.pendingSlug = null;
+    this.pendingChannelId = null;
 
     const switchingCommunity = this.state.activeCommunityId() !== community.id;
     this.state.activeCommunityId.set(community.id);

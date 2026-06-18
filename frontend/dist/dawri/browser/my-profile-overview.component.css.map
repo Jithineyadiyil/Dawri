@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;a49893cae57fd22fd1e9beb16674cdeeb1f7328342163cb198866b9da9c85147;D:/xamp new/htdocs/Dawri/frontend/src/app/pages/profile/my-profile-overview.component.ts"],
+  "sourcesContent": ["\n    :host { display: block; }\n    .mpv-shell { position: relative; }\n    .mpv-account { display: flex; justify-content: flex-end; max-width: 980px; margin: 0 auto; padding: 12px 1.5rem 0; }\n    .mpv-account__link {\n      display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px;\n      font-size: 12px; color: var(--mu, #8a8aa0); text-decoration: none;\n      border: 1px solid var(--br, rgba(255,255,255,.08)); border-radius: 8px;\n      background: var(--bg2, #10101c); transition: border-color .15s, color .15s;\n    }\n    .mpv-account__link:hover { color: var(--text, #ececf1); border-color: var(--br2, rgba(255,255,255,.14)); }\n  "],
+  "mappings": ";AACI;AAAQ,WAAS;AAAO;AACxB,CAAC;AAAY,YAAU;AAAU;AACjC,CAAC;AAAc,WAAS;AAAM,mBAAiB;AAAU,aAAW;AAAO,UAAQ,EAAE;AAAM,WAAS,KAAK,OAAO;AAAG;AACnH,CAAC;AACC,WAAS;AAAa,eAAa;AAAQ,OAAK;AAAK,WAAS,IAAI;AAClE,aAAW;AAAM,SAAO,IAAI,IAAI,EAAE;AAAU,mBAAiB;AAC7D,UAAQ,IAAI,MAAM,IAAI,IAAI,EAAE,KAAK,GAAG,CAAC,GAAG,CAAC,GAAG,CAAC;AAAO,iBAAe;AACnE,cAAY,IAAI,KAAK,EAAE;AAAU,cAAY,aAAa,IAAI,EAAE,MAAM;AACxE;AACA,CANC,iBAMiB;AAAS,SAAO,IAAI,MAAM,EAAE;AAAU,gBAAc,IAAI,KAAK,EAAE,KAAK,GAAG,CAAC,GAAG,CAAC,GAAG,CAAC;AAAO;",
+  "names": []
+}

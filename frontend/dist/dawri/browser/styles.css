@@ -1,0 +1,184 @@
+@charset "UTF-8";
+@import "https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+Arabic:wght@500;700&display=swap";
+
+/* src/styles.scss */
+:root {
+  --bg: #0a0a12;
+  --bg2: #10101c;
+  --bg3: #181826;
+  --bg4: #21212e;
+  --br: rgba(255,255,255,0.08);
+  --br2: rgba(255,255,255,0.14);
+  --text: #ececf1;
+  --mu: #8a8aa0;
+  --dim: #55556e;
+  --primary: #006c35;
+  --primary-soft: #2d8c5e;
+  --primary-dark: #004a23;
+  --gg: rgba(0,108,53,0.14);
+  --gold-border: rgba(0,108,53,0.35);
+  --accent: #d4af37;
+  --accent-soft: #e8c965;
+  --accent-dark: #a37d1e;
+  --gc: rgba(212,175,55,0.10);
+  --gold: var(--primary);
+  --gold-soft: var(--primary-soft);
+  --gold-dark: var(--primary-dark);
+  --cyan: var(--accent);
+  --cyan-soft: var(--accent-soft);
+  --cyan-dark: var(--accent-dark);
+  --green: #4ade80;
+  --red: #f87171;
+  --purple: #a78bfa;
+  --amber: #f5b942;
+  --fh:
+    "Anton",
+    "Bebas Neue",
+    sans-serif;
+  --fb:
+    "Archivo",
+    system-ui,
+    sans-serif;
+  --fa: "Noto Sans Arabic", sans-serif;
+  --fm:
+    "JetBrains Mono",
+    ui-monospace,
+    monospace;
+  --r: 10px;
+  --r-sm: 6px;
+  --r-lg: 18px;
+  --e: 0.18s;
+  --bg-2: var(--bg2);
+  --bg-3: var(--bg3);
+  --bg-4: var(--bg4);
+  --line: var(--br);
+  --line-2: var(--br2);
+  --text-dim: var(--mu);
+  --text-mute: var(--dim);
+  --display: var(--fh);
+  --body: var(--fb);
+  --mono: var(--fm);
+  --arabic: var(--fa);
+  --good: var(--green);
+  --bad: var(--red);
+  --warn: var(--amber);
+  --live: var(--red);
+  --electric: #2e8bff;
+  --electric-soft: #5ba6ff;
+  --electric-dim: rgba(46,139,255,0.14);
+  --navy: #0b1224;
+  --navy-2: #0f1830;
+  --navy-3: #16203c;
+  --grad-brand:
+    linear-gradient(
+      120deg,
+      var(--primary) 0%,
+      #0a8f5a 45%,
+      var(--electric) 100%);
+  --grad-gold:
+    linear-gradient(
+      120deg,
+      var(--accent) 0%,
+      var(--accent-soft) 100%);
+  --sh-1: 0 1px 2px rgba(0,0,0,0.30);
+  --sh-2: 0 8px 24px -10px rgba(0,0,0,0.55);
+  --sh-glow-green: 0 12px 40px -12px rgba(0,108,53,0.55);
+  --sh-glow-blue: 0 12px 40px -12px rgba(46,139,255,0.45);
+  --maxw: 1440px;
+  --gutter: 32px;
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  font-family: var(--fb);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.55;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+::selection {
+  background: var(--accent);
+  color: #000;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.form-label {
+  font-family: var(--fm);
+  font-size: 0.72rem;
+  color: var(--mu);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+.input {
+  background: var(--bg3);
+  border: 1px solid var(--br2);
+  border-radius: var(--r);
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: var(--fb);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color var(--e), box-shadow var(--e);
+}
+.input::placeholder {
+  color: var(--dim);
+}
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--gg);
+}
+select.input option {
+  background: var(--bg3);
+}
+.error-msg {
+  color: var(--red);
+  font-size: 0.82rem;
+}
+.input-error {
+  border-color: rgba(248, 113, 113, 0.45) !important;
+}
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--gg);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg4);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* angular:styles/global:styles */
+/*# sourceMappingURL=styles.css.map */

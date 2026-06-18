@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;a49c0400d0c7dcd2bce1c6da8aa93c0f30a71c0f4a7efd3b1895d2bceff749a1;D:/xamp new/htdocs/Dawri/frontend/src/app/features/organizer/tier-badge.component.ts"],
+  "sourcesContent": ["\n    .tb {\n      display: inline-flex; align-items: center; gap: 4px;\n      padding: 2px 8px; border-radius: 100px;\n      font-family: var(--fm, monospace); font-size: 10px; font-weight: 700;\n      letter-spacing: 1px; text-transform: uppercase; line-height: 1;\n    }\n    .tb--verified     { background: rgba(0,108,53,.16);  color: #4ade80; border: 1px solid rgba(0,108,53,.5); }\n    .tb--professional { background: rgba(212,175,55,.15); color: var(--accent, #d4af37); border: 1px solid rgba(212,175,55,.5); }\n    .tb--admin        { background: rgba(46,139,255,.15); color: #5ba6ff; border: 1px solid rgba(46,139,255,.5); }\n  "],
+  "mappings": ";AACI,CAAC;AACC,WAAS;AAAa,eAAa;AAAQ,OAAK;AAChD,WAAS,IAAI;AAAK,iBAAe;AACjC,eAAa,IAAI,IAAI,EAAE;AAAY,aAAW;AAAM,eAAa;AACjE,kBAAgB;AAAK,kBAAgB;AAAW,eAAa;AAC/D;AACA,CAAC;AAAmB,cAAY,KAAK,CAAC,EAAC,GAAG,EAAC,EAAE,EAAC;AAAO,SAAO;AAAS,UAAQ,IAAI,MAAM,KAAK,CAAC,EAAC,GAAG,EAAC,EAAE,EAAC;AAAK;AAC1G,CAAC;AAAmB,cAAY,KAAK,GAAG,EAAC,GAAG,EAAC,EAAE,EAAC;AAAM,SAAO,IAAI,QAAQ,EAAE;AAAU,UAAQ,IAAI,MAAM,KAAK,GAAG,EAAC,GAAG,EAAC,EAAE,EAAC;AAAK;AAC5H,CAAC;AAAmB,cAAY,KAAK,EAAE,EAAC,GAAG,EAAC,GAAG,EAAC;AAAM,SAAO;AAAS,UAAQ,IAAI,MAAM,KAAK,EAAE,EAAC,GAAG,EAAC,GAAG,EAAC;AAAK;",
+  "names": []
+}

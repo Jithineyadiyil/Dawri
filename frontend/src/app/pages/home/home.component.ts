@@ -33,14 +33,17 @@ export class HomeComponent implements OnInit, AfterViewInit {
   readonly activeLiveCount = signal(0);
 
   readonly games = [
-    { name: 'EA FC 25',     icon: '⚽', badge: 'All formats',    color: '#fbbf24',
+    { name: 'EA FC 25',     icon: '⚽', badge: 'All formats',    color: '#16a34a',
       shortCode: 'FC',  activeText: 'Active now', formatsText: 'All formats',
+      cover: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=900&q=80&auto=format&fit=crop',
       desc: 'The world\'s biggest football game. SE, DE, Round Robin & Swiss.' },
-    { name: 'PUBG Mobile',  icon: '🔫', badge: 'SE · DE · Swiss', color: '#a855f7',
+    { name: 'PUBG Mobile',  icon: '🔫', badge: 'SE · DE · Swiss', color: '#d4af37',
       shortCode: 'PB',  activeText: 'Active now', formatsText: 'SE · DE · Swiss',
+      cover: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=900&q=80&auto=format&fit=crop',
       desc: 'Battle royale at its finest. Squad up and compete for the Chicken Dinner.' },
-    { name: 'Call of Duty', icon: '💣', badge: 'SE · DE · Swiss', color: '#a78bfa',
+    { name: 'Call of Duty', icon: '💣', badge: 'SE · DE · Swiss', color: '#2e8bff',
       shortCode: 'CoD', activeText: 'Active now', formatsText: 'SE · DE · Swiss',
+      cover: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=900&q=80&auto=format&fit=crop',
       desc: 'Fast-paced mobile FPS. Dominate the leaderboard across the GCC.' },
   ];
 
@@ -121,7 +124,13 @@ export class HomeComponent implements OnInit, AfterViewInit {
     return '';
   }
 
+  /** Particle field for the hero stadium-lights effect (index drives CSS position). */
+  readonly heroParticles = Array.from({ length: 38 }, (_, i) => i);
+
   ngAfterViewInit(): void {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+    // Scroll-reveal
     const observer = new IntersectionObserver(
       entries => entries.forEach(e => {
         if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
@@ -132,5 +141,31 @@ export class HomeComponent implements OnInit, AfterViewInit {
       (el as HTMLElement).style.transitionDelay = `${i * 0.06}s`;
       observer.observe(el);
     });
+
+    // Count-up — animate any [data-count] element when it enters the viewport.
+    const countObserver = new IntersectionObserver(
+      entries => entries.forEach(e => {
+        if (e.isIntersecting) { this.runCount(e.target as HTMLElement, reduce); countObserver.unobserve(e.target); }
+      }),
+      { threshold: 0.4 }
+    );
+    this.el.nativeElement.querySelectorAll('[data-count]').forEach((el: Element) => countObserver.observe(el));
+  }
+
+  private runCount(el: HTMLElement, reduce?: boolean): void {
+    const target = parseFloat(el.dataset['count'] ?? '0');
+    const suffix = el.dataset['suffix'] ?? '';
+    const prefix = el.dataset['prefix'] ?? '';
+    const dur    = 1400;
+    if (reduce || target === 0) { el.textContent = `${prefix}${target}${suffix}`; return; }
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / dur, 1);
+      const eased = 1 - Math.pow(1 - p, 3);              // easeOutCubic
+      const val = Math.round(target * eased);
+      el.textContent = `${prefix}${val.toLocaleString()}${suffix}`;
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   }
 }

@@ -90,10 +90,15 @@ import { CommunityInvite, JoinPolicy, JoinRequest } from '../../models/community
     </div>
   `,
   styles: [`
-    :host { --accent: #00ffa3; --accent-d: #06281c; --bg: #0b0b14; --surface: #14141f; --raised: #16161f; --line: rgba(255,255,255,0.09); --text: #eaeaf2; --mut: #8a8a9e; }
+    :host { --accent: #7c3aed; --accent-s: #a78bfa; --bg: #0b0a14; --surface: #161228; --raised: #1c1833; --line: rgba(124,58,237,0.15); --text: #eaeaf2; --mut: #8a8a9e; }
     .overlay { position: fixed; inset: 0; z-index: 950; background: rgba(0,0,0,0.5); display: flex; justify-content: flex-end; }
     .panel { width: 100%; max-width: 460px; height: 100%; background: var(--bg); border-left: 1px solid var(--line); display: flex; flex-direction: column; animation: slide 0.18s ease-out; }
-    @keyframes slide { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes slide {
+      0%   { transform: translateX(40px); opacity: 0; }
+      60%  { transform: translateX(-6px); opacity: 1; }
+      80%  { transform: translateX(3px); }
+      100% { transform: translateX(0); }
+    }
     .ph { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.1rem; border-bottom: 1px solid var(--line); }
     .title { font-family: 'Anton', 'Bebas Neue', sans-serif; font-size: 1.3rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text); }
     .x { background: none; border: none; color: var(--mut); cursor: pointer; font-size: 1.05rem; width: 32px; height: 32px; border-radius: 50%; }
@@ -108,8 +113,8 @@ import { CommunityInvite, JoinPolicy, JoinRequest } from '../../models/community
     .hint { color: var(--mut); font-size: 0.85rem; margin: 0.2rem 0; }
     .policy { display: flex; flex-direction: column; gap: 0.4rem; }
     .pol { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.6rem 0.8rem; cursor: pointer; display: flex; flex-direction: column; gap: 0.15rem; transition: border-color 0.12s ease; }
-    .pol:hover { border-color: rgba(0,255,163,0.4); }
-    .pol.active { border-color: var(--accent); background: rgba(0,255,163,0.07); }
+    .pol:hover { border-color: rgba(124,58,237,0.45); }
+    .pol.active { border-color: var(--accent); background: rgba(124,58,237,0.1); }
     .pol-name { font-weight: 700; color: var(--text); }
     .pol-desc { font-size: 0.78rem; color: var(--mut); }
     .invite { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
@@ -119,14 +124,14 @@ import { CommunityInvite, JoinPolicy, JoinRequest } from '../../models/community
     .inv-meta .dead { color: #ff6b6b; }
     .inv-actions, .req-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
     .mini { background: var(--raised); border: 1px solid var(--line); color: #cfcfe0; border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.74rem; cursor: pointer; white-space: nowrap; }
-    .mini:hover { border-color: var(--accent); color: var(--accent); }
+    .mini:hover { border-color: var(--accent); color: var(--accent-s); }
     .mini:disabled { opacity: 0.5; cursor: not-allowed; }
-    .mini.ok:hover { border-color: var(--accent); color: var(--accent); }
+    .mini.ok:hover { border-color: var(--accent); color: var(--accent-s); }
     .mini.danger:hover { border-color: #ff6b6b; color: #ff6b6b; }
     .req { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
     .req-user { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
     .ava { width: 34px; height: 34px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
-    .ava.letter { display: grid; place-items: center; background: var(--raised); color: var(--accent); font-family: 'Anton', sans-serif; }
+    .ava.letter { display: grid; place-items: center; background: var(--raised); color: var(--accent-s); font-family: 'Anton', sans-serif; }
     .req-info { display: flex; flex-direction: column; min-width: 0; }
     .req-name { font-weight: 600; color: var(--text); }
     .req-msg { font-size: 0.78rem; color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

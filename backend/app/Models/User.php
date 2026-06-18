@@ -31,9 +31,9 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, HasUuids, Notifiable;
 
     protected $fillable = [
-        'name', 'nickname', 'email', 'password', 'phone', 'role',
+        'name', 'nickname', 'email', 'password', 'phone', 'role', 'organizer_tier',
         'avatar', 'status',
-        'game_username', 'psn_id', 'pubg_id', 'cod_id',
+        'game_username', 'psn_id', 'pubg_id', 'cod_id', 'steam_id', 'riot_id', 'epic_id', 'xbox_gamertag',
         'preferred_games', 'bio', 'country', 'city',
         'subscription_plan', 'organization_name', 'organization_name_ar',
         'company_id', 'phone_verified_at',
@@ -109,6 +109,84 @@ class User extends Authenticatable
         return $this->hasMany(Message::class);
     }
 
+    // ── Social: friendships ───────────────────────────────────────────
+
+    /** Friendship rows this user initiated. @return HasMany */
+    public function friendshipsSent(): HasMany
+    {
+        return $this->hasMany(Friendship::class, 'requester_id');
+    }
+
+    /** Friendship rows where this user is the recipient. @return HasMany */
+    public function friendshipsReceived(): HasMany
+    {
+        return $this->hasMany(Friendship::class, 'addressee_id');
+    }
+
+    /**
+     * Accepted friends (either direction), as a User collection.
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    public function friends(): \Illuminate\Support\Collection
+    {
+        $rows = Friendship::query()
+            ->where('status', Friendship::STATUS_ACCEPTED)
+            ->where(function ($q): void {
+                $q->where('requester_id', $this->id)
+                  ->orWhere('addressee_id', $this->id);
+            })
+            ->with(['requester', 'addressee'])
+            ->get();
+
+        return $rows
+            ->map(fn (Friendship $f) => $f->requester_id === $this->id ? $f->addressee : $f->requester)
+            ->filter()
+            ->values();
+    }
+
+    /** Aggregated per-game stats (one row per game the user has played). @return HasMany */
+    public function gameStats(): HasMany
+    {
+        return $this->hasMany(PlayerGameStat::class);
+    }
+
+    /** Teams this user owns. @return HasMany */
+    public function ownedTeams(): HasMany
+    {
+        return $this->hasMany(Team::class, 'owner_id');
+    }
+
+    /** Team memberships for this user (one row per team). @return HasMany */
+    public function teamMemberships(): HasMany
+    {
+        return $this->hasMany(TeamMember::class);
+    }
+
+    /**
+     * Teams this user is a member of, as a User-side collection of Team models.
+     * @return \Illuminate\Support\Collection<int, Team>
+     */
+    public function teams(): \Illuminate\Support\Collection
+    {
+        return $this->teamMemberships()->with('team')->get()
+            ->map(fn (TeamMember $m) => $m->team)
+            ->filter()
+            ->values();
+    }
+
+    /** True if the two users are accepted friends. */
+    public function isFriendsWith(string $otherUserId): bool
+    {
+        return Friendship::query()
+            ->where('status', Friendship::STATUS_ACCEPTED)
+            ->where(function ($q) use ($otherUserId): void {
+                $q->where(fn ($qq) => $qq->where('requester_id', $this->id)->where('addressee_id', $otherUserId))
+                  ->orWhere(fn ($qq) => $qq->where('requester_id', $otherUserId)->where('addressee_id', $this->id));
+            })
+            ->exists();
+    }
+
     // ── Accessors ─────────────────────────────────────────────────────
 
     /**
@@ -136,6 +214,25 @@ class User extends Authenticatable
     {
         return Attribute::make(
             get: fn (): string => ! empty($this->nickname) ? (string) $this->nickname : (string) ($this->name ?? '—'),
+        );
+    }
+
+    /**
+     * Override the default password reset notification so the reset link
+     * points to the Angular frontend instead of the Laravel backend URL.
+     *
+     * The Angular app handles /reset-password?token=...&email=... and calls
+     * POST /api/v1/auth/password/reset with the token + new password.
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $frontendUrl = env('FRONTEND_URL', 'http://192.168.100.67:4300');
+        $url = $frontendUrl . '/reset-password'
+             . '?token=' . urlencode($token)
+             . '&email=' . urlencode($this->email);
+
+        \Illuminate\Support\Facades\Mail::to($this->email)->queue(
+            new \App\Mail\PasswordResetEmail($this, $url)
         );
     }
 }

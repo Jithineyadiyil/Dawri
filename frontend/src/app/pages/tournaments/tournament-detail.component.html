@@ -39,7 +39,12 @@
               <span class="open-pill">Registration Open</span>
             }
             @if (t.organizer_name) {
-              <span>Hosted by {{ t.organizer_name }}</span>
+              <span>
+                Hosted by {{ t.organizer_name }}
+                @if (t.organizer?.organizer_tier && t.organizer.organizer_tier !== 'none') {
+                  <app-tier-badge [tier]="t.organizer.organizer_tier" />
+                }
+              </span>
             }
           </div>
 
@@ -49,11 +54,23 @@
           }
 
           <div class="hero__meta-row">
-            <span>📅 Starts <strong>{{ t.starts_at | date:'d MMM, HH:mm' }}</strong></span>
-            <span>🏁 Reg. closes <strong>{{ t.registration_closes_at | date:'d MMM, HH:mm' }}</strong></span>
-            <span>👥 <strong>{{ t.participant_count }}/{{ t.max_participants }}</strong> joined</span>
+            <span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Starts <strong>{{ t.starts_at | date:'d MMM, HH:mm' }}</strong>
+            </span>
+            <span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Reg. closes <strong>{{ t.registration_closes_at | date:'d MMM, HH:mm' }}</strong>
+            </span>
+            <span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <strong>{{ t.participant_count }}/{{ t.max_participants }}</strong> joined
+            </span>
             @if (t.format === 'swiss' && t.swiss_rounds) {
-              <span>🔁 <strong>{{ t.swiss_rounds }}</strong> Swiss rounds</span>
+              <span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                <strong>{{ t.swiss_rounds }}</strong> Swiss rounds
+              </span>
             }
           </div>
 
@@ -84,7 +101,9 @@
               </button>
             }
             @if (t.is_registered) {
-              <span class="registered-tag">✓ Registered</span>
+              <span class="registered-tag">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Registered</span>
             }
             @if (!t.is_registration_open && !t.bracket && auth.isLoggedIn() && (auth.currentUser()?.role === 'organizer' || auth.currentUser()?.role === 'admin')) {
               <button class="btn btn--primary btn--lg" [disabled]="generating()" (click)="generateBracket()">
@@ -103,8 +122,8 @@
             <div class="prize-card">
               <div class="prize-card__label">Total Prize Pool</div>
               <div class="prize-card__total">
-                @if (totalPrizeDisplay()) {
-                  {{ totalPrizeDisplay() }}<span class="prize-card__curr">{{ totalPrizeCurrency() }}</span>
+                @if (totalPrizeDisplay(); as prizeAmt) {
+                  {{ prizeAmt }}<span class="prize-card__curr">{{ totalPrizeCurrency() }}</span>
                 } @else {
                   <span class="prize-card__total-label">Multiple Tiers</span>
                 }
@@ -122,9 +141,13 @@
                   </div>
                 }
               </div>
+              <!-- Sponsors who funded the prizes — compact logo strip -->
+              <app-tournament-sponsors [tournamentId]="t.id" variant="logos" />
+
               @if (canEditTournament()) {
                 <button type="button" class="prize-card__edit" (click)="openPrizeEditor()">
-                  ✎ Edit prizes
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Edit prizes
                 </button>
               }
             </div>
@@ -359,7 +382,9 @@
       <section class="tab-content">
         @if (!t.bracket) {
           <div class="empty-state">
-            <div class="empty-state__icon">🏆</div>
+            <div class="empty-state__icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            </div>
             <p>{{ t.is_registration_open ? 'Bracket will be generated when registration closes.'
                 : t.status === 'ongoing' ? 'Bracket generation in progress…'
                 : 'Bracket has not been generated yet.' }}</p>
@@ -377,6 +402,12 @@
               <h2 class="section-title">{{ t.format_label }}</h2>
             </div>
             <div class="bracket-toolbar__right">
+              @if (hasMyMatch()) {
+                <button type="button" class="btn btn--ghost btn--small" (click)="jumpToMyMatch()">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  My Match
+                </button>
+              }
               <span class="bracket-stat">
                 @if (b.status === 'completed') { Tournament Complete }
                 @else { Round {{ b.current_round }} of {{ b.total_rounds }} }
@@ -387,7 +418,9 @@
 
           @if (b.status === 'completed' && b.winner) {
             <div class="champion-banner">
-              <div class="champion-banner__trophy">🏆</div>
+              <div class="champion-banner__trophy">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+              </div>
               <div class="champion-banner__body">
                 <div class="champion-banner__label">CHAMPION</div>
                 <div class="champion-banner__name">{{ b.winner.name }}</div>
@@ -422,6 +455,8 @@
                           [class]="'b-match--' + m.status"
                           [class.b-match--clickable]="matchIsClickable(m)"
                           [class.b-match--bye]="m.participant_a_is_bye || m.participant_b_is_bye"
+                          [class.b-match--mine]="myParticipantId() && (m.participant_a?.id === myParticipantId() || m.participant_b?.id === myParticipantId())"
+                          [attr.data-my-match]="(myParticipantId() && (m.participant_a?.id === myParticipantId() || m.participant_b?.id === myParticipantId())) ? '' : null"
                           (click)="openMatch(m)"
                           [attr.role]="matchIsClickable(m) ? 'button' : null"
                           [attr.tabindex]="matchIsClickable(m) ? 0 : null">
@@ -545,7 +580,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (p of leaderboard(); track p.name; let i = $index) {
+              @for (p of leaderboard(); track p.rank; let i = $index) {
                 <tr [class.standings-table__row--rank-1]="i === 0"
                     [class.standings-table__row--rank-2]="i === 1"
                     [class.standings-table__row--rank-3]="i === 2">
@@ -595,7 +630,9 @@
       <section class="tab-content">
         @if (!t.bracket || matchCounts().all === 0) {
           <div class="empty-state">
-            <div class="empty-state__icon">⚔️</div>
+            <div class="empty-state__icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" y1="14" x2="9" y2="18"/><line x1="7" y1="17" x2="4" y2="20"/><line x1="3" y1="19" x2="5" y2="21"/></svg>
+            </div>
             <p>{{ t.bracket ? 'No matches yet.' : 'Bracket has not been generated yet.' }}</p>
           </div>
         } @else {
@@ -727,7 +764,7 @@
           </div>
 
           <div class="players-grid">
-            @for (p of leaderboard(); track p.name; let i = $index) {
+            @for (p of leaderboard(); track p.rank; let i = $index) {
               <div class="player-card"
                 [class.player-card--gold]="i === 0"
                 [class.player-card--silver]="i === 1"
@@ -779,7 +816,9 @@
       <section class="tab-content">
         @if (!normalizedPrizes().length) {
           <div class="empty-state">
-            <div class="empty-state__icon">🏆</div>
+            <div class="empty-state__icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            </div>
             <p>No prize pool configured yet.</p>
             @if (canManageMatch()) {
               <p class="empty-state__hint">
@@ -801,7 +840,9 @@
               <h2 class="section-title">Rewards & Tiers</h2>
             </div>
             @if (canEditTournament()) {
-              <button type="button" class="btn btn--ghost" (click)="openPrizeEditor()">✎ Edit prizes</button>
+              <button type="button" class="btn btn--ghost" (click)="openPrizeEditor()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit prizes</button>
             }
           </div>
 
@@ -813,7 +854,15 @@
                 [class.prize-tier--t3]="p.position === 3"
                 [style.--delay.ms]="i * 80">
                 <div class="prize-tier__medal">
-                  {{ p.position === 1 ? '🥇' : p.position === 2 ? '🥈' : p.position === 3 ? '🥉' : '🏅' }}
+                  @if (p.position === 1) {
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                  } @else if (p.position === 2) {
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                  } @else if (p.position === 3) {
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#cd7f32" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                  } @else {
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+                  }
                 </div>
                 <div class="prize-tier__pos">
                   {{ p.position === 1 ? '1st Place · Champion' : p.position === 2 ? '2nd Place · Runner-up' : p.position === 3 ? '3rd Place · Bronze' : (p.position + 'th Place') }}
@@ -915,7 +964,9 @@
       <div class="modal__head">
         <div>
           <p class="modal__round-label">Edit tournament</p>
-          <h3 class="modal__title">🏆 Prize Pool</h3>
+          <h3 class="modal__title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            Prize Pool</h3>
         </div>
         <button class="modal__close" (click)="showPrizeEditor.set(false)" aria-label="Close">✕</button>
       </div>
@@ -1253,10 +1304,146 @@
         </section>
       }
 
-      <!-- ═══ EVIDENCE / SUBMIT RESULT ═══ -->
-      <!-- NOTE: Keep your existing evidence + result submission template here.
-           This handoff focuses on chrome; the result-submission form's Angular
-           bindings are unchanged from the original. Paste yours back in below. -->
+      <!-- ═══ MATCH RESULT ═══ -->
+      @if (canSubmitResult(m) || canConfirmResult(m) || m.status === 'completed' || m.status === 'pending') {
+        <section class="m-section">
+          <header class="m-section__head">
+            <span class="m-section__icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            </span>
+            <span class="m-section__title">Match Result</span>
+          </header>
+          <div class="m-section__body">
+
+            <!-- Final result (completed) -->
+            @if (m.status === 'completed') {
+              <div class="result-final">
+                <span class="result-final__score">{{ m.score_a ?? '–' }} — {{ m.score_b ?? '–' }}</span>
+                <span class="result-final__winner">Winner: <strong>{{ getWinnerName(m) }}</strong></span>
+              </div>
+            }
+
+            <!-- Submit result — the two participants, OR the organizer/admin -->
+            @if (canSubmitResult(m) || (canManageMatch() && m.participant_a && m.participant_b && m.status !== 'completed' && m.status !== 'walkover')) {
+              <form (ngSubmit)="submitResult()" [formGroup]="resultForm" class="result-form">
+                <p class="result-form__lede">
+                  {{ canSubmitResult(m)
+                      ? 'Report the final score and select the winner. Your opponent confirms it.'
+                      : 'Enter the final score and winner for this match (organizer override — applied immediately).' }}
+                </p>
+                <div class="result-form__scores">
+                  <label class="result-score">
+                    <span class="result-score__name">{{ m.participant_a?.display_name ?? m.participant_a?.name ?? 'TBD' }}</span>
+                    <input type="number" min="0" inputmode="numeric" class="input result-score__input" formControlName="score_a" />
+                  </label>
+                  <span class="result-form__x">–</span>
+                  <label class="result-score">
+                    <span class="result-score__name">{{ m.participant_b?.display_name ?? m.participant_b?.name ?? 'TBD' }}</span>
+                    <input type="number" min="0" inputmode="numeric" class="input result-score__input" formControlName="score_b" />
+                  </label>
+                </div>
+                <span class="form-label">Winner <span class="req">*</span></span>
+                <div class="result-form__winner">
+                  <label class="winner-opt">
+                    <input type="radio" formControlName="winner_participant_id" [value]="m.participant_a?.id" />
+                    <span>{{ m.participant_a?.display_name ?? m.participant_a?.name ?? 'TBD' }}</span>
+                  </label>
+                  <label class="winner-opt">
+                    <input type="radio" formControlName="winner_participant_id" [value]="m.participant_b?.id" />
+                    <span>{{ m.participant_b?.display_name ?? m.participant_b?.name ?? 'TBD' }}</span>
+                  </label>
+                </div>
+                <div class="m-inline-form__actions">
+                  <button type="submit" class="btn btn--primary" [disabled]="resultForm.invalid || submitting()">
+                    {{ submitting() ? 'Submitting…' : 'Submit Result' }}
+                  </button>
+                </div>
+              </form>
+            }
+
+            <!-- Confirm / dispute opponent's submitted result -->
+            @if (canConfirmResult(m)) {
+              <div class="result-confirm">
+                <p class="result-confirm__lede">
+                  Your opponent reported <strong>{{ m.score_a ?? '–' }} — {{ m.score_b ?? '–' }}</strong>.
+                  Confirm if it's correct, or dispute it.
+                </p>
+                <div class="m-inline-form__actions">
+                  <button type="button" class="btn btn--primary" [disabled]="submitting()" (click)="confirmResult()">
+                    {{ submitting() ? 'Confirming…' : 'Confirm Result' }}
+                  </button>
+                </div>
+                <form (ngSubmit)="submitDispute()" [formGroup]="disputeForm" class="m-inline-form m-inline-form--stack result-dispute">
+                  <label class="form-label">Dispute reason</label>
+                  <textarea class="input" formControlName="reason" rows="2" maxlength="1000"
+                            placeholder="Explain what's wrong (min 10 characters)…"></textarea>
+                  <div class="m-inline-form__actions">
+                    <button type="submit" class="btn btn--ghost" [disabled]="disputeForm.invalid || submitting()">Raise Dispute</button>
+                  </div>
+                </form>
+              </div>
+            }
+
+            @if (m.status === 'pending' && !canConfirmResult(m) && !canSubmitResult(m)) {
+              <p class="m-section__empty">Result reported — awaiting opponent confirmation.</p>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- ═══ EVIDENCE ═══ -->
+      @if (canManageMatch() || currentUserIsParticipant() || evidenceList().length > 0) {
+        <section class="m-section">
+          <header class="m-section__head">
+            <span class="m-section__icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            </span>
+            <span class="m-section__title">Evidence</span>
+            @if (evidenceList().length > 0) { <span class="m-section__count">{{ evidenceList().length }}</span> }
+          </header>
+          <div class="m-section__body">
+
+            @if (canManageMatch() || currentUserIsParticipant()) {
+              <div class="evidence-upload" [formGroup]="evidenceForm">
+                <label class="evidence-upload__file">
+                  <input id="evidence-file-input" type="file" accept="image/*,video/*" (change)="onEvidenceFileSelected($event)" />
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  {{ evidenceFile() ? evidenceFile()!.name : 'Choose screenshot or clip' }}
+                </label>
+                <input class="input" formControlName="caption" maxlength="255" placeholder="Caption (optional)" />
+                <button type="button" class="btn btn--primary btn--small" [disabled]="!evidenceFile() || uploadingEvidence()" (click)="uploadEvidence()">
+                  {{ uploadingEvidence() ? 'Uploading…' : 'Upload' }}
+                </button>
+              </div>
+            }
+
+            @if (evidenceList().length === 0) {
+              <p class="m-section__empty">No evidence uploaded yet.</p>
+            } @else {
+              <div class="evidence-grid">
+                @for (ev of evidenceList(); track ev.id) {
+                  <div class="evidence-item">
+                    @if (ev.file_type === 'image') {
+                      <a [href]="ev.url" target="_blank" rel="noopener"><img class="evidence-item__media" [src]="ev.url" [alt]="ev.caption ?? 'Evidence'" loading="lazy" /></a>
+                    } @else {
+                      <video class="evidence-item__media" [src]="ev.url" controls preload="metadata"></video>
+                    }
+                    <div class="evidence-item__meta">
+                      @if (ev.caption) { <span class="evidence-item__caption">{{ ev.caption }}</span> }
+                      <span class="evidence-item__by">by {{ ev.uploaded_by.name ?? 'Player' }}</span>
+                    </div>
+                    @if (canDeleteEvidence(ev)) {
+                      <button type="button" class="evidence-item__del" (click)="deleteEvidence(ev)" aria-label="Delete evidence">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
 
     </div>
   </div>

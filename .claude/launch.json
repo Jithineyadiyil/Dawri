@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Angular Frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "start", "--", "--host", "0.0.0.0", "--port", "4300", "--disable-host-check"],
+      "port": 4300
+    },
+    {
+      "name": "Laravel API",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["backend/artisan", "serve", "--host=0.0.0.0", "--port=8001"],
+      "port": 8001
+    },
+    {
+      "name": "Laravel Reverb (WebSocket)",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["backend/artisan", "reverb:start", "--port=8080"],
+      "port": 8080
+    }
+  ]
+}

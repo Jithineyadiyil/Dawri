@@ -1,3 +1,4 @@
+import { environment } from '../../../../environments/environment';
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import {
@@ -91,7 +92,7 @@ declare const Chart: any; // loaded from CDN — see ngAfterViewInit
 export class AdminDashboardComponent implements OnInit, AfterViewInit {
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
-  private base = 'http://192.168.100.67:8001/api/v1/admin/dashboard';
+  private base = environment.apiUrl + '/admin/dashboard';
 
   readonly payload = signal<DashboardPayload | null>(null);
   readonly loading = signal(false);
@@ -226,7 +227,7 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
     if (!p) return;
 
     const charts: Array<[HTMLCanvasElement, number[], string, string]> = [
-      [this.ordersCanvas.nativeElement,  p.charts.orders,  'Orders',  '#a855f7'],
+      [this.ordersCanvas.nativeElement,  p.charts.orders,  'Orders',  '#d4af37'],
       [this.revenueCanvas.nativeElement, p.charts.revenue, 'Revenue', '#fbbf24'],
       [this.signupsCanvas.nativeElement, p.charts.signups, 'Signups', '#38bdf8'],
     ];

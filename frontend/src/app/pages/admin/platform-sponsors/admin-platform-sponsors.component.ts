@@ -1,3 +1,4 @@
+import { environment } from '../../../../environments/environment';
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import {
@@ -65,7 +66,7 @@ interface FormShape {
 export class AdminPlatformSponsorsComponent implements OnInit {
   private http = inject(HttpClient);
   private destroyRef = inject(DestroyRef);
-  private base = 'http://192.168.100.67:8001/api/v1/admin/platform-sponsorships';
+  private base = environment.apiUrl + '/admin/platform-sponsorships';
 
   readonly rows    = signal<PlatformSponsorshipRow[]>([]);
   readonly catalog = signal<SponsorCatalogItem[]>([]);
@@ -77,6 +78,21 @@ export class AdminPlatformSponsorsComponent implements OnInit {
   readonly editingId = signal<string | null>(null);
 
   form: FormShape = this.freshForm();
+
+  /** Inline toast — replaces alert() dialogs */
+  readonly toastMsg = signal<string | null>(null);
+  readonly toastOk  = signal(true);
+  private notify(msg: string, ok = true): void {
+    this.toastMsg.set(msg); this.toastOk.set(ok);
+    setTimeout(() => this.toastMsg.set(null), 3500);
+  }
+
+  /** Inline confirmation — replaces confirm() dialogs */
+  readonly confirmMsg = signal<string | null>(null);
+  private confirmCallback: (() => void) | null = null;
+  confirmYes(): void { this.confirmCallback?.(); this.confirmMsg.set(null); this.confirmCallback = null; }
+  confirmNo():  void { this.confirmMsg.set(null); this.confirmCallback = null; }
+  private ask(msg: string, cb: () => void): void { this.confirmMsg.set(msg); this.confirmCallback = cb; }
 
   readonly liveCount    = computed(() => this.rows().filter(r => r.is_currently_live).length);
   readonly titleCount   = computed(() => this.rows().filter(r => r.tier === 'title' && r.is_currently_live).length);
@@ -135,7 +151,7 @@ export class AdminPlatformSponsorsComponent implements OnInit {
   save(): void {
     if (this.saving()) return;
     if (!this.form.sponsor_id) {
-      alert('Please pick a sponsor.');
+      this.notify('Please pick a sponsor.', false);
       return;
     }
     const body: Record<string, any> = {
@@ -166,23 +182,24 @@ export class AdminPlatformSponsorsComponent implements OnInit {
         const msg = err?.error?.message
           ?? Object.values(err?.error?.errors ?? {}).flat().join('\n')
           ?? 'Save failed.';
-        alert(msg);
+        this.notify(msg, false);
       },
     });
   }
 
   remove(row: PlatformSponsorshipRow): void {
-    if (!confirm(`Remove ${row.sponsor_name} from platform sponsors?`)) return;
-    this.http.delete(`${this.base}/${row.id}`).subscribe({
-      next: () => this.load(),
-      error: (err) => alert(err?.error?.message ?? 'Remove failed.'),
+    this.ask(`Remove ${row.sponsor_name} from platform sponsors?`, () => {
+      this.http.delete(`${this.base}/${row.id}`).subscribe({
+        next: () => { this.load(); this.notify('Sponsor removed.'); },
+        error: (err) => this.notify(err?.error?.message ?? 'Remove failed.', false),
+      });
     });
   }
 
   toggle(row: PlatformSponsorshipRow): void {
     this.http.post(`${this.base}/${row.id}/toggle`, {}).subscribe({
       next: () => this.load(),
-      error: (err) => alert(err?.error?.message ?? 'Toggle failed.'),
+      error: (err) => this.notify(err?.error?.message ?? 'Toggle failed.', false),
     });
   }
 

@@ -40,17 +40,19 @@ interface AdPlacement {
   }
 
   <div class="type-guide">
-    <div class="tg-item"><span class="tg-badge tg-badge--promoted">⭐ Promoted Tournament</span><p>Pins a tournament with a gold border.</p></div>
-    <div class="tg-item"><span class="tg-badge tg-badge--ingrid">📦 In-Grid Sponsor</span><p>Sponsor card every 6th slot in the grid.</p></div>
-    <div class="tg-item"><span class="tg-badge tg-badge--banner">🖼 Tournament Banner</span><p>Banner above bracket tabs on a tournament page.</p></div>
-    <div class="tg-item"><span class="tg-badge tg-badge--sidebar">◀▶ Sidebar Ads</span><p>160px ads on left/right sides of all pages. Hidden for premium users.</p></div>
+    <div class="tg-item"><span class="tg-badge tg-badge--promoted">Promoted Tournament</span><p>Pins a tournament with a gold border.</p></div>
+    <div class="tg-item"><span class="tg-badge tg-badge--ingrid">In-Grid Sponsor</span><p>Sponsor card every 6th slot in the grid.</p></div>
+    <div class="tg-item"><span class="tg-badge tg-badge--banner">Tournament Banner</span><p>Banner above bracket tabs on a tournament page.</p></div>
+    <div class="tg-item"><span class="tg-badge tg-badge--sidebar">Sidebar Ads</span><p>160px ads on left/right sides of all pages. Hidden for premium users.</p></div>
   </div>
 
   @if (loading()) {
     <div class="loading">Loading…</div>
   } @else if (placements().length === 0) {
     <div class="empty">
-      <div class="empty-icon">📢</div>
+      <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+      </div>
       <h3>No ad placements yet</h3>
       <button class="btn-primary" (click)="onCreate()">Create first placement</button>
     </div>
@@ -97,11 +99,11 @@ interface AdPlacement {
           <div class="field field--full">
             <label>Type *</label>
             <select [(ngModel)]="form.type">
-              <option value="in_grid_sponsor">📦 In-Grid Sponsor Card</option>
-              <option value="promoted_tournament">⭐ Promoted Tournament</option>
-              <option value="tournament_banner">🖼 Tournament Banner</option>
-              <option value="sidebar_left">◀ Left Sidebar Ad</option>
-              <option value="sidebar_right">▶ Right Sidebar Ad</option>
+              <option value="in_grid_sponsor">In-Grid Sponsor Card</option>
+              <option value="promoted_tournament">Promoted Tournament</option>
+              <option value="tournament_banner">Tournament Banner</option>
+              <option value="sidebar_left">Left Sidebar Ad</option>
+              <option value="sidebar_right">Right Sidebar Ad</option>
             </select>
           </div>
           <div class="field"><label>Title *</label><input [(ngModel)]="form.title" placeholder="e.g. PSN Summer Sale"/></div>
@@ -111,8 +113,8 @@ interface AdPlacement {
             <div class="upload-row">
               <input class="upload-input" [(ngModel)]="form.image_url" placeholder="Paste image URL or upload below…"/>
               <label class="upload-btn" [class.upload-btn--loading]="uploading()">
-                @if (uploading()) { ⏳ Uploading… }
-                @else { 📁 Upload Image }
+                @if (uploading()) { Uploading… }
+                @else { Upload Image }
                 <input type="file" accept="image/*" (change)="onFileSelect($event)" style="display:none"/>
               </label>
             </div>
@@ -138,15 +140,25 @@ interface AdPlacement {
     </div>
   }
 
+  @if (confirmMsg()) {
+    <div class="confirm-bar">
+      <span>{{ confirmMsg() }}</span>
+      <div class="confirm-actions">
+        <button class="btn-ghost btn-sm" (click)="confirmNo()">Cancel</button>
+        <button class="btn-danger btn-sm" (click)="confirmYes()">Delete</button>
+      </div>
+    </div>
+  }
+
   @if (toastMsg()) { <div class="toast" [class.toast--ok]="toastOk()">{{ toastMsg() }}</div> }
 </div>
   `,
   styles: [`
-    .ads-page { padding: 32px; max-width: 1100px; margin: 0 auto; color: #fff; }
+    .ads-page { width: 100%; padding: 1.5rem 1.75rem; color: #fff; }
     .ads-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
     .ads-title { font-size: 32px; font-weight: 800; margin: 0; }
     .ads-sub { color: #6b7280; font-size: 13px; margin: 4px 0 0; }
-    .btn-primary { padding: 10px 20px; background: #f0a500; border: none; border-radius: 8px; color: #0b1022; font-weight: 700; cursor: pointer; font-size: 14px; }
+    .btn-primary { padding: 10px 20px; background: #d4af37; border: none; border-radius: 8px; color: #1a1205; font-weight: 700; cursor: pointer; font-size: 14px; }
     .btn-ghost { padding: 10px 20px; background: transparent; border: 1px solid rgba(255,255,255,.15); border-radius: 8px; color: #9ca3af; cursor: pointer; }
     .stats-strip { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
     .stat-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 16px 20px; min-width: 160px; }
@@ -154,15 +166,15 @@ interface AdPlacement {
     .stat-row { display: flex; align-items: baseline; gap: 6px; }
     .stat-val { font-size: 20px; font-weight: 700; }
     .stat-lbl { font-size: 11px; color: #6b7280; }
-    .stat-ctr { font-size: 12px; color: #f0a500; margin-top: 4px; }
+    .stat-ctr { font-size: 12px; color: #d4af37; margin-top: 4px; }
     .type-guide { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
     .tg-item { flex: 1; min-width: 180px; padding: 12px 14px; background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.07); border-radius: 8px; }
     .tg-item p { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
     .tg-badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; }
-    .tg-badge--promoted { background: rgba(240,165,0,.15); color: #f0a500; }
-    .tg-badge--ingrid { background: rgba(88,101,242,.15); color: #818cf8; }
-    .tg-badge--banner { background: rgba(16,185,129,.1); color: #10b981; }
-    .tg-badge--sidebar { background: rgba(168,85,247,.1); color: #c084fc; }
+    .tg-badge--promoted { background: rgba(212,175,55,.15); color: #d4af37; }
+    .tg-badge--ingrid { background: rgba(0,108,53,.18); color: #4ade80; }
+    .tg-badge--banner { background: rgba(16,185,129,.12); color: #10b981; }
+    .tg-badge--sidebar { background: rgba(255,255,255,.08); color: #9ca3af; }
     .placements-list { display: flex; flex-direction: column; gap: 8px; }
     .placement-row { display: grid; grid-template-columns: 64px 1fr auto auto; align-items: center; gap: 16px; padding: 16px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; }
     .placement-row--inactive { opacity: .5; }
@@ -172,15 +184,15 @@ interface AdPlacement {
     .placement-title { font-weight: 600; font-size: 14px; }
     .placement-meta { display: flex; gap: 8px; align-items: center; margin-top: 4px; font-size: 12px; color: #6b7280; }
     .type-badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-family: monospace; text-transform: uppercase; }
-    .type-badge--promoted_tournament { background: rgba(240,165,0,.15); color: #f0a500; }
-    .type-badge--in_grid_sponsor { background: rgba(88,101,242,.15); color: #818cf8; }
-    .type-badge--tournament_banner { background: rgba(16,185,129,.1); color: #10b981; }
+    .type-badge--promoted_tournament { background: rgba(212,175,55,.15); color: #d4af37; }
+    .type-badge--in_grid_sponsor { background: rgba(0,108,53,.18); color: #4ade80; }
+    .type-badge--tournament_banner { background: rgba(16,185,129,.12); color: #10b981; }
     .paused-tag { color: #ef4444; font-size: 11px; }
     .placement-stats { display: flex; gap: 16px; }
     .pstat { display: flex; flex-direction: column; align-items: center; }
     .pstat-n { font-size: 15px; font-weight: 700; }
     .pstat-l { font-size: 10px; color: #6b7280; }
-    .pstat--ctr .pstat-n { color: #f0a500; }
+    .pstat--ctr .pstat-n { color: #d4af37; }
     .placement-actions { display: flex; gap: 8px; }
     .btn-toggle { padding: 5px 12px; border-radius: 6px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; background: rgba(255,255,255,.08); color: #6b7280; }
     .btn-toggle--on { background: rgba(16,185,129,.15); color: #10b981; }
@@ -212,6 +224,10 @@ interface AdPlacement {
     .form-error { color: #ef4444; font-size: 13px; margin-top: 8px; }
     .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 600; background: rgba(239,68,68,.15); color: #fca5a5; }
     .toast--ok { background: rgba(16,185,129,.15); color: #10b981; }
+    .confirm-bar { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 600; display: flex; align-items: center; gap: 18px; padding: 12px 18px; background: #111827; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; box-shadow: 0 10px 32px -8px rgba(0,0,0,.5); font-size: 14px; }
+    .confirm-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .btn-sm { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-danger { background: #ef4444; border: none; color: #fff; }
   `]
 })
 export class AdminAdsComponent implements OnInit {
@@ -226,6 +242,13 @@ export class AdminAdsComponent implements OnInit {
   readonly toastMsg   = signal<string | null>(null);
   readonly toastOk      = signal(true);
   readonly uploading    = signal(false);
+
+  /** Inline confirmation — replaces confirm() dialog */
+  readonly confirmMsg = signal<string | null>(null);
+  private confirmCallback: (() => void) | null = null;
+  confirmYes(): void { this.confirmCallback?.(); this.confirmMsg.set(null); this.confirmCallback = null; }
+  confirmNo():  void { this.confirmMsg.set(null); this.confirmCallback = null; }
+  private ask(msg: string, cb: () => void): void { this.confirmMsg.set(msg); this.confirmCallback = cb; }
 
   form = this.buildEmptyForm();
 
@@ -246,7 +269,7 @@ export class AdminAdsComponent implements OnInit {
   onCreate(): void { this.form = this.buildEmptyForm(); this.editingId.set(null); this.formError.set(null); this.showModal.set(true); }
 
   onEdit(p: AdPlacement): void {
-    this.form = { type: p.type, title: p.title, title_ar: p.title_ar ?? '', image_url: p.image_url ?? '', link_url: p.link_url ?? '', cta_label: p.cta_label ?? '', brand_name: p.brand_name ?? '', brand_color: p.brand_color ?? '#f0a500', tournament_id: p.tournament_id ?? '', sort_order: p.sort_order, starts_at: p.starts_at?.slice(0,16) ?? '', ends_at: p.ends_at?.slice(0,16) ?? '' };
+    this.form = { type: p.type, title: p.title, title_ar: p.title_ar ?? '', image_url: p.image_url ?? '', link_url: p.link_url ?? '', cta_label: p.cta_label ?? '', brand_name: p.brand_name ?? '', brand_color: p.brand_color ?? '#d4af37', tournament_id: p.tournament_id ?? '', sort_order: p.sort_order, starts_at: p.starts_at?.slice(0,16) ?? '', ends_at: p.ends_at?.slice(0,16) ?? '' };
     this.editingId.set(p.id);
     this.formError.set(null);
     this.showModal.set(true);
@@ -269,12 +292,13 @@ export class AdminAdsComponent implements OnInit {
   }
 
   onDelete(p: AdPlacement): void {
-    if (!confirm('Delete "' + p.title + '"?')) return;
-    this.api.adminDeleteAdPlacement(p.id).pipe(catchError(() => of(null))).subscribe(() => { this.loadPlacements(); this.showToast('Deleted.', true); });
+    this.ask('Delete "' + p.title + '"?', () => {
+      this.api.adminDeleteAdPlacement(p.id).pipe(catchError(() => of(null))).subscribe(() => { this.loadPlacements(); this.showToast('Deleted.', true); });
+    });
   }
 
   getTypeLabel(type: string): string {
-    const m: Record<string,string> = { promoted_tournament: '⭐ Promoted', in_grid_sponsor: '📦 In-Grid', tournament_banner: '🖼 Banner', sidebar_left: '◀ Left Sidebar', sidebar_right: '▶ Right Sidebar' };
+    const m: Record<string,string> = { promoted_tournament: 'Promoted', in_grid_sponsor: 'In-Grid', tournament_banner: 'Banner', sidebar_left: 'Left Sidebar', sidebar_right: 'Right Sidebar' };
     return m[type] ?? type;
   }
 
@@ -285,12 +309,12 @@ export class AdminAdsComponent implements OnInit {
     this.uploading.set(true);
     this.api.uploadAdImage(file).subscribe({
       next: (r) => { this.form.image_url = r.url; this.uploading.set(false); },
-      error: ()  => { this.uploading.set(false); alert('Upload failed. Check file size (max 5MB) and format.'); },
+      error: ()  => { this.uploading.set(false); this.showToast('Upload failed. Check file size (max 5MB) and format.', false); },
     });
   }
 
   private buildEmptyForm() {
-    return { type: 'in_grid_sponsor' as 'promoted_tournament' | 'in_grid_sponsor' | 'tournament_banner' | 'sidebar_left' | 'sidebar_right', title: '', title_ar: '', image_url: '', link_url: '', cta_label: 'Learn More', brand_name: '', brand_color: '#f0a500', tournament_id: '', sort_order: 0, starts_at: '', ends_at: '' };
+    return { type: 'in_grid_sponsor' as 'promoted_tournament' | 'in_grid_sponsor' | 'tournament_banner' | 'sidebar_left' | 'sidebar_right', title: '', title_ar: '', image_url: '', link_url: '', cta_label: 'Learn More', brand_name: '', brand_color: '#d4af37', tournament_id: '', sort_order: 0, starts_at: '', ends_at: '' };
   }
 
   private showToast(msg: string, ok: boolean): void {

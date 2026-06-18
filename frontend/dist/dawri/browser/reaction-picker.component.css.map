@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;50788b22aca8866dd2f02d3341b977531ba06de8807790ce81bc388f357c5429;D:/xamp new/htdocs/Dawri/frontend/src/app/features/community/components/reaction-picker/reaction-picker.component.ts"],
+  "sourcesContent": ["\n    .picker {\n      position: absolute;\n      bottom: 56px;\n      left: 0.75rem;\n      display: grid;\n      grid-template-columns: repeat(8, 1fr);\n      gap: 0.25rem;\n      padding: 0.5rem;\n      background: #0e1428;\n      border: 1px solid #1a1f3a;\n      border-radius: 8px;\n      box-shadow: 0 8px 24px rgba(0,0,0,0.4);\n      z-index: 100;\n    }\n    button {\n      background: transparent;\n      border: none;\n      font-size: 1.4rem;\n      cursor: pointer;\n      padding: 0.25rem;\n      border-radius: 4px;\n    }\n    button:hover { background: #1a1f3a; }\n  "],
+  "mappings": ";AACI,CAAC;AACC,YAAU;AACV,UAAQ;AACR,QAAM;AACN,WAAS;AACT,yBAAuB,OAAO,CAAC,EAAE;AACjC,OAAK;AACL,WAAS;AACT,cAAY;AACZ,UAAQ,IAAI,MAAM;AAClB,iBAAe;AACf,cAAY,EAAE,IAAI,KAAK,KAAK,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC;AAClC,WAAS;AACX;AACA;AACE,cAAY;AACZ,UAAQ;AACR,aAAW;AACX,UAAQ;AACR,WAAS;AACT,iBAAe;AACjB;AACA,MAAM;AAAS,cAAY;AAAS;",
+  "names": []
+}

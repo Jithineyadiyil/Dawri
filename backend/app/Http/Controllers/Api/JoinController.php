@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\InviteResource;
 use App\Http\Resources\JoinRequestResource;
+use App\Mail\CommunityInvite as CommunityInviteMail;
 use App\Models\Community;
 use App\Models\CommunityInvite;
 use App\Models\CommunityJoinRequest;
@@ -15,6 +16,7 @@ use App\Services\JoinService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -61,12 +63,13 @@ final class JoinController extends Controller
         return response()->json(['data' => InviteResource::collection($invites)]);
     }
 
-    /** POST /communities/{community}/invites  Body: { max_uses?, expires_at? } */
+    /** POST /communities/{community}/invites  Body: { max_uses?, expires_at?, email? } */
     public function createInvite(Request $request, Community $community): JsonResponse
     {
         $request->validate([
             'max_uses'   => ['nullable', 'integer', 'min:1', 'max:100000'],
             'expires_at' => ['nullable', 'date', 'after:now'],
+            'email'      => ['nullable', 'email'],   // optional: email the link directly
         ]);
 
         try {
@@ -78,6 +81,21 @@ final class JoinController extends Controller
             );
         } catch (AuthorizationException $e) {
             return response()->json(['message' => $e->getMessage()], Response::HTTP_FORBIDDEN);
+        }
+
+        // If a recipient email was provided, send the invite by email
+        if ($recipientEmail = $request->input('email')) {
+            try {
+                $inviteUrl = config('app.url') . '/community/join/' . $invite->token;
+                Mail::to($recipientEmail)->queue(new CommunityInviteMail(
+                    communityName: $community->name,
+                    inviterName:   $request->user()->name,
+                    inviteUrl:     $inviteUrl,
+                    expiresAt:     $invite->expires_at?->format('d M Y'),
+                ));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('CommunityInvite email failed: ' . $e->getMessage());
+            }
         }
 
         return response()->json(['data' => new InviteResource($invite)], Response::HTTP_CREATED);

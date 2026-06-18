@@ -271,6 +271,8 @@ export class MarketplaceComponent implements OnInit, OnDestroy {
 
   /** Index of the slide currently shown in the carousel. */
   readonly slideIndex = signal(0);
+  /** Direction of the last transition: 1 = forward (slide in from right), -1 = back. */
+  readonly slideDir = signal<1 | -1>(1);
   /** Internal handle for the auto-rotate timer; cleared on destroy/hover. */
   private rotateHandle: ReturnType<typeof setInterval> | null = null;
   /** True while the user hovers the carousel — pauses auto-rotate. */
@@ -328,6 +330,8 @@ export class MarketplaceComponent implements OnInit, OnDestroy {
 
   /** Manual nav: jump to a specific dot. Resets the auto-rotate timer. */
   goToSlide(i: number): void {
+    if (i === this.slideIndex()) return;
+    this.slideDir.set(i > this.slideIndex() ? 1 : -1);
     this.slideIndex.set(i);
     this.restartRotation();
   }
@@ -336,6 +340,7 @@ export class MarketplaceComponent implements OnInit, OnDestroy {
   nudgeSlide(delta: -1 | 1): void {
     const len = this.featuredBrands().length;
     if (len === 0) return;
+    this.slideDir.set(delta);
     this.slideIndex.set((this.slideIndex() + delta + len) % len);
     this.restartRotation();
   }
@@ -365,8 +370,9 @@ export class MarketplaceComponent implements OnInit, OnDestroy {
       if (this.slidePaused()) return;
       const len = this.featuredBrands().length;
       if (len <= 1) return;
+      this.slideDir.set(1);
       this.slideIndex.set((this.slideIndex() + 1) % len);
-    }, 6000);
+    }, 5000);
   }
 
   readonly cartCount = computed(() => this.cart().reduce((s, i) => s + i.qty, 0));

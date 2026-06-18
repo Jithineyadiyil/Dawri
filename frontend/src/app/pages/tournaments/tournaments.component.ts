@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, OnInit,
+  ChangeDetectionStrategy, Component, OnInit, OnDestroy,
   inject, signal, computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -7,7 +7,7 @@ import { ReactiveFormsModule, FormBuilder, FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService }  from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
-import { catchError, forkJoin, of } from 'rxjs';
+import { catchError, forkJoin, of, Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { PlatformSponsorsStripComponent } from '../../components/platform-sponsors-strip/platform-sponsors-strip.component';
 
 /**
@@ -36,7 +36,7 @@ import { PlatformSponsorsStripComponent } from '../../components/platform-sponso
   templateUrl: './tournaments.component.html',
   styleUrls: ['./tournaments.component.scss'],
 })
-export class TournamentsComponent implements OnInit {
+export class TournamentsComponent implements OnInit, OnDestroy {
   readonly auth = inject(AuthService);
   private readonly api = inject(ApiService);
   private readonly fb  = inject(FormBuilder);
@@ -45,6 +45,10 @@ export class TournamentsComponent implements OnInit {
   readonly error     = signal<string | null>(null);
   readonly items     = signal<any[]>([]);
   readonly search    = signal('');
+
+  /** Debounced raw input value; drives the search signal with a 300ms delay. */
+  private readonly searchInput$ = new Subject<string>();
+  private readonly destroy$     = new Subject<void>();
 
   // View mode: 'grid' | 'list' | 'calendar' (calendar shows a "coming soon" panel)
   readonly view = signal<'grid' | 'list' | 'calendar'>('grid');
@@ -95,12 +99,14 @@ export class TournamentsComponent implements OnInit {
     const st = this.filter.status();
     const stMatches = st ? (this.statuses.find(x => x.value === st)?.match ?? []) : [];
 
-    const mine = this.showMine();
+    const mine   = this.showMine();
     const userId = this.auth.currentUser()?.id;
 
     const list = this.items().filter(t => {
       if (mine && userId) {
-        const isOrg = t.organizer_id === userId || t.organizer?.id === userId;
+        // Fix: use String() to avoid number/string type mismatch
+        const isOrg = String(t.organizer_id) === String(userId) ||
+                      String(t.organizer?.id) === String(userId);
         const isParticipant = t.is_registered;
         if (!isOrg && !isParticipant) return false;
       }
@@ -111,10 +117,11 @@ export class TournamentsComponent implements OnInit {
       return true;
     });
 
+    const now = Date.now();
     const sorted = [...list];
     switch (this.sort()) {
       case 'prize_high':
-        sorted.sort((a, b) => (this.prizeTotal(b) - this.prizeTotal(a))); break;
+        sorted.sort((a, b) => this.prizeTotal(b) - this.prizeTotal(a)); break;
       case 'popular':
         sorted.sort((a, b) => (b.participant_count ?? 0) - (a.participant_count ?? 0)); break;
       case 'newest':
@@ -122,8 +129,17 @@ export class TournamentsComponent implements OnInit {
                             - new Date(a.created_at ?? a.starts_at ?? 0).getTime()); break;
       case 'starting_soon':
       default:
-        sorted.sort((a, b) => new Date(a.starts_at ?? 0).getTime()
-                            - new Date(b.starts_at ?? 0).getTime());
+        // Fix: put upcoming (future start) first sorted by nearest; push past-start to end
+        sorted.sort((a, b) => {
+          const ta = new Date(a.starts_at ?? 0).getTime();
+          const tb = new Date(b.starts_at ?? 0).getTime();
+          const aUpcoming = ta > now;
+          const bUpcoming = tb > now;
+          if (aUpcoming && !bUpcoming) return -1;
+          if (!aUpcoming && bUpcoming) return 1;
+          // Both upcoming: nearest first. Both past: most recent first.
+          return aUpcoming ? ta - tb : tb - ta;
+        });
     }
     return sorted;
   });
@@ -141,16 +157,45 @@ export class TournamentsComponent implements OnInit {
     return String(sar);
   });
 
-  // Per-game counts for chip badges
-  gameCount(value: string): number {
-    if (!value) return this.items().length;
-    return this.items().filter(t => t.game === value).length;
-  }
-  statusCount(value: string): number {
-    const match = this.statuses.find(s => s.value === value)?.match ?? [];
-    if (!match.length) return this.items().length;
-    return this.items().filter(t => match.includes(t.status)).length;
-  }
+  /** Pre-computed chip counts — avoids per-CD array scans in the template. */
+  readonly gameCountMap = computed<Record<string, number>>(() => {
+    const items = this.items();
+    const map: Record<string, number> = { '': items.length };
+    for (const t of items) {
+      map[t.game] = (map[t.game] ?? 0) + 1;
+    }
+    return map;
+  });
+
+  readonly statusCountMap = computed<Record<string, number>>(() => {
+    const items = this.items();
+    const map: Record<string, number> = { '': items.length };
+    for (const s of this.statuses) {
+      if (s.match.length) {
+        map[s.value] = items.filter(t => s.match.includes(t.status)).length;
+      }
+    }
+    return map;
+  });
+
+  gameCount(value: string): number  { return this.gameCountMap()[value] ?? 0; }
+  statusCount(value: string): number { return this.statusCountMap()[value] ?? 0; }
+
+  /** Ads-injected grid — computed so it's only rebuilt when items/ads change. */
+  readonly filteredWithAdsComputed = computed<any[]>(() => {
+    const items    = this.filtered();
+    const sponsors = this.sponsorCards();
+    if (!sponsors.length) return items;
+    const result: any[] = [];
+    let si = 0;
+    items.forEach((item, i) => {
+      result.push(item);
+      if ((i + 1) % 2 === 0 && si < sponsors.length) {
+        result.push({ __adCard: true, ...sponsors[si++] });
+      }
+    });
+    return result;
+  });
 
   readonly canCreate = computed(() => {
     const role = this.auth.currentUser()?.role ?? '';
@@ -180,32 +225,35 @@ export class TournamentsComponent implements OnInit {
 
   isPromoted(id: string): boolean { return this.promotedIds().has(id); }
 
-  filteredWithAds(): any[] {
-    const items = this.filtered();
-    const sponsors = this.sponsorCards();
-    if (!sponsors.length) return items;
-    const result: any[] = [];
-    let si = 0;
-    items.forEach((item, i) => {
-      result.push(item);
-      if ((i + 1) % 2 === 0 && si < sponsors.length) {
-        result.push({ __adCard: true, ...sponsors[si++] });
-      }
-    });
-    return result;
-  }
+  /** @deprecated Use filteredWithAdsComputed signal instead */
+  filteredWithAds(): any[] { return this.filteredWithAdsComputed(); }
 
   trackItem(_: number, item: any): string {
     return item.__adCard ? 'ad-' + item.id : item.id;
   }
 
   ngOnInit(): void {
+    // Wire debounced search — 300ms delay prevents computed() from firing on every keystroke
+    this.searchInput$
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
+      .subscribe(v => this.search.set(v));
+
     this.loadAdPlacements();
     this.loading.set(true);
     this.api.getTournaments({}).subscribe({
       next: (res: any) => { this.items.set(res.data ?? []); this.loading.set(false); },
       error: (err: any) => { this.error.set(err?.error?.message ?? 'Failed to load tournaments.'); this.loading.set(false); },
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /** Called from the search input (input) event — feeds the debounce pipe. */
+  onSearchInput(value: string): void {
+    this.searchInput$.next(value);
   }
 
   setFilter(key: 'game' | 'format' | 'status', value: string): void {

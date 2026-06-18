@@ -5,12 +5,20 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\LoginNotification;
+use App\Mail\WelcomeEmail;
+use App\Models\Community;
+use App\Models\CommunityMember;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -35,6 +43,12 @@ class AuthController extends Controller
         ]);
 
         $token = $user->createToken('dawri-app')->plainTextToken;
+
+        // Auto-join the global Dawri Community so the user sees channels immediately.
+        $this->joinGlobalCommunity($user);
+
+        // Send welcome email (queued — non-blocking)
+        Mail::to($user->email)->queue(new WelcomeEmail($user));
 
         return response()->json([
             'data' => [
@@ -66,6 +80,16 @@ class AuthController extends Controller
         $user->tokens()->delete();
 
         $token = $user->createToken('dawri-app')->plainTextToken;
+
+        // Sign-in security: send notification to BOTH channels
+        // 1) Email — login alert with IP, device, time
+        // 2) SMS OTP — handled separately by POST /api/v1/auth/otp/send
+        Mail::to($user->email)->queue(new LoginNotification(
+            user:      $user,
+            ipAddress: $request->ip() ?? 'Unknown',
+            userAgent: substr($request->userAgent() ?? 'Unknown', 0, 80),
+            loginAt:   now()->setTimezone('Asia/Riyadh')->format('d M Y, H:i T'),
+        ));
 
         return response()->json([
             'data' => [
@@ -140,6 +164,81 @@ class AuthController extends Controller
         }
 
         return response()->json(['message' => 'OTP verified successfully.']);
+    }
+
+    /**
+     * POST /api/v1/auth/password/forgot
+     * Sends a password reset link to the user's email address.
+     */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $request->validate(['email' => ['required', 'email']]);
+
+        // Use Laravel's built-in Password broker — sends a signed reset link.
+        // Always returns success to prevent email enumeration attacks.
+        Password::sendResetLink($request->only('email'));
+
+        return response()->json([
+            'message' => 'If an account with that email exists, a password reset link has been sent.',
+        ]);
+    }
+
+    /**
+     * POST /api/v1/auth/password/reset
+     * Resets the user's password using the token from the reset email.
+     */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'token'                 => ['required', 'string'],
+            'email'                 => ['required', 'email'],
+            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'password_confirmation' => ['required'],
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password'       => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
+
+                // Revoke all existing tokens so previous sessions are logged out.
+                $user->tokens()->delete();
+
+                event(new PasswordReset($user));
+            }
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => __($status),
+            ], 422);
+        }
+
+        return response()->json(['message' => 'Password reset successfully. Please sign in with your new password.']);
+    }
+
+    /**
+     * Add the user as a member of the global Dawri Community.
+     * Idempotent — safe to call even if the user is already a member.
+     * Called on registration so every new user sees channels immediately.
+     */
+    private function joinGlobalCommunity(User $user): void
+    {
+        try {
+            $global = Community::where('type', 'global')->first();
+            if (! $global) return;
+
+            CommunityMember::firstOrCreate(
+                ['community_id' => $global->id, 'user_id' => $user->id],
+                ['role' => 'member', 'joined_at' => now()],
+            );
+        } catch (\Throwable $e) {
+            // Non-fatal — user can still use the platform; log and continue.
+            \Illuminate\Support\Facades\Log::warning('joinGlobalCommunity failed: ' . $e->getMessage());
+        }
     }
 
     /**

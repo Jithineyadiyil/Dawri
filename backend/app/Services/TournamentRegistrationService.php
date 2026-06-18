@@ -70,10 +70,10 @@ class TournamentRegistrationService
             }
 
             // ── Entry fee debit ───────────────────────────────────────────
-            if ($tournament->entry_fee > 0 && $this->wallet !== null) {
+            if ($tournament->entry_fee_sar > 0 && $this->wallet !== null) {
                 $this->wallet->debit(
                     $userId,
-                    $tournament->entry_fee,
+                    $tournament->entry_fee_sar,
                     "Entry fee: {$tournament->name}"
                 );
             }
@@ -121,10 +121,10 @@ class TournamentRegistrationService
                 ->firstOrFail();
 
             // Refund entry fee
-            if ($tournament->entry_fee > 0 && $this->wallet !== null) {
+            if ($tournament->entry_fee_sar > 0 && $this->wallet !== null) {
                 $this->wallet->credit(
                     $userId,
-                    $tournament->entry_fee,
+                    $tournament->entry_fee_sar,
                     "Refund — withdrew from: {$tournament->name}"
                 );
             }
@@ -157,11 +157,11 @@ class TournamentRegistrationService
 
             $refunded = 0;
 
-            if ($tournament->entry_fee > 0 && $this->wallet !== null) {
+            if ($tournament->entry_fee_sar > 0 && $this->wallet !== null) {
                 foreach ($participants as $participant) {
                     $this->wallet->credit(
                         $participant->user_id,
-                        $tournament->entry_fee,
+                        $tournament->entry_fee_sar,
                         "Refund — tournament cancelled: {$tournament->name}"
                     );
                     $participant->update(['status' => 'withdrawn']);

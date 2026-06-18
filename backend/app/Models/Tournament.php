@@ -24,7 +24,7 @@ class Tournament extends Model
     protected $table = 'tournaments';
 
     protected $fillable = [
-        'name', 'name_ar', 'game', 'format',
+        'name', 'name_ar', 'game', 'format', 'platform',
         'max_participants', 'swiss_rounds',
         'registration_closes_at', 'starts_at', 'timezone',
         'is_public', 'entry_fee_sar', 'prize_pool',

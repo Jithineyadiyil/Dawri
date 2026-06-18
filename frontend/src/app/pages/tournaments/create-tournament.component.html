@@ -49,6 +49,16 @@
         </div>
 
         <div class="field">
+          <label class="label">Platform</label>
+          <select formControlName="platform" class="input" style="max-width:240px">
+            @for (p of platforms; track p.value) {
+              <option [value]="p.value">{{ p.label }}</option>
+            }
+          </select>
+          <small class="hint">Optional — restrict the tournament to players on a specific platform.</small>
+        </div>
+
+        <div class="field">
           <label class="label">Format <span class="req">*</span></label>
           <div class="format-picker">
             @for (f of formats; track f.value) {

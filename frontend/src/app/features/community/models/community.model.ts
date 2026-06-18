@@ -75,6 +75,7 @@ export interface MessageAttachment {
   mime: string;
   width: number | null;
   height: number | null;
+  duration_ms?: number | null;
 }
 
 export interface CommunityMember {

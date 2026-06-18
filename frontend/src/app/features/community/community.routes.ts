@@ -20,6 +20,12 @@ export const COMMUNITY_ROUTES: Routes = [
       .then(m => m.CommunityShellComponent),
     children: [
       {
+        // Social home — Friends + Direct Messages merged into the shell.
+        path: 'home',
+        loadComponent: () => import('../social/social-home.component')
+          .then(m => m.SocialHomeComponent),
+      },
+      {
         path: ':slug',
         loadComponent: () => import('./pages/channel-view/channel-view.component')
           .then(m => m.ChannelViewComponent),

@@ -77,10 +77,11 @@ class TournamentResource extends JsonResource
             'organizer_name'         => $this->whenLoaded('organizer', fn () => $this->organizer?->name),
             'organizer'              => $this->whenLoaded('organizer', fn () => $this->organizer
                 ? [
-                    'id'           => $this->organizer->id,
-                    'name'         => $this->organizer->name,
-                    'display_name' => $this->organizer->display_name,
-                    'avatar_url'   => $this->organizer->avatar_url,
+                    'id'             => $this->organizer->id,
+                    'name'           => $this->organizer->name,
+                    'display_name'   => $this->organizer->display_name,
+                    'avatar_url'     => $this->organizer->avatar_url,
+                    'organizer_tier' => $this->organizer->organizer_tier ?? 'none',
                 ] : null),
             'company_id'             => $this->company_id,
             'company'                => $this->whenLoaded('company', fn () => $this->company ? [

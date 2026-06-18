@@ -4,11 +4,12 @@ import { NavComponent }    from './shared/components/nav/nav.component';
 import { SidebarAdComponent } from './components/sidebar-ad/sidebar-ad.component';
 import { FooterComponent } from './shared/components/footer/footer.component';
 import { ToastComponent }  from './shared/components/toast/toast.component';
+import { AchievementUnlockWatcherComponent } from './features/achievements/achievement-unlock-watcher.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NavComponent, SidebarAdComponent, FooterComponent, ToastComponent],
+  imports: [RouterOutlet, NavComponent, SidebarAdComponent, FooterComponent, ToastComponent, AchievementUnlockWatcherComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })

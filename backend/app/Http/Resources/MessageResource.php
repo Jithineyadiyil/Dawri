@@ -42,11 +42,12 @@ final class MessageResource extends JsonResource
                 : null,
             'attachments' => $this->relationLoaded('attachments')
                 ? $this->attachments->map(fn ($a) => [
-                    'id'     => $a->id,
-                    'url'    => $a->url,
-                    'mime'   => $a->mime,
-                    'width'  => $a->width,
-                    'height' => $a->height,
+                    'id'          => $a->id,
+                    'url'         => $a->url,
+                    'mime'        => $a->mime,
+                    'width'       => $a->width,
+                    'height'      => $a->height,
+                    'duration_ms' => $a->duration_ms,
                 ])->values()->all()
                 : [],
             'created_at' => $this->created_at->toIso8601String(),

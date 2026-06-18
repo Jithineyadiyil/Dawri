@@ -5,6 +5,27 @@
   </div>
 } @else if (!hasAnySponsor()) {
   <!-- No sponsors — render nothing at all -->
+} @else if (variant() === 'logos') {
+  <!-- Compact "Sponsored by" logo strip (for the prize card) -->
+  <div class="ts-logos">
+    <span class="ts-logos__label">Sponsored by</span>
+    <div class="ts-logos__row">
+      @for (s of allSponsors(); track s.id) {
+        <a class="ts-logos__item"
+           [class.ts-logos__item--title]="s.placement_type === 'title'"
+           [href]="s.website_url ?? null"
+           [attr.target]="s.website_url ? '_blank' : null"
+           [attr.rel]="s.website_url ? 'noopener noreferrer' : null"
+           [title]="s.name + (s.placement_type === 'title' ? ' — Title Sponsor' : '')">
+          @if (s.logo_url && !brokenLogos().has(s.id)) {
+            <img [src]="s.logo_url" [alt]="s.name" (error)="markLogoBroken(s.id)">
+          } @else {
+            <span class="ts-logos__fallback">{{ s.name.charAt(0) }}</span>
+          }
+        </a>
+      }
+    </div>
+  </div>
 } @else {
   <section class="ts-root" [attr.aria-label]="'Tournament sponsors'">
     <!-- Prize pool hero strip -->

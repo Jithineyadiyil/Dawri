@@ -85,7 +85,7 @@ import { CommunityAnalytics } from '../../models/community.model';
     </div>
   `,
   styles: [`
-    :host { --accent: #00ffa3; --accent-d: #06281c; --gold: #d4af37; --bg: #0b0b14; --surface: #14141f; --raised: #16161f; --line: rgba(255,255,255,0.09); --text: #eaeaf2; --mut: #8a8a9e; }
+    :host { --accent: #7c3aed; --accent-s: #a78bfa; --gold: #d4af37; --bg: #0b0a14; --surface: #161228; --raised: #1c1833; --line: rgba(124,58,237,0.15); --text: #eaeaf2; --mut: #8a8a9e; }
     .overlay { position: fixed; inset: 0; z-index: 960; background: rgba(0,0,0,0.5); display: flex; justify-content: flex-end; }
     .panel { width: 100%; max-width: 480px; height: 100%; background: var(--bg); border-left: 1px solid var(--line); display: flex; flex-direction: column; }
     .embedded-body { display: block; width: 100%; }

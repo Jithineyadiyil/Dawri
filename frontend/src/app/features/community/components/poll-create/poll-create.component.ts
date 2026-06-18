@@ -76,9 +76,9 @@ import { CommunityStateService } from '../../services/community-state.service';
   `,
   styles: [`
     :host {
-      --accent: #00ffa3; --accent-d: #06281c;
-      --bg: #0b0b14; --surface: #14141f; --raised: #1c1c28;
-      --line: rgba(255,255,255,0.09); --text: #eaeaf2; --mut: #8a8a9e;
+      --accent: #7c3aed; --accent-s: #a78bfa;
+      --bg: #0b0a14; --surface: #161228; --raised: #1c1833;
+      --line: rgba(124,58,237,0.18); --text: #eaeaf2; --mut: #8a8a9e;
     }
     .overlay {
       position: fixed; inset: 0; z-index: 1000;
@@ -108,16 +108,16 @@ import { CommunityStateService } from '../../services/community-state.service';
     .icon.dim { width: 30px; height: 30px; font-size: 0.85rem; }
     .icon.dim:hover { color: #ff6b6b; }
     .send {
-      background: var(--accent); color: var(--accent-d); border: none; cursor: pointer;
+      background: var(--accent); color: #fff; border: none; cursor: pointer;
       width: 38px; height: 38px; border-radius: 50%; font-size: 1.05rem; font-weight: 800;
       display: grid; place-items: center; transition: box-shadow 0.14s ease, opacity 0.14s ease;
     }
-    .send:hover:not(:disabled) { box-shadow: 0 0 18px rgba(0,255,163,0.45); }
+    .send:hover:not(:disabled) { box-shadow: 0 0 18px rgba(124,58,237,0.5); }
     .send:disabled { opacity: 0.35; cursor: not-allowed; }
 
     .body { padding: 0.5rem 1rem 1.1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.2rem; }
     .block { display: flex; flex-direction: column; gap: 0.55rem; }
-    .label { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); padding-top: 0.5rem; }
+    .label { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-s); padding-top: 0.5rem; }
 
     .q {
       background: var(--surface); border: none; border-bottom: 2px solid var(--line);
@@ -134,7 +134,7 @@ import { CommunityStateService } from '../../services/community-state.service';
       font-family: 'Archivo', system-ui, sans-serif; font-size: 0.95rem;
       transition: border-color 0.12s ease;
     }
-    .opt:focus { outline: none; border-color: rgba(0,255,163,0.55); }
+    .opt:focus { outline: none; border-color: var(--accent); }
     .opt::placeholder { color: var(--mut); }
     .hint { font-size: 0.72rem; color: var(--mut); padding-left: 0.2rem; }
 

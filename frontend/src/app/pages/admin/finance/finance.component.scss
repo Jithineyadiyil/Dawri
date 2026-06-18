@@ -2,9 +2,8 @@
  * container AND inherit down into all three report children. */
 
 .admin-finance {
-  padding: 24px;
-  max-width: 1600px;
-  margin: 0 auto;
+  width: 100%;
+  padding: 1.5rem 1.75rem;
   color: #fff;
 
   .page-header {
@@ -42,7 +41,7 @@
       transition: color 0.15s, border-color 0.15s;
 
       &:hover  { color: #ccc; }
-      &.active { color: #fff; border-bottom-color: #a855f7; }
+      &.active { color: #fff; border-bottom-color: #d4af37; }
     }
   }
 }
@@ -86,10 +85,10 @@
   transition: all 0.15s;
 }
 .btn-primary {
-  background: #a855f7;
-  color: #fff;
-  border-color: #a855f7;
-  &:hover { background: #9333ea; }
+  background: #d4af37;
+  color: #1a1205;
+  border-color: #d4af37;
+  &:hover { background: #c19f2e; }
 }
 .btn-ghost {
   background: transparent;
@@ -98,9 +97,9 @@
 }
 .btn-download {
   background: #0d0d1a;
-  color: #fbbf24;
-  border-color: #fbbf24;
-  &:hover { background: #fbbf24; color: #000; }
+  color: #d4af37;
+  border-color: #d4af37;
+  &:hover { background: #d4af37; color: #000; }
 }
 
 .select, .search-input {
@@ -111,7 +110,7 @@
   border-radius: 5px;
   font-size: 12px;
   font-family: inherit;
-  &:focus { outline: none; border-color: #a855f7; }
+  &:focus { outline: none; border-color: #d4af37; }
 }
 .search-input { min-width: 240px; }
 
@@ -134,9 +133,9 @@
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0; height: 2px;
-    background: #a855f7;
+    background: #d4af37;
   }
-  &.amber::before { background: #fbbf24; }
+  &.amber::before { background: #d4af37; }
   &.cyan::before  { background: #38bdf8; }
   &.green::before { background: #22c55e; }
   &.red::before   { background: #ef4444; }
@@ -152,10 +151,10 @@
     font-family: 'Space Mono', monospace;
     font-size: 22px;
     font-weight: 700;
-    color: #a855f7;
+    color: #d4af37;
     line-height: 1;
   }
-  &.amber .kpi-value { color: #fbbf24; }
+  &.amber .kpi-value { color: #d4af37; }
   &.cyan .kpi-value  { color: #38bdf8; }
   &.green .kpi-value { color: #22c55e; }
   &.red .kpi-value   { color: #ef4444; }

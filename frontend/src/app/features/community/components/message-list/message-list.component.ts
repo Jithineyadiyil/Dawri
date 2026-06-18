@@ -35,20 +35,24 @@ import { Message, MessageNode } from '../../models/community.model';
     </div>
   `,
   styles: [`
+    @keyframes channelFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
     :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-    .scroller { flex: 1; overflow-y: auto; padding: 1rem; min-height: 0; }
-    .messages-reversed { display: flex; flex-direction: column; gap: 0.25rem; }
+    .scroller { flex: 1; overflow-y: auto; padding: 1rem 1.25rem; min-height: 0; animation: channelFadeIn .2s ease both; }
+    .messages-reversed { display: flex; flex-direction: column; gap: 0.15rem; }
     .loading, .load-more {
       display: block;
-      margin: 0 auto 0.5rem;
-      padding: 0.5rem 1rem;
+      margin: 0 auto 0.75rem;
+      padding: 0.45rem 1.1rem;
       color: #7a7a92;
-      background: transparent;
-      border: 1px solid #16161f;
-      border-radius: 6px;
+      background: rgba(124,58,237,0.06);
+      border: 1px solid rgba(124,58,237,0.2);
+      border-radius: 8px;
       cursor: pointer;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 0.8rem;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
-    .load-more:hover { color: #00ffa3; border-color: #00ffa3; }
+    .load-more:hover { color: #a78bfa; border-color: #7c3aed; background: rgba(124,58,237,0.12); }
   `],
 })
 export class MessageListComponent {

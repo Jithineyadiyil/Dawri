@@ -19,7 +19,9 @@ import { catchError, of } from 'rxjs';
 
   <!-- Setup reminder -->
   <div class="setup-reminder">
-    <div class="setup-reminder__icon">⚙️</div>
+    <div class="setup-reminder__icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </div>
     <div>
       <div class="setup-reminder__title">One-time setup required</div>
       <div class="setup-reminder__text">
@@ -61,18 +63,18 @@ import { catchError, of } from 'rxjs';
             {{ streamStatus() === 'live' ? 'LIVE NOW' : streamStatus() === 'ended' ? 'Ended' : 'Stream Ready' }}
           </div>
           <div class="tc-stream-key">
-            <span class="key-label">🔑 Stream Key:</span>
+            <span class="key-label">Stream Key:</span>
             <code class="key-val">{{ tournament()!.youtube_stream_key }}</code>
           </div>
           <div class="tc-stream-url">
             <a [href]="tournament()!.youtube_stream_url" target="_blank" rel="noopener" class="watch-link">
-              ▶ Watch on YouTube ↗
+              Watch on YouTube ↗
             </a>
           </div>
           <div class="tc-actions">
-            <button class="btn-ghost btn-sm" (click)="refreshStatus()">↻ Refresh Status</button>
+            <button class="btn-ghost btn-sm" (click)="refreshStatus()">Refresh Status</button>
             <button class="btn-danger btn-sm" (click)="endStream()" [disabled]="ending()">
-              {{ ending() ? 'Ending…' : '⏹ End Broadcast' }}
+              {{ ending() ? 'Ending…' : 'End Broadcast' }}
             </button>
           </div>
         </div>
@@ -85,7 +87,7 @@ import { catchError, of } from 'rxjs';
             <div class="stream-option__label">Option A — Auto-create via YouTube API</div>
             <div class="stream-option__hint">Requires YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN in .env</div>
             <button class="btn-primary" (click)="createStream()" [disabled]="creating()">
-              {{ creating() ? 'Creating on YouTube…' : '📡 Create YouTube Live Event' }}
+              {{ creating() ? 'Creating on YouTube…' : 'Create YouTube Live Event' }}
             </button>
           </div>
 
@@ -98,11 +100,11 @@ import { catchError, of } from 'rxjs';
                      (input)="manualUrl.set($any($event.target).value)"
                      placeholder="https://www.youtube.com/watch?v=… or https://twitch.tv/channel"/>
               <button class="btn-ghost" (click)="saveManualUrl()" [disabled]="savingManual() || !manualUrl()">
-                {{ manualSaved() ? '✓ Saved!' : (savingManual() ? 'Saving…' : 'Save URL') }}
+                {{ manualSaved() ? 'Saved!' : (savingManual() ? 'Saving…' : 'Save URL') }}
               </button>
             </div>
             <div class="manual-url-hint">
-              💡 To get a YouTube URL: go to studio.youtube.com → Go Live → copy the share link
+              Tip: To get a YouTube URL, go to studio.youtube.com → Go Live → copy the share link
             </div>
           </div>
         </div>
@@ -113,13 +115,13 @@ import { catchError, of } from 'rxjs';
   <!-- Success result -->
   @if (newStream()) {
     <div class="new-stream-result">
-      <div class="nsr-title">✅ YouTube Live Event Created!</div>
+      <div class="nsr-title">YouTube Live Event Created</div>
       <div class="nsr-grid">
         <div class="nsr-field">
           <label>Stream Key (give to organizer)</label>
           <div class="nsr-key-wrap">
             <code>{{ newStream()!.stream_key }}</code>
-            <button (click)="copyText(newStream()!.stream_key)">{{ copied() ? '✓' : '📋' }}</button>
+            <button (click)="copyText(newStream()!.stream_key)">{{ copied() ? 'Copied' : 'Copy' }}</button>
           </div>
         </div>
         <div class="nsr-field">
@@ -133,7 +135,7 @@ import { catchError, of } from 'rxjs';
       </div>
 
       <div class="nsr-instructions">
-        <h4>📋 Send this to the organizer:</h4>
+        <h4>Send this to the organizer:</h4>
         <div class="instruction-box">
           <p><strong>PS5 Setup:</strong></p>
           <ol>
@@ -152,21 +154,33 @@ import { catchError, of } from 'rxjs';
       </div>
     </div>
   }
+
+  @if (confirmMsg()) {
+    <div class="confirm-bar">
+      <span>{{ confirmMsg() }}</span>
+      <div class="confirm-actions">
+        <button class="btn-ghost btn-sm" (click)="confirmNo()">Cancel</button>
+        <button class="btn-danger btn-sm" (click)="confirmYes()">Confirm</button>
+      </div>
+    </div>
+  }
 </div>
   `,
   styles: [`
-    .streams-page { padding: 32px; max-width: 860px; margin: 0 auto; color: #fff; }
+    .streams-page { width: 100%; padding: 1.5rem 1.75rem; color: #fff; }
+    .streams-page > * { max-width: 860px; }
     .streams-header { margin-bottom: 20px; }
     .streams-title { font-size: 32px; font-weight: 800; margin: 0; }
     .streams-sub { color: #6b7280; font-size: 13px; margin: 4px 0 0; }
-    .btn-primary { padding: 10px 20px; background: #f0a500; border: none; border-radius: 8px; color: #0b1022; font-weight: 700; cursor: pointer; font-size: 14px; }
+    .btn-primary { padding: 10px 20px; background: #d4af37; border: none; border-radius: 8px; color: #1a1205; font-weight: 700; cursor: pointer; font-size: 14px; }
     .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
     .btn-ghost { padding: 8px 14px; background: transparent; border: 1px solid rgba(255,255,255,.15); border-radius: 8px; color: #9ca3af; cursor: pointer; font-size: 13px; }
     .btn-danger { padding: 8px 14px; background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); border-radius: 8px; color: #ef4444; cursor: pointer; font-size: 13px; }
     .btn-sm { font-size: 12px; padding: 6px 12px; }
 
-    .setup-reminder { display: flex; gap: 12px; padding: 14px 16px; background: rgba(240,165,0,.06); border: 1px solid rgba(240,165,0,.2); border-radius: 10px; margin-bottom: 24px; font-size: 22px; align-items: flex-start; }
-    .setup-reminder__title { font-weight: 700; font-size: 14px; color: #f0a500; margin-bottom: 4px; }
+    .setup-reminder { display: flex; gap: 12px; padding: 14px 16px; background: rgba(212,175,55,.06); border: 1px solid rgba(212,175,55,.2); border-radius: 10px; margin-bottom: 24px; align-items: flex-start; }
+    .setup-reminder__icon { color: #d4af37; flex-shrink: 0; }
+    .setup-reminder__title { font-weight: 700; font-size: 14px; color: #d4af37; margin-bottom: 4px; }
     .setup-reminder__text { font-size: 12px; color: #9ca3af; line-height: 1.6; }
     .setup-reminder__text code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 4px; font-size: 11px; color: #d1d5db; }
 
@@ -187,7 +201,7 @@ import { catchError, of } from 'rxjs';
     .tc-stream-key { display: flex; align-items: center; gap: 8px; }
     .key-label { font-size: 12px; color: #6b7280; font-family: monospace; white-space: nowrap; }
     .key-val { font-size: 13px; color: #10b981; background: rgba(16,185,129,.08); padding: 4px 10px; border-radius: 6px; }
-    .watch-link { color: #ff4444; font-size: 13px; font-weight: 700; text-decoration: none; }
+    .watch-link { color: #d4af37; font-size: 13px; font-weight: 700; text-decoration: none; }
     .tc-actions { display: flex; gap: 8px; }
     .tc-no-stream { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
     .stream-option { padding: 16px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; display: flex; flex-direction: column; gap: 10px; }
@@ -212,6 +226,9 @@ import { catchError, of } from 'rxjs';
     .instruction-box p:first-child { margin-top: 0; }
     .instruction-box ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
     .instruction-box code { color: #10b981; font-size: 12px; background: rgba(16,185,129,.08); padding: 1px 5px; border-radius: 4px; }
+    .confirm-bar { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 600; display: flex; align-items: center; gap: 18px; max-width: none; padding: 12px 18px; background: #111827; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; box-shadow: 0 10px 32px -8px rgba(0,0,0,.5); font-size: 14px; }
+    .confirm-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .confirm-bar .btn-danger { background: #ef4444; border: none; color: #fff; }
   `]
 })
 export class AdminStreamsComponent implements OnInit {
@@ -229,6 +246,13 @@ export class AdminStreamsComponent implements OnInit {
   readonly manualUrl      = signal('');
   readonly savingManual   = signal(false);
   readonly manualSaved    = signal(false);
+
+  /** Inline confirmation — replaces confirm() dialog */
+  readonly confirmMsg = signal<string | null>(null);
+  private confirmCallback: (() => void) | null = null;
+  confirmYes(): void { this.confirmCallback?.(); this.confirmMsg.set(null); this.confirmCallback = null; }
+  confirmNo():  void { this.confirmMsg.set(null); this.confirmCallback = null; }
+  private ask(msg: string, cb: () => void): void { this.confirmMsg.set(msg); this.confirmCallback = cb; }
 
   ngOnInit(): void {}
 
@@ -292,13 +316,15 @@ export class AdminStreamsComponent implements OnInit {
 
   endStream(): void {
     const t = this.tournament();
-    if (!t || !confirm('End this YouTube broadcast?')) return;
-    this.ending.set(true);
-    const broadcastId = t?.youtube_broadcast_id;
-    if (!broadcastId) { this.ending.set(false); return; }
-    this.api.endYouTubeStream(broadcastId).pipe(catchError(() => of(null))).subscribe(() => {
-      this.ending.set(false);
-      this.streamStatus.set('ended');
+    if (!t) return;
+    this.ask('End this YouTube broadcast?', () => {
+      this.ending.set(true);
+      const broadcastId = t?.youtube_broadcast_id;
+      if (!broadcastId) { this.ending.set(false); return; }
+      this.api.endYouTubeStream(broadcastId).pipe(catchError(() => of(null))).subscribe(() => {
+        this.ending.set(false);
+        this.streamStatus.set('ended');
+      });
     });
   }
 

@@ -256,6 +256,17 @@
     </section>
   }
 
+  <!-- Inline confirmation -->
+  @if (confirmMsg()) {
+    <div class="as-confirm-bar">
+      <span>{{ confirmMsg() }}</span>
+      <div class="as-confirm-actions">
+        <button class="btn-link" (click)="confirmNo()">Cancel</button>
+        <button class="btn btn--primary" (click)="confirmYes()">Confirm</button>
+      </div>
+    </div>
+  }
+
   <!-- Toast -->
   @if (toast(); as t) {
     <div class="toast" [class.toast--ok]="t.ok" [class.toast--err]="!t.ok">{{ t.msg }}</div>

@@ -48,6 +48,10 @@ class BracketGeneratorService
                 'status'            => 'ongoing',
                 'total_rounds'      => $totalRounds,
                 'current_round'     => 1,
+                // Bug #19 (documented): participant_count is a snapshot taken at bracket
+                // generation time. If participants withdraw after this point the count
+                // becomes stale. Do NOT rely on this for live counts — query
+                // TournamentParticipant directly. This column is for bracket-math only.
                 'participant_count' => $count,
                 'bye_count'         => $bracketSize - $count,
                 'generated_at'      => now(),
@@ -58,6 +62,7 @@ class BracketGeneratorService
                 'double_elimination' => $this->generateDoubleElimination($bracket, $participants),
                 'round_robin'        => $this->generateRoundRobin($bracket, $participants),
                 'swiss'              => $this->generateSwiss($bracket, $participants),
+                'group_knockout'     => $this->generateGroupKnockout($bracket, $participants),
                 default              => throw new InvalidArgumentException(
                     "Unsupported format: {$tournament->format}"
                 ),
@@ -167,33 +172,61 @@ class BracketGeneratorService
      */
     private function propagateWalkoverWinners(string $bracketId): void
     {
-        $walkovers = TournamentMatch::where('bracket_id', $bracketId)
-            ->where('status', 'walkover')
-            ->whereNotNull('winner_id')
-            ->whereNotNull('next_match_id')
-            ->orderBy('round_number')
-            ->orderBy('match_number')
-            ->get();
+        // Bug #18: Run the propagation loop iteratively until no new walkovers
+        // are created. This handles bye-vs-bye chains where filling both slots
+        // of a match with bye-winners should auto-resolve that match as another
+        // walkover (rather than leaving it stuck in 'pending').
+        $maxPasses = 20; // safety cap — a 512-player bracket has at most 9 bye rounds
+        $pass      = 0;
 
-        foreach ($walkovers as $walkover) {
-            $next = TournamentMatch::find($walkover->next_match_id);
-            if (! $next) continue;
+        do {
+            $changed = false;
+            $pass++;
 
-            // Push the walkover winner into the first available slot.
-            // Re-read fresh fields each time to handle the case where another
-            // walkover already filled slot A in this same iteration.
-            if ($next->participant_a_id === null) {
-                $next->participant_a_id = $walkover->winner_id;
-            } elseif ($next->participant_b_id === null
-                   && $next->participant_a_id !== $walkover->winner_id) {
-                // Defensive guard: refuse to write the same player into both
-                // slots (this would happen if buggy code routed two distinct
-                // walkovers to the same target; with proper seeding it should
-                // never occur, but the guard prevents silent corruption).
-                $next->participant_b_id = $walkover->winner_id;
+            $walkovers = TournamentMatch::where('bracket_id', $bracketId)
+                ->where('status', 'walkover')
+                ->whereNotNull('winner_id')
+                ->whereNotNull('next_match_id')
+                ->orderBy('round_number')
+                ->orderBy('match_number')
+                ->get();
+
+            foreach ($walkovers as $walkover) {
+                $next = TournamentMatch::find($walkover->next_match_id);
+                if (! $next) continue;
+
+                // Re-read the fresh record each iteration (a prior loop may have
+                // filled one of the slots already).
+                $next = $next->fresh();
+
+                if ($next->participant_a_id === null) {
+                    $next->participant_a_id = $walkover->winner_id;
+                    $next->save();
+                    $changed = true;
+                } elseif ($next->participant_b_id === null
+                       && $next->participant_a_id !== $walkover->winner_id) {
+                    $next->participant_b_id = $walkover->winner_id;
+                    $next->save();
+                    $changed = true;
+                }
+
+                // Bug #18 core fix: if both slots are now filled with bye-winners,
+                // auto-resolve the match so it doesn't block further propagation.
+                $next = $next->fresh();
+                if ($next->status === 'pending'
+                    && $next->participant_a_id !== null
+                    && $next->participant_b_id !== null
+                    && $next->participant_a_is_bye
+                    && $next->participant_b_is_bye) {
+                    // Both sides are byes — arbitrary walkover (use participant_a convention)
+                    $next->update([
+                        'status'    => 'walkover',
+                        'winner_id' => $next->participant_a_id,
+                    ]);
+                    $changed = true;
+                }
             }
-            $next->save();
-        }
+        } while ($changed && $pass < $maxPasses);
     }
 
     // ─── Double Elimination ───────────────────────────────────────────────────
@@ -459,6 +492,80 @@ class BracketGeneratorService
         }
 
         $bracket->update(['total_rounds' => $rounds]);
+    }
+
+    // ─── Group Stage + Knockout ──────────────────────────────────────────────
+    //
+    // v1 implementation: generate the GROUP STAGE only at bracket-creation time.
+    // The knockout phase is created later by BracketAdvancementService once
+    // every group's round-robin matches are completed (each group's top N
+    // advance into a single-elimination bracket).
+    //
+    // Participants are split into groups of 4 wherever possible (3-player
+    // groups absorb the remainder). bracket_section = "group_A", "group_B", …
+
+    private function generateGroupKnockout(Bracket $bracket, Collection $participants): void
+    {
+        $n = $participants->count();
+        if ($n < 4) {
+            // Fall back to round-robin if too few players for groups.
+            $this->generateRoundRobin($bracket, $participants);
+            return;
+        }
+
+        // Build group buckets: prefer groups of 4, then 3.
+        $groupSize = 4;
+        $groupCount = (int) ceil($n / $groupSize);
+        $groups = array_fill(0, $groupCount, []);
+        foreach ($participants->values()->all() as $i => $p) {
+            $groups[$i % $groupCount][] = $p;
+        }
+
+        $matchNumber = 1;
+        $maxGroupRounds = 0;
+        foreach ($groups as $gi => $list) {
+            $section = 'group_' . chr(ord('A') + $gi);
+            $count   = count($list);
+            if ($count < 2) continue;
+            if ($count % 2 !== 0) { $list[] = null; }
+            $g = count($list);
+            $rounds = $g - 1;
+            $maxGroupRounds = max($maxGroupRounds, $rounds);
+
+            for ($round = 1; $round <= $rounds; $round++) {
+                for ($i = 0; $i < $g / 2; $i++) {
+                    $pA = $list[$i];
+                    $pB = $list[$g - 1 - $i];
+                    if ($pA === null || $pB === null) continue;
+                    TournamentMatch::create([
+                        'bracket_id'           => $bracket->id,
+                        'round_number'         => $round,
+                        'match_number'         => $matchNumber++,
+                        'bracket_section'      => $section,
+                        'participant_a_id'     => $pA->id,
+                        'participant_b_id'     => $pB->id,
+                        'participant_a_is_bye' => false,
+                        'participant_b_is_bye' => false,
+                        'status'               => 'pending',
+                    ]);
+                }
+                $fixed = array_shift($list);
+                $last  = array_pop($list);
+                array_unshift($list, $last);
+                array_unshift($list, $fixed);
+            }
+        }
+
+        // Total rounds covers ONLY the group stage; advancement service
+        // appends knockout rounds when it generates phase 2.
+        $bracket->update([
+            'total_rounds' => $maxGroupRounds,
+            'metadata'     => array_merge((array) $bracket->metadata, [
+                'group_count'    => $groupCount,
+                'phase'          => 'group_stage',
+                'advance_per_group' => 2,
+            ]),
+        ]);
     }
 
     // ─── Swiss ────────────────────────────────────────────────────────────────

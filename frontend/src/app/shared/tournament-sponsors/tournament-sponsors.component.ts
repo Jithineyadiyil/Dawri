@@ -59,6 +59,9 @@ export interface SponsorDisplay {
 })
 export class TournamentSponsorsComponent implements OnChanges {
   readonly tournamentId = input.required<string>();
+  /** 'full' = three-tier layout (default). 'logos' = compact "Sponsored by"
+   *  logo strip, for embedding inside the prize card. */
+  readonly variant = input<'full' | 'logos'>('full');
 
   private readonly http = inject(HttpClient);
 
@@ -85,6 +88,18 @@ export class TournamentSponsorsComponent implements OnChanges {
     return !!s.title_sponsor
       || s.presenting_sponsors.length > 0
       || s.supporting_sponsors.length > 0;
+  });
+
+  /** All sponsors flattened (title → presenting → supporting) for the
+   *  compact 'logos' variant. */
+  readonly allSponsors = computed<SponsorDisplay[]>(() => {
+    const s = this.summary();
+    if (!s) return [];
+    return [
+      ...(s.title_sponsor ? [s.title_sponsor] : []),
+      ...s.presenting_sponsors,
+      ...s.supporting_sponsors,
+    ];
   });
 
   /** Pretty-formatted prize pool, e.g. "75,000 SAR" */

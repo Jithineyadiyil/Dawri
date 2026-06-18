@@ -76,7 +76,7 @@ export interface DateRange {
       transition: all 0.15s;
     }
     .preset:hover  { background: #1a1a2a; color: #fff; }
-    .preset.active { background: #a855f7; color: #fff; border-color: #a855f7; }
+    .preset.active { background: #d4af37; color: #fff; border-color: #d4af37; }
     .inputs { display: flex; gap: 12px; }
     .inputs label {
       display: flex;
@@ -96,7 +96,7 @@ export interface DateRange {
       font-size: 12px;
       margin-top: 3px;
     }
-    .inputs input:focus { outline: none; border-color: #a855f7; }
+    .inputs input:focus { outline: none; border-color: #d4af37; }
   `],
 })
 export class DateRangePickerComponent implements OnInit {

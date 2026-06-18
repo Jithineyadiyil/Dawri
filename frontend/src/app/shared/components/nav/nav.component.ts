@@ -1,7 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
+import { FriendService } from '../../../core/services/friend.service';
+import { DmService } from '../../../features/social/dm.service';
+import { ChallengeService } from '../../../features/social/challenge.service';
+import { ChallengeCreateComponent } from '../../../features/social/challenge-create.component';
+import { TeamService } from '../../../features/teams/team.service';
 import { NotificationBellComponent } from '../../../components/notification-bell/notification-bell.component';
 
 /**
@@ -16,7 +21,7 @@ import { NotificationBellComponent } from '../../../components/notification-bell
 @Component({
   selector: 'app-nav',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, CommonModule, NotificationBellComponent],
+  imports: [RouterLink, RouterLinkActive, CommonModule, NotificationBellComponent, ChallengeCreateComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav class="nav">
@@ -33,7 +38,16 @@ import { NotificationBellComponent } from '../../../components/notification-bell
         <a routerLink="/sponsors"    routerLinkActive="active" class="nav-link">Partners</a>
         <a routerLink="/pricing" routerLinkActive="active" class="nav-link">Pricing</a>
         @if (auth.isLoggedIn()) {
-          <a routerLink="/community" routerLinkActive="active" class="nav-link">Community</a>
+          <a routerLink="/community" routerLinkActive="active" class="nav-link nav-link--friends nav-link--connect" title="Communities, Friends, Messages & Challenges">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="margin-right:1px"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+            Connect+
+            @if (connectAlerts() > 0) { <span class="nav-badge">{{ connectAlerts() }}</span> }
+          </a>
+          <a routerLink="/players" routerLinkActive="active" class="nav-link">Players</a>
+          <a routerLink="/teams" routerLinkActive="active" class="nav-link nav-link--friends">
+            Teams
+            @if (teams.alertCount() > 0) { <span class="nav-badge">{{ teams.alertCount() }}</span> }
+          </a>
         }
       </div>
 
@@ -81,7 +95,10 @@ import { NotificationBellComponent } from '../../../components/notification-bell
         @if (auth.isLoggedIn()) {
           <a routerLink="/dashboard" class="drawer-link">Dashboard</a>
           <a routerLink="/calendar" class="drawer-link">Calendar</a>
-          <a routerLink="/community" class="drawer-link">Community</a>
+          <a routerLink="/community" class="drawer-link">
+            Dawri Connect+
+            @if (connectAlerts() > 0) { <span class="nav-badge">{{ connectAlerts() }}</span> }
+          </a>
           <a routerLink="/profile" class="drawer-link drawer-link--profile">
             <span class="drawer-avatar">
               @if (auth.currentUser()?.avatar_url; as url) {
@@ -104,6 +121,9 @@ import { NotificationBellComponent } from '../../../components/notification-bell
         }
       </div>
     }
+
+    <!-- Global "challenge a friend" modal — opens from any surface -->
+    @if (auth.isLoggedIn()) { <app-challenge-create /> }
   `,
   styles: [`
     .nav {
@@ -124,6 +144,16 @@ import { NotificationBellComponent } from '../../../components/notification-bell
       text-decoration: none; padding: 6px 12px; border-radius: 6px; transition: all 0.15s;
     }
     .nav-link:hover, .nav-link.active { color: #a855f7; }
+    .nav-link--friends { display: inline-flex; align-items: center; gap: 6px; }
+    .nav-link--connect { color: #d4af37; }
+    .nav-link--connect svg { color: #d4af37; }
+    .nav-link--connect.active, .nav-link--connect:hover { color: #e8c965; }
+    .nav-badge {
+      display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 5px;
+      border-radius: 100px; background: #006c35; color: #fff;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; font-weight: 700; line-height: 1;
+    }
+    .nav-badge--blue { background: #2e8bff; }
     .nav-link--dash { color: #fbbf24; }
     .nav-link--dash.active { color: #fbbf24; background: rgba(251,191,36,0.08); }
     .nav-link--cal { color: #a855f7; }
@@ -204,8 +234,26 @@ import { NotificationBellComponent } from '../../../components/notification-bell
 })
 export class NavComponent {
   readonly auth     = inject(AuthService);
+  readonly friends  = inject(FriendService);
+  readonly dm       = inject(DmService);
+  readonly cs       = inject(ChallengeService);
+  readonly teams    = inject(TeamService);
   readonly router   = inject(Router);
   readonly menuOpen = signal(false);
+
+  /** Combined Dawri Connect+ badge: friend requests + unread DMs + challenge alerts. */
+  readonly connectAlerts = computed(() =>
+    this.friends.requestCount() + this.dm.unread() + this.cs.alertCount());
+
+  constructor() {
+    // Load social state so the Connect+ badge is live.
+    if (this.auth.isLoggedIn()) {
+      if (!this.friends.loaded()) this.friends.load();
+      this.dm.loadUnread();
+      if (!this.cs.loaded()) this.cs.load();
+      if (!this.teams.loadedMine()) this.teams.loadMine();
+    }
+  }
 
   /**
    * First character of the user's nickname (if set) or name, uppercased.

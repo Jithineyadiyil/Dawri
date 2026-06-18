@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/features/social/challenge-ui.service.ts"],
+  "sourcesContent": ["import { Injectable, signal } from '@angular/core';\nimport { ChallengeUser } from './challenge.service';\n\n/**\n * ChallengeUiService — opens the global \"create challenge\" modal from any\n * surface (friend card, member list, profile). The modal is rendered once\n * in the nav so it's available everywhere.\n */\n@Injectable({ providedIn: 'root' })\nexport class ChallengeUiService {\n  readonly createFor = signal<ChallengeUser | null>(null);\n\n  open(user: ChallengeUser): void { this.createFor.set(user); }\n  close(): void { this.createFor.set(null); }\n}\n"],
+  "mappings": ";;;;;;AASM,IAAO,qBAAP,MAAO,oBAAkB;EAD/B,cAAA;AAEW,SAAA,YAAY,OAA6B,IAAI;;EAEtD,KAAK,MAAmB;AAAU,SAAK,UAAU,IAAI,IAAI;EAAG;EAC5D,QAAK;AAAW,SAAK,UAAU,IAAI,IAAI;EAAG;;;uBAJ/B,qBAAkB;IAAA;EAAA;;4EAAlB,qBAAkB,SAAlB,oBAAkB,WAAA,YADL,OAAM,CAAA;EAAA;;",
+  "names": []
+}

@@ -2,16 +2,16 @@
 
   <header class="page-header">
     <div class="title-row">
-      <h2>📊 Marketplace overview</h2>
+      <h2>Marketplace overview</h2>
       @if (payload(); as p) {
         <div class="meta">
           <span class="muted">Updated {{ timeAgo(p.generated_at) }}</span>
-          <button class="btn-ghost" (click)="refreshManually()" title="Refresh">⟳</button>
+          <button class="btn-ghost" (click)="refreshManually()" title="Refresh">Refresh</button>
         </div>
       }
     </div>
     @if (criticalAlertsCount() > 0) {
-      <div class="critical-banner">⚠️ {{ criticalAlertsCount() }} critical alert(s) require attention</div>
+      <div class="critical-banner">{{ criticalAlertsCount() }} critical alert(s) require attention</div>
     }
   </header>
 
@@ -20,7 +20,7 @@
   }
   @if (error(); as err) {
     <div class="error-box">
-      ⚠️ {{ err }}
+      {{ err }}
       <button class="btn-ghost" (click)="loadDashboard()">Retry</button>
     </div>
   }
@@ -77,7 +77,7 @@
     <section class="bottom-row">
 
       <div class="card">
-        <h3>🏆 Top-selling products (last 30 days)</h3>
+        <h3>Top-selling products (last 30 days)</h3>
         @if (p.top_products.length === 0) {
           <p class="empty">No completed orders in the last 30 days yet.</p>
         } @else {
@@ -100,7 +100,7 @@
       </div>
 
       <div class="card">
-        <h3>🌐 Distributor health</h3>
+        <h3>Distributor health</h3>
         <table class="data-table">
           <thead>
             <tr><th>Distributor</th><th>Circuit</th><th class="r">Products</th><th class="r">Codes</th></tr>
@@ -123,7 +123,7 @@
     <!-- Alerts -->
     @if (p.alerts.length > 0) {
       <section class="alerts-card">
-        <h3>🔔 Alerts</h3>
+        <h3>Alerts</h3>
         <ul class="alerts-list">
           @for (a of p.alerts; track a.title) {
             <li class="alert-item severity-{{ a.severity }}">

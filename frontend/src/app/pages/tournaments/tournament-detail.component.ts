@@ -14,6 +14,7 @@ import { TournamentSponsorsComponent } from '../../shared/tournament-sponsors/to
 import { TournamentSponsorsManageComponent } from '../../shared/tournament-sponsors-manage/tournament-sponsors-manage.component';
 import { StreamEmbedComponent } from '../../shared/components/stream-embed/stream-embed.component';
 import { BroadcastControlsComponent } from '../../features/streaming/broadcast-controls.component';
+import { TierBadgeComponent } from '../../features/organizer/tier-badge.component';
 
 /**
  * Bracket match shape used by the template. Sprint 2 adds scheduling and
@@ -61,7 +62,7 @@ export interface BracketRound {
 @Component({
   selector: 'app-tournament-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, TournamentSponsorsComponent, TournamentSponsorsManageComponent, StreamEmbedComponent, BroadcastControlsComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, TournamentSponsorsComponent, TournamentSponsorsManageComponent, StreamEmbedComponent, BroadcastControlsComponent, TierBadgeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tournament-detail.component.html',
   styleUrls: ['./tournament-detail.component.scss'],
@@ -252,12 +253,26 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
       const sO = (secOrder[secA] ?? 0) - (secOrder[secB] ?? 0);
       return sO !== 0 ? sO : parseInt(rA) - parseInt(rB);
     });
-    return sorted.map(([key, ms], idx) => {
+
+    // Pre-build a map of section → round index within that section for correct
+    // geometric slot-height calculation. Using the global array idx was wrong for
+    // double-elimination because losers-bracket rounds are interleaved in the
+    // sorted array, making their idx values skip non-contiguously.
+    const sectionRoundIdx = new Map<string, number>();
+
+    return sorted.map(([key, ms]) => {
       const [section, rn] = key.split('::');
       const roundNum = parseInt(rn);
+
+      // Increment the per-section counter for this round
+      const sectionIdx = sectionRoundIdx.get(section) ?? 0;
+      sectionRoundIdx.set(section, sectionIdx + 1);
+
       let slotHeight: number;
       if (format === 'single_elimination' || (format === 'double_elimination' && section === 'winners')) {
-        slotHeight = (MATCH_H + GAP) * Math.pow(2, idx) - GAP;
+        // Use per-section round index so that slot heights double correctly
+        // within the winners bracket regardless of losers-bracket interleaving
+        slotHeight = (MATCH_H + GAP) * Math.pow(2, sectionIdx) - GAP;
       } else {
         slotHeight = MATCH_H;
       }
@@ -639,9 +654,26 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   }
   shareLink(): void { navigator.clipboard.writeText(window.location.href).then(()=>{ this.linkCopied.set(true); setTimeout(()=>this.linkCopied.set(false),2500); }); }
   unregister(): void {
-    const t=this.tournament(); if(!t) return;
+    const t = this.tournament();
+    if (!t) return;
+    // Optimistic: mark unregistered and decrement count immediately
+    this.tournament.update(cur => cur ? {
+      ...cur,
+      is_registered: false,
+      participant_count: Math.max(0, (cur.participant_count ?? 1) - 1),
+    } : cur);
     this.unregistering.set(true);
-    this.api.unregisterFromTournament(t.id).subscribe({ next:()=>{ this.unregistering.set(false); this.refresh(); }, error:()=>this.unregistering.set(false) });
+    this.api.unregisterFromTournament(t.id).subscribe({
+      next: () => { this.unregistering.set(false); this.refresh(); },
+      error: () => {
+        // Revert
+        this.tournament.update(cur => cur ? {
+          ...cur, is_registered: true,
+          participant_count: (cur.participant_count ?? 0) + 1,
+        } : cur);
+        this.unregistering.set(false);
+      },
+    });
   }
   openEditModal(): void { this.showEditModal.set(true); }
   saveEdit(): void {
@@ -687,23 +719,66 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   selectRound(n:number): void { this.selectedRound.set(n); }
   currentRoundMatches(): any[] { const b=(this.tournament() as any)?.bracket; if(!b?.rounds) return []; return b.rounds.find((r:any)=>r.round_number===this.selectedRound())?.matches??[]; }
   jumpToMyMatch(): void { document.querySelector('[data-my-match]')?.scrollIntoView({behavior:'smooth',block:'center'}); }
+
+  /** Current user's participant ID in this tournament, or null. */
+  readonly myParticipantId = computed<string | null>(() => {
+    const t = this.tournament();
+    const u = this.auth.currentUser();
+    if (!t || !u) return null;
+    const myP = (t.participants ?? []).find((p: any) => String(p.user_id) === String(u.id));
+    return myP?.id ?? null;
+  });
+
+  /** True when a registered player has at least one non-BYE match they can jump to. */
+  readonly hasMyMatch = computed(() => {
+    const t = this.tournament();
+    const u = this.auth.currentUser();
+    if (!t || !u || !t.is_registered) return false;
+    const parts = t.participants ?? [];
+    const myP = parts.find((p: any) => String(p.user_id) === String(u.id));
+    if (!myP) return false;
+    const all: BracketMatch[] = t?.bracket?.matches ?? t?.matches ?? [];
+    return all.some(m =>
+      !m.participant_a_is_bye && !m.participant_b_is_bye &&
+      (m.participant_a?.id === myP.id || m.participant_b?.id === myP.id)
+    );
+  });
   filteredLeaderboard(): any[] {
-    const s=this.playerSearch().toLowerCase(); const lb=(this as any).leaderboard?.()??[];
-    return s?lb.filter((p:any)=>(p.name??p.display_name??'').toLowerCase().includes(s)):lb;
+    const s = this.playerSearch().toLowerCase();
+    const lb = this.leaderboard();
+    return s ? lb.filter((p: any) => (p.display_name ?? p.name ?? '').toLowerCase().includes(s)) : lb;
   }
   clearEvidence(): void { this.evidencePreview.set(null); }
   onEvidenceSelected(e:Event): void {
     const f=(e.target as HTMLInputElement)?.files?.[0]; if(!f) return;
     const r=new FileReader(); r.onload=(ev)=>this.evidencePreview.set(ev.target?.result as string); r.readAsDataURL(f);
   }
-  canSubmitResult(m:any): boolean {
-    const u=this.auth.currentUser(); if(!u) return false; const id=String(u.id);
-    return (String(m.participant_a?.user_id)===id||String(m.participant_b?.user_id)===id)&&m.status!=='completed';
+  /**
+   * Resolve the current user's PARTICIPANT id for this tournament.
+   * The BracketMatch participant objects don't carry user_id, so we map
+   * user → participant via the tournament.participants list (same approach
+   * as currentUserIsParticipant). Returns null if the user isn't entered.
+   */
+  private myParticipantIdFor(m: any): string | null {
+    const u = this.auth.currentUser(); if (!u) return null;
+    const parts = this.tournament()?.participants ?? [];
+    const myP = parts.find((p: any) => String(p.user_id) === String(u.id));
+    if (!myP) return null;
+    return (myP.id === m?.participant_a?.id || myP.id === m?.participant_b?.id) ? String(myP.id) : null;
   }
-  canConfirmResult(m:any): boolean {
-    const u=this.auth.currentUser(); if(!u) return false; const id=String(u.id);
-    const sub=String(m.submitted_by_id??m.submitted_by?.id??'');
-    return m.status==='pending'&&sub!==id&&(String(m.participant_a?.user_id)===id||String(m.participant_b?.user_id)===id);
+
+  canSubmitResult(m: any): boolean {
+    if (!m || m.status === 'completed' || m.status === 'walkover') return false;
+    if (!m.participant_a?.id || !m.participant_b?.id) return false; // both slots filled
+    return this.myParticipantIdFor(m) !== null;
+  }
+  canConfirmResult(m: any): boolean {
+    if (!m || m.status !== 'pending') return false;
+    const myPid = this.myParticipantIdFor(m);
+    if (!myPid) return false;
+    // The confirmer must be the participant who did NOT submit the result.
+    const sub = String(m.submitted_by_participant_id ?? m.submitted_by_id ?? m.submitted_by?.id ?? '');
+    return sub !== myPid && sub !== String(this.auth.currentUser()?.id ?? '');
   }
   disputeResult(): void {
     const m=this.selectedMatch(); if(!m) return;
@@ -762,10 +837,24 @@ export class TournamentDetailComponent implements OnInit, OnDestroy {
   }
 
   private doRegister(acceptedRules: boolean): void {
+    // Optimistic: show registered state immediately
+    this.tournament.update(cur => cur ? {
+      ...cur,
+      is_registered: true,
+      participant_count: (cur.participant_count ?? 0) + 1,
+    } : cur);
     this.registering.set(true);
     this.api.registerForTournamentWithRules(this.tournament()?.id, acceptedRules).subscribe({
-      next: () => { this.refresh(); this.registering.set(false); this.toast.success('Registered!'); },
-      error: (err: any) => { this.toast.error(err.error?.message ?? 'Failed.'); this.registering.set(false); },
+      next: () => { this.registering.set(false); this.toast.success('Registered!'); this.refresh(); },
+      error: (err: any) => {
+        // Revert optimistic update
+        this.tournament.update(cur => cur ? {
+          ...cur, is_registered: false,
+          participant_count: Math.max(0, (cur.participant_count ?? 1) - 1),
+        } : cur);
+        this.toast.error(err.error?.message ?? 'Failed.');
+        this.registering.set(false);
+      },
     });
   }
 

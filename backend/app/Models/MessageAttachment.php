@@ -36,14 +36,16 @@ final class MessageAttachment extends Model
         'size',
         'width',
         'height',
+        'duration_ms',
         'position',
     ];
 
     protected $casts = [
-        'size'     => 'integer',
-        'width'    => 'integer',
-        'height'   => 'integer',
-        'position' => 'integer',
+        'size'        => 'integer',
+        'width'       => 'integer',
+        'height'      => 'integer',
+        'duration_ms' => 'integer',
+        'position'    => 'integer',
     ];
 
     public function message(): BelongsTo

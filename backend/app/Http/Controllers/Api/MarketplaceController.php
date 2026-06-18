@@ -13,7 +13,9 @@ use App\Http\Resources\DigitalProductResource;
 use App\Models\DigitalCode;
 use App\Models\DigitalOrder;
 use App\Models\DigitalProduct;
+use App\Mail\OrderConfirmation;
 use App\Notifications\OrderConfirmationNotification;
+use Illuminate\Support\Facades\Mail;
 use App\Services\DistributorRouter;
 use App\Services\InventoryCodeService;
 use App\Services\PaymentService;
@@ -151,6 +153,15 @@ final class MarketplaceController extends Controller
         if (!empty($success)) {
             try {
                 $user->notify(new OrderConfirmationNotification(array_values($success)));
+
+                // Also send email confirmation
+                $totalPaid = array_sum(array_map(fn($o) => (float) $o->total_price, array_values($success)));
+                Mail::to($user->email)->queue(new OrderConfirmation(
+                    user:          $user,
+                    orders:        array_values($success),
+                    totalPaid:     $totalPaid,
+                    paymentMethod: $paymentMethod,
+                ));
             } catch (\Throwable $e) {
                 Log::warning('OrderConfirmationNotification failed', ['err' => $e->getMessage()]);
             }

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;cd27298f96cba21615311eaee26ee9877136e39b5bfa585fbd5c559b1c8a8d26;D:/xamp new/htdocs/Dawri/frontend/src/app/features/community/components/role-badge/role-badge.component.ts"],
+  "sourcesContent": ["\n    .badge {\n      display: inline-block; font-size: 0.6rem; font-weight: 700;\n      text-transform: uppercase; letter-spacing: 0.06em;\n      padding: 0.05rem 0.35rem; border-radius: 4px; vertical-align: middle;\n      font-family: 'JetBrains Mono', ui-monospace, monospace; line-height: 1.4;\n    }\n    .badge[data-role=\"owner\"] { background: rgba(212,175,55,0.18); color: #d4af37; }\n    .badge[data-role=\"admin\"] { background: rgba(255,107,107,0.18); color: #ff8a8a; }\n    .badge[data-role=\"moderator\"] { background: rgba(0,229,255,0.16); color: #00e5ff; }\n  "],
+  "mappings": ";AACI,CAAC;AACC,WAAS;AAAc,aAAW;AAAQ,eAAa;AACvD,kBAAgB;AAAW,kBAAgB;AAC3C,WAAS,QAAQ;AAAS,iBAAe;AAAK,kBAAgB;AAC9D;AAAA,IAAa,gBAAgB;AAAA,IAAE,YAAY;AAAA,IAAE;AAAW,eAAa;AACvE;AACA,CANC,KAMK,CAAC;AAAqB,cAAY,KAAK,GAAG,EAAC,GAAG,EAAC,EAAE,EAAC;AAAO,SAAO;AAAS;AAC/E,CAPC,KAOK,CAAC;AAAqB,cAAY,KAAK,GAAG,EAAC,GAAG,EAAC,GAAG,EAAC;AAAO,SAAO;AAAS;AAChF,CARC,KAQK,CAAC;AAAyB,cAAY,KAAK,CAAC,EAAC,GAAG,EAAC,GAAG,EAAC;AAAO,SAAO;AAAS;",
+  "names": []
+}

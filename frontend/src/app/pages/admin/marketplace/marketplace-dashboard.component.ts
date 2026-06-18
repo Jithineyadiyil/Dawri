@@ -178,7 +178,7 @@ export class MarketplaceDashboardComponent implements OnInit, AfterViewInit, OnC
     if (!p) return;
 
     const configs: Array<[HTMLCanvasElement, number[], string, string]> = [
-      [this.ordersCanvas.nativeElement,  p.charts.orders,  'Orders',  '#a855f7'],
+      [this.ordersCanvas.nativeElement,  p.charts.orders,  'Orders',  '#d4af37'],
       [this.revenueCanvas.nativeElement, p.charts.revenue, 'Revenue (SAR)', '#fbbf24'],
     ];
 

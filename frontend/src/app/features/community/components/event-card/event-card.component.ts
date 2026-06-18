@@ -56,11 +56,11 @@ import { CommunityEvent, RsvpStatus } from '../../models/community.model';
     </div>
   `,
   styles: [`
-    :host { --accent: #00ffa3; --accent-d: #06281c; --surface: #12121e; --raised: #16161f; --line: rgba(255,255,255,0.08); --text: #eaeaf2; --mut: #8a8a9e; --gold: #d4af37; }
+    :host { --accent: #7c3aed; --accent-s: #a78bfa; --surface: #161228; --raised: #1c1833; --line: rgba(124,58,237,0.18); --text: #eaeaf2; --mut: #8a8a9e; --gold: #d4af37; }
     .event { display: flex; gap: 0.9rem; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 12px; padding: 0.85rem 1rem; }
     .event.cancelled { opacity: 0.6; border-left-color: #4c4c63; }
     .when { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 64px; padding: 0.4rem 0.5rem; background: var(--raised); border-radius: 10px; }
-    .day { font-family: 'Anton', 'Bebas Neue', sans-serif; font-size: 1.05rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.03em; }
+    .day { font-family: 'Anton', 'Bebas Neue', sans-serif; font-size: 1.05rem; color: var(--accent-s); text-transform: uppercase; letter-spacing: 0.03em; }
     .time { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.7rem; color: var(--mut); margin-top: 0.15rem; }
     .info { flex: 1; min-width: 0; }
     .title-row { display: flex; align-items: center; gap: 0.5rem; }
@@ -78,13 +78,13 @@ import { CommunityEvent, RsvpStatus } from '../../models/community.model';
       background: var(--raised); border: 1px solid var(--line); color: #cfcfe0;
       font-size: 0.8rem; transition: border-color 0.12s ease, background 0.12s ease;
     }
-    .rsvp-btn:hover { border-color: rgba(0,255,163,0.5); }
+    .rsvp-btn:hover { border-color: rgba(124,58,237,0.5); background: rgba(124,58,237,0.08); }
     .rsvp-btn .n { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.72rem; color: var(--mut); }
-    .rsvp-btn.active { background: var(--accent); color: var(--accent-d); border-color: var(--accent); font-weight: 700; }
-    .rsvp-btn.active .n { color: var(--accent-d); }
+    .rsvp-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; box-shadow: 0 0 12px rgba(124,58,237,0.35); }
+    .rsvp-btn.active .n { color: rgba(255,255,255,0.8); }
     .admin { display: flex; gap: 0.6rem; margin-top: 0.6rem; }
     .ghost { background: transparent; border: none; color: var(--mut); cursor: pointer; font-size: 0.74rem; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-    .ghost:hover { color: var(--accent); }
+    .ghost:hover { color: var(--accent-s); }
     .ghost.danger:hover { color: #ff6b6b; }
   `],
 })

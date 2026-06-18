@@ -344,3 +344,67 @@
   .ts-skeleton-bar { animation: none; }
   .ts-title-card, .ts-presenting-card { transition: none; }
 }
+
+/* ── Compact "Sponsored by" logo strip (variant="logos") ──────────────
+   Embedded inside the prize card on the tournament detail page. */
+.ts-logos {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line, rgba(255,255,255,.08));
+
+  &__label {
+    display: block;
+    font-family: var(--fm, monospace);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--mu, #8a8aa0);
+    margin-bottom: 10px;
+  }
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  &__item {
+    display: inline-grid;
+    place-items: center;
+    height: 40px;
+    min-width: 52px;
+    padding: 6px 10px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--line, rgba(255,255,255,.08));
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color .15s, background .15s, transform .15s;
+
+    img {
+      max-height: 26px;
+      max-width: 84px;
+      width: auto;
+      object-fit: contain;
+      display: block;
+      opacity: .92;
+      transition: opacity .15s;
+    }
+    &:hover {
+      border-color: var(--accent, #d4af37);
+      background: rgba(255,255,255,.08);
+      transform: translateY(-2px);
+      img { opacity: 1; }
+    }
+    &--title {
+      border-color: rgba(212,175,55,.45);
+      background: rgba(212,175,55,.08);
+      height: 46px;
+      img { max-height: 30px; }
+    }
+  }
+  &__fallback {
+    font-family: var(--fh, sans-serif);
+    font-size: 18px;
+    color: var(--accent, #d4af37);
+    line-height: 1;
+  }
+}

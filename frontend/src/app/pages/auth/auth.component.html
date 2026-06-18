@@ -1,36 +1,92 @@
 <div class="auth-page">
+
+  <!-- ── Left panel ─────────────────────────────────────────────────── -->
   <div class="auth-left">
+    <div class="auth-bg" aria-hidden="true">
+      <div class="auth-bg__orb auth-bg__orb--gold"></div>
+      <div class="auth-bg__orb auth-bg__orb--green"></div>
+      <div class="auth-bg__grid"></div>
+    </div>
+
     <div class="auth-brand">
-      <div class="auth-logo">⚡ <span>DAWRI</span> <span class="logo-ar">داوري</span></div>
-      <h2 class="auth-headline">Join Saudi Arabia's Premier Esports Platform</h2>
-      <div class="auth-features">
-        @for (f of features; track f.icon) {
-          <div class="auth-feat"><span class="af-icon">{{ f.icon }}</span><span>{{ f.text }}</span></div>
-        }
+      <div class="auth-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span>DAWRI</span>
+        <span class="logo-ar">داوري</span>
       </div>
+
+      <h2 class="auth-headline">Saudi Arabia's <em>Premier</em><br>Esports Platform</h2>
+
+      <ul class="auth-features">
+        @for (f of features; track f.text; let i = $index) {
+          <li class="auth-feat">
+            <span class="af-icon" aria-hidden="true">
+              @switch (i) {
+                @case (0) { <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> }
+                @case (1) { <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg> }
+                @case (2) { <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> }
+                @case (3) { <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> }
+              }
+            </span>
+            <span>{{ f.text }}</span>
+          </li>
+        }
+      </ul>
+
       <div class="auth-stats">
-        <div class="as-item"><span class="as-val">23M+</span><span class="as-label">Gamers KSA</span></div>
+        <div class="as-item"><span class="as-val">23M+</span><span class="as-label">KSA Gamers</span></div>
+        <div class="as-sep" aria-hidden="true"></div>
         <div class="as-item"><span class="as-val">4</span><span class="as-label">Bracket Formats</span></div>
+        <div class="as-sep" aria-hidden="true"></div>
         <div class="as-item"><span class="as-val">3K+</span><span class="as-label">Gift Card Brands</span></div>
       </div>
     </div>
   </div>
+
+  <!-- ── Right panel ─────────────────────────────────────────────────── -->
   <div class="auth-right">
     <div class="auth-box">
-      <div class="auth-tabs">
-        <button class="auth-tab" [class.on]="tab()==='login'"    (click)="setTab('login')">Sign In</button>
-        <button class="auth-tab" [class.on]="tab()==='register'" (click)="setTab('register')">Create Account</button>
-      </div>
 
+      <!-- Tabs (login / register only — other states replace tabs) -->
+      @if (tab() === 'login' || tab() === 'register') {
+        <div class="auth-tabs">
+          <button class="auth-tab" [class.on]="tab()==='login'"    (click)="setTab('login')">Sign In</button>
+          <button class="auth-tab" [class.on]="tab()==='register'" (click)="setTab('register')">Create Account</button>
+        </div>
+      }
+
+      <!-- ═══════════════ SIGN IN ═══════════════ -->
       @if (tab() === 'login') {
-        <form [formGroup]="loginForm" (ngSubmit)="login()">
+        <form [formGroup]="loginForm" (ngSubmit)="login()" novalidate>
+
           <div class="form-group">
-            <label class="form-label">Email</label>
-            <input class="input" formControlName="email" type="email" placeholder="your@email.com"/>
+            <label class="form-label">Email address</label>
+            <div class="input-wrap">
+              <span class="input-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </span>
+              <input class="input" formControlName="email" type="email" placeholder="your@email.com" autocomplete="email"/>
+            </div>
           </div>
+
           <div class="form-group">
             <label class="form-label">Password</label>
-            <input class="input" formControlName="password" type="password" placeholder="••••••••"/>
+            <div class="input-wrap">
+              <span class="input-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input class="input input--pw" formControlName="password"
+                     [type]="showLoginPw() ? 'text' : 'password'"
+                     placeholder="••••••••" autocomplete="current-password"/>
+              <button type="button" class="pw-toggle" (click)="showLoginPw.set(!showLoginPw())"
+                      [attr.aria-label]="showLoginPw() ? 'Hide password' : 'Show password'">
+                @if (showLoginPw()) {
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                } @else {
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+              </button>
+            </div>
           </div>
 
           <div class="auth-row">
@@ -38,80 +94,277 @@
               <input type="checkbox" formControlName="remember"/>
               <span>Remember me</span>
             </label>
-            <!-- "Forgot password?" intentionally omitted until the recovery
-                 flow exists. Adding a dead link now would frustrate users. -->
+            <button type="button" class="forgot-link" (click)="setTab('forgot')">
+              Forgot password?
+            </button>
           </div>
 
-          @if (errorMsg()) { <p class="auth-error">⚠ {{ errorMsg() }}</p> }
+          @if (errorMsg()) {
+            <div class="auth-error">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ errorMsg() }}
+            </div>
+          }
 
           <button class="auth-submit" type="submit" [disabled]="loading()">
             @if (loading()) {
               <span class="auth-spinner" aria-hidden="true"></span>
-              <span>Signing in…</span>
+              Signing in…
             } @else {
-              <span>Sign In</span>
-              <span aria-hidden="true">→</span>
+              Sign In
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             }
           </button>
         </form>
       }
 
+      <!-- ═══════════════ REGISTER ═══════════════ -->
       @if (tab() === 'register') {
-        <form [formGroup]="registerForm" (ngSubmit)="register()">
-          <div class="form-group"><label class="form-label">Full Name</label><input class="input" formControlName="name" placeholder="Faisal Al-Ghamdi"/></div>
-          <div class="form-group"><label class="form-label">Email</label><input class="input" formControlName="email" type="email" placeholder="your@email.com"/></div>
+        <form [formGroup]="registerForm" (ngSubmit)="register()" novalidate>
+
           <div class="form-group">
-            <label class="form-label">Phone</label>
-            <div style="display:flex;gap:8px">
-              <select class="input" style="width:90px" formControlName="country_code">
-                <option value="+966">🇸🇦 +966</option><option value="+971">🇦🇪 +971</option>
-                <option value="+965">🇰🇼 +965</option><option value="+974">🇶🇦 +974</option>
-              </select>
-              <input class="input" formControlName="phone_number" placeholder="5X XXX XXXX" style="flex:1"/>
+            <label class="form-label">Full name</label>
+            <div class="input-wrap">
+              <span class="input-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </span>
+              <input class="input" formControlName="name" placeholder="Faisal Al-Ghamdi" autocomplete="name"/>
             </div>
           </div>
-          <div class="form-group"><label class="form-label">Password</label><input class="input" formControlName="password" type="password" placeholder="Min. 8 characters"/></div>
-          <div class="form-group"><label class="form-label">Confirm Password</label><input class="input" formControlName="password_confirmation" type="password"/></div>
-          <label class="terms-check"><input type="checkbox" formControlName="terms"/><span>I agree to the Terms and Privacy Policy</span></label>
-          @if (errorMsg()) { <p class="auth-error">⚠ {{ errorMsg() }}</p> }
+
+          <div class="form-group">
+            <label class="form-label">Email address</label>
+            <div class="input-wrap">
+              <span class="input-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </span>
+              <input class="input" formControlName="email" type="email" placeholder="your@email.com" autocomplete="email"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mobile number</label>
+            <div class="phone-row">
+              <select class="input input--select" formControlName="country_code">
+                @for (c of countryCodes; track c.code) {
+                  <option [value]="c.code">{{ c.flag }} {{ c.code }}</option>
+                }
+              </select>
+              <div class="input-wrap" style="flex:1">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                </span>
+                <input class="input" formControlName="phone_number" placeholder="5X XXX XXXX" type="tel" autocomplete="tel-national"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="input-wrap">
+              <span class="input-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input class="input input--pw" formControlName="password"
+                     [type]="showRegPw() ? 'text' : 'password'"
+                     placeholder="Min. 8 characters" autocomplete="new-password"/>
+              <button type="button" class="pw-toggle" (click)="showRegPw.set(!showRegPw())">
+                @if (showRegPw()) {
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                } @else {
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Confirm password</label>
+            <div class="input-wrap">
+              <span class="input-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input class="input input--pw" formControlName="password_confirmation"
+                     [type]="showRegConfirm() ? 'text' : 'password'"
+                     placeholder="Repeat password" autocomplete="new-password"/>
+              <button type="button" class="pw-toggle" (click)="showRegConfirm.set(!showRegConfirm())">
+                @if (showRegConfirm()) {
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                } @else {
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+              </button>
+            </div>
+          </div>
+
+          <label class="terms-check">
+            <input type="checkbox" formControlName="terms"/>
+            <span>I agree to the <a href="#" class="terms-link">Terms</a> and <a href="#" class="terms-link">Privacy Policy</a></span>
+          </label>
+
+          @if (errorMsg()) {
+            <div class="auth-error">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ errorMsg() }}
+            </div>
+          }
+
           <button class="auth-submit" type="submit" [disabled]="loading()">
             @if (loading()) {
               <span class="auth-spinner" aria-hidden="true"></span>
-              <span>Creating account…</span>
+              Creating account…
             } @else {
-              <span>Create Account</span>
-              <span aria-hidden="true">→</span>
+              Create Account
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             }
           </button>
         </form>
       }
 
+      <!-- ═══════════════ OTP ═══════════════ -->
       @if (tab() === 'otp') {
-        <div class="otp-panel">
-          <div class="otp-icon">📱</div>
-          <h3>Verify Your Phone</h3>
-          <p class="otp-sub">Enter the 6-digit code sent via SMS.</p>
+        <div class="alt-panel">
+          <div class="alt-panel__icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          </div>
+          <h3 class="alt-panel__title">Verify Your Phone</h3>
+          <p class="alt-panel__sub">Enter the 6-digit code sent via SMS to your mobile number.</p>
+
           <form [formGroup]="otpForm" (ngSubmit)="verifyOtp()">
             <div class="form-group">
-              <label class="form-label">Verification Code</label>
-              <input class="input" formControlName="otp" placeholder="000000" maxlength="6" style="font-size:1.4rem;letter-spacing:.3em;text-align:center"/>
+              <label class="form-label">Verification code</label>
+              <input class="input otp-input" formControlName="otp"
+                     placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code"/>
             </div>
-            @if (errorMsg()) { <p class="auth-error">⚠ {{ errorMsg() }}</p> }
+            @if (errorMsg()) {
+              <div class="auth-error">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {{ errorMsg() }}
+              </div>
+            }
             <button class="auth-submit" type="submit" [disabled]="loading()">
-              @if (loading()) {
-                <span class="auth-spinner" aria-hidden="true"></span>
-                <span>Verifying…</span>
-              } @else {
-                <span>Verify & Continue</span>
-                <span aria-hidden="true">→</span>
-              }
+              @if (loading()) { <span class="auth-spinner" aria-hidden="true"></span> Verifying… }
+              @else { Verify &amp; Continue <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> }
             </button>
-            <div style="text-align:center;margin-top:16px">
-              <button type="button" class="resend-btn" (click)="resendOtp()">Resend OTP</button>
+            <div class="alt-link-row">
+              Didn't receive it?
+              <button type="button" class="alt-link" (click)="resendOtp()">Resend OTP</button>
             </div>
           </form>
         </div>
       }
+
+      <!-- ═══════════════ FORGOT PASSWORD ═══════════════ -->
+      @if (tab() === 'forgot') {
+        <div class="alt-panel">
+          <button type="button" class="back-btn" (click)="setTab('login')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            Back to Sign In
+          </button>
+          <div class="alt-panel__icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+          </div>
+          <h3 class="alt-panel__title">Reset Password</h3>
+          <p class="alt-panel__sub">Enter your email address and we'll send you a link to reset your password.</p>
+
+          <form [formGroup]="forgotForm" (ngSubmit)="forgotPassword()">
+            <div class="form-group">
+              <label class="form-label">Email address</label>
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </span>
+                <input class="input" formControlName="email" type="email" placeholder="your@email.com" autocomplete="email"/>
+              </div>
+            </div>
+            @if (errorMsg()) {
+              <div class="auth-error">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {{ errorMsg() }}
+              </div>
+            }
+            <button class="auth-submit" type="submit" [disabled]="loading()">
+              @if (loading()) { <span class="auth-spinner" aria-hidden="true"></span> Sending… }
+              @else { Send Reset Link <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> }
+            </button>
+          </form>
+        </div>
+      }
+
+      <!-- ═══════════════ FORGOT SENT ═══════════════ -->
+      @if (tab() === 'forgot-sent') {
+        <div class="alt-panel alt-panel--success">
+          <div class="alt-panel__icon alt-panel__icon--success">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3 class="alt-panel__title">Check your email</h3>
+          <p class="alt-panel__sub">If an account exists for that email, we've sent a password reset link. Check your inbox and spam folder.</p>
+          <button type="button" class="auth-submit auth-submit--ghost" (click)="setTab('login')">
+            Back to Sign In
+          </button>
+        </div>
+      }
+
+      <!-- ═══════════════ RESET PASSWORD ═══════════════ -->
+      @if (tab() === 'reset') {
+        <div class="alt-panel">
+          <div class="alt-panel__icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3 class="alt-panel__title">Set New Password</h3>
+          <p class="alt-panel__sub">Choose a strong password for your Dawri account.</p>
+
+          <form [formGroup]="resetForm" (ngSubmit)="resetPassword()">
+            <div class="form-group">
+              <label class="form-label">New password</label>
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+                <input class="input input--pw" formControlName="password"
+                       [type]="showResetPw() ? 'text' : 'password'"
+                       placeholder="Min. 8 characters" autocomplete="new-password"/>
+                <button type="button" class="pw-toggle" (click)="showResetPw.set(!showResetPw())">
+                  @if (showResetPw()) {
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  } @else {
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  }
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm new password</label>
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+                <input class="input input--pw" formControlName="password_confirmation"
+                       [type]="showResetConf() ? 'text' : 'password'"
+                       placeholder="Repeat password" autocomplete="new-password"/>
+                <button type="button" class="pw-toggle" (click)="showResetConf.set(!showResetConf())">
+                  @if (showResetConf()) {
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  } @else {
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  }
+                </button>
+              </div>
+            </div>
+            @if (errorMsg()) {
+              <div class="auth-error">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {{ errorMsg() }}
+              </div>
+            }
+            <button class="auth-submit" type="submit" [disabled]="loading()">
+              @if (loading()) { <span class="auth-spinner" aria-hidden="true"></span> Saving… }
+              @else { Set New Password <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg> }
+            </button>
+          </form>
+        </div>
+      }
+
     </div>
   </div>
 </div>

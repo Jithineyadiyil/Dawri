@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
  * Admin Dashboard — Dawri v3 palette
- * violet #a855f7 · amber #fbbf24 · cyan #38bdf8 · bg #0a0a14
+ * Saudi green #006c35 · gold #d4af37 · bg #0a0a14
  * ═══════════════════════════════════════════════════════════════ */
 
 .admin-dashboard {
@@ -119,7 +119,7 @@
       font-family: 'Space Mono', monospace;
       font-size: 32px;
       font-weight: 700;
-      color: #a855f7;
+      color: #d4af37;
       line-height: 1;
       margin-bottom: 10px;
     }
@@ -249,7 +249,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
 
-        &:hover { color: #a855f7; }
+        &:hover { color: #d4af37; }
       }
 
       .activity-detail {
@@ -318,7 +318,7 @@
       background: rgba(251, 191, 36, .08);
       border: 1px solid rgba(251, 191, 36, .25);
       .alert-title    { color: #fcd34d; }
-      .alert-severity { background: #fbbf24; color: #000; }
+      .alert-severity { background: #d4af37; color: #000; }
       &:hover .alert-title { color: #fff; }
     }
 
@@ -326,7 +326,7 @@
       background: rgba(56, 189, 248, .08);
       border: 1px solid rgba(56, 189, 248, .25);
       .alert-title    { color: #7dd3fc; }
-      .alert-severity { background: #38bdf8; color: #000; }
+      .alert-severity { background: #22c55e; color: #000; }
       &:hover .alert-title { color: #fff; }
     }
   }

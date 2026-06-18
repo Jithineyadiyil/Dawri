@@ -110,6 +110,29 @@
      tournaments.component.scss; promoted here so all pages resolve it. */
   --live:        var(--red);
 
+  /* ═══════════════════════════════════════════════════════════════════
+     REDESIGN 2026 — Electric-Blue / Deep-Navy accent layer
+     Saudi green stays the hero brand; these add the modern "broadcast"
+     dimension: electric blue for LIVE / interactive states, deep navy
+     as the cool stadium canvas, used in gradients, glows and data-viz.
+     ═══════════════════════════════════════════════════════════════════ */
+  --electric:      #2e8bff;          /* electric blue — live / interactive */
+  --electric-soft: #5ba6ff;
+  --electric-dim:  rgba(46,139,255,0.14);
+  --navy:          #0b1224;          /* deep navy — stadium canvas */
+  --navy-2:        #0f1830;
+  --navy-3:        #16203c;
+
+  /* Brand gradient used on hero / CTA showpieces */
+  --grad-brand:  linear-gradient(120deg, var(--primary) 0%, #0a8f5a 45%, var(--electric) 100%);
+  --grad-gold:   linear-gradient(120deg, var(--accent) 0%, var(--accent-soft) 100%);
+
+  /* Elevation — soft broadcast shadows */
+  --sh-1: 0 1px 2px rgba(0,0,0,0.30);
+  --sh-2: 0 8px 24px -10px rgba(0,0,0,0.55);
+  --sh-glow-green: 0 12px 40px -12px rgba(0,108,53,0.55);
+  --sh-glow-blue:  0 12px 40px -12px rgba(46,139,255,0.45);
+
   /* Layout containers — required by the redesign's hero/page widths.
      1440px max content width with 32px outer gutter matches the
      editorial design files. */

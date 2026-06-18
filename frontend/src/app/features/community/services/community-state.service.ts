@@ -8,7 +8,7 @@
  */
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { tap } from 'rxjs';
+import { take, tap } from 'rxjs';
 import {
   Channel,
   Community,
@@ -261,6 +261,21 @@ export class CommunityStateService {
     });
   }
 
+  /** Upload a voice note into a channel; prepend the returned carrier message. */
+  uploadVoice(channelId: string, blob: Blob, durationMs: number): void {
+    this.isUploading.set(true);
+    this.api.uploadVoice(channelId, blob, durationMs).subscribe({
+      next: msg => {
+        this.messagesByChannel.update(prev => ({
+          ...prev,
+          [channelId]: [msg, ...(prev[channelId] ?? []).filter(m => m.id !== msg.id)],
+        }));
+        this.isUploading.set(false);
+      },
+      error: () => this.isUploading.set(false),
+    });
+  }
+
   // ── Events (Phase 4) ───────────────────────────────────────────────────────
 
   /** Load events for a community into eventsByCommunity. */
@@ -315,18 +330,30 @@ export class CommunityStateService {
     }));
   }
   edit(messageId: string, content: string): void {
-    this.api.edit(messageId, content).subscribe(updated => this.upsertMessage(updated));
+    // ── Optimistic: update locally right away ───────────────────────────
+    const now = new Date().toISOString();
+    this.messagesByChannel.update(prev => {
+      const updated: Record<string, Message[]> = {};
+      for (const [cid, msgs] of Object.entries(prev)) {
+        updated[cid] = msgs.map(m =>
+          m.id === messageId ? { ...m, content, edited_at: now } : m
+        );
+      }
+      return updated;
+    });
+    // Sync with server (server response corrects edited_at / full object)
+    this.api.edit(messageId, content).pipe(take(1)).subscribe(updated => this.upsertMessage(updated));
   }
 
   delete(message: Message): void {
-    this.api.delete(message.id).subscribe(() => {
-      this.messagesByChannel.update(prev => ({
-        ...prev,
-        [message.channel_id]: (prev[message.channel_id] ?? []).map(m =>
-          m.id === message.id ? { ...m, is_deleted: true, content: null } : m
-        ),
-      }));
-    });
+    // ── Optimistic: mark deleted immediately ────────────────────────────
+    this.messagesByChannel.update(prev => ({
+      ...prev,
+      [message.channel_id]: (prev[message.channel_id] ?? []).map(m =>
+        m.id === message.id ? { ...m, is_deleted: true, content: null } : m
+      ),
+    }));
+    this.api.delete(message.id).pipe(take(1)).subscribe();
   }
 
   /**
@@ -334,14 +361,14 @@ export class CommunityStateService {
    * flagged message). Marks it deleted in the given channel's list if present.
    */
   deleteMessageById(channelId: string, messageId: string): void {
-    this.api.delete(messageId).subscribe(() => {
-      this.messagesByChannel.update(prev => ({
-        ...prev,
-        [channelId]: (prev[channelId] ?? []).map(m =>
-          m.id === messageId ? { ...m, is_deleted: true, content: null } : m
-        ),
-      }));
-    });
+    // Optimistic
+    this.messagesByChannel.update(prev => ({
+      ...prev,
+      [channelId]: (prev[channelId] ?? []).map(m =>
+        m.id === messageId ? { ...m, is_deleted: true, content: null } : m
+      ),
+    }));
+    this.api.delete(messageId).pipe(take(1)).subscribe();
   }
 
   /** Briefly highlight a message (after a moderator jumps to it). */
@@ -354,34 +381,65 @@ export class CommunityStateService {
 
   toggleReaction(message: Message, emoji: string, currentUserId: string): void {
     const already = message.reactions.find(r => r.emoji === emoji)?.users.includes(currentUserId);
+
+    // ── Optimistic update: apply immediately ────────────────────────────
+    this.messagesByChannel.update(prev => ({
+      ...prev,
+      [message.channel_id]: (prev[message.channel_id] ?? []).map(m =>
+        m.id === message.id ? this.applyReactionToggle(m, emoji, currentUserId, !already) : m
+      ),
+    }));
+
     const obs = already ? this.api.unreact(message.id, emoji) : this.api.react(message.id, emoji);
-    obs.subscribe(() => {
-      this.messagesByChannel.update(prev => ({
-        ...prev,
-        [message.channel_id]: (prev[message.channel_id] ?? []).map(m =>
-          m.id === message.id ? this.applyReactionToggle(m, emoji, currentUserId, !already) : m
-        ),
-      }));
+    obs.pipe(take(1)).subscribe({
+      error: () => {
+        // Revert on failure
+        this.messagesByChannel.update(prev => ({
+          ...prev,
+          [message.channel_id]: (prev[message.channel_id] ?? []).map(m =>
+            m.id === message.id ? this.applyReactionToggle(m, emoji, currentUserId, !!already) : m
+          ),
+        }));
+      },
     });
   }
 
   // ── Pinning ──────────────────────────────────────────────────────────────
 
   /**
-   * Pin or unpin a message, then reflect the change locally so the 📌
-   * indicator and the pinned panel update without a refetch.
+   * Pin or unpin a message. Applies optimistically then syncs the pinned list.
    */
   togglePin(message: Message): void {
+    const newPinned = !message.is_pinned;
+
+    // ── Optimistic update ───────────────────────────────────────────────
+    this.messagesByChannel.update(prev => ({
+      ...prev,
+      [message.channel_id]: (prev[message.channel_id] ?? []).map(m =>
+        m.id === message.id ? { ...m, is_pinned: newPinned } : m
+      ),
+    }));
+
     const obs = message.is_pinned ? this.api.unpin(message.id) : this.api.pin(message.id);
-    obs.subscribe(updated => {
-      this.messagesByChannel.update(prev => ({
-        ...prev,
-        [message.channel_id]: (prev[message.channel_id] ?? []).map(m =>
-          m.id === message.id ? { ...m, is_pinned: updated.is_pinned, pinned_at: updated.pinned_at } : m
-        ),
-      }));
-      // Refresh the pinned list for the channel.
-      this.loadPinned(message.channel_id);
+    obs.pipe(take(1)).subscribe({
+      next: updated => {
+        this.messagesByChannel.update(prev => ({
+          ...prev,
+          [message.channel_id]: (prev[message.channel_id] ?? []).map(m =>
+            m.id === message.id ? { ...m, is_pinned: updated.is_pinned, pinned_at: updated.pinned_at } : m
+          ),
+        }));
+        this.loadPinned(message.channel_id);
+      },
+      error: () => {
+        // Revert on failure
+        this.messagesByChannel.update(prev => ({
+          ...prev,
+          [message.channel_id]: (prev[message.channel_id] ?? []).map(m =>
+            m.id === message.id ? { ...m, is_pinned: message.is_pinned } : m
+          ),
+        }));
+      },
     });
   }
 
@@ -458,46 +516,69 @@ export class CommunityStateService {
     is_multiple?: boolean;
     closes_at?: string | null;
   }): void {
-    this.api.createPoll(channelId, payload).subscribe(poll => {
+    this.api.createPoll(channelId, payload).pipe(take(1)).subscribe(poll => {
       this.pollsByChannel.update(prev => ({
         ...prev,
         [channelId]: [poll, ...(prev[channelId] ?? [])],
       }));
-      // The poll is carried by a message; reload so the carrier message (with
-      // its poll attached) appears in the feed immediately rather than only
-      // after navigating away and back.
-      this.loadMessages(channelId);
+      // The poll carrier message is broadcast by Reverb (.message.posted).
+      // Do a silent background merge of newest messages as a fallback in case
+      // Reverb delivery is delayed — no loading spinner, no full reload.
+      this.silentRefreshMessages(channelId);
+    });
+  }
+
+  /**
+   * Silently fetch the latest page of messages and merge any NEW ones into the
+   * channel's list. Never sets isLoadingMessages so there is no spinner flash.
+   * Used as a lightweight fallback after optimistic mutations (polls, etc.).
+   */
+  private silentRefreshMessages(channelId: string): void {
+    this.api.messages(channelId).pipe(take(1)).subscribe(page => {
+      this.messagesByChannel.update(prev => {
+        const existing = prev[channelId] ?? [];
+        const knownIds  = new Set(existing.map(m => m.id));
+        const fresh     = page.data.filter(m => !knownIds.has(m.id));
+        if (fresh.length === 0) return prev;
+        return { ...prev, [channelId]: [...fresh, ...existing] };
+      });
     });
   }
 
   /** Vote on a poll; replace it in place with the updated results. */
   votePoll(channelId: string, pollId: string, optionId: string): void {
-    this.api.votePoll(pollId, optionId).subscribe(updated => {
+    this.api.votePoll(pollId, optionId).pipe(take(1)).subscribe(updated => {
       this.replacePoll(channelId, updated);
     });
   }
 
   closePoll(channelId: string, pollId: string): void {
-    this.api.closePoll(pollId).subscribe(updated => {
+    // ── Optimistic: mark poll closed immediately ─────────────────────────
+    this.pollsByChannel.update(prev => ({
+      ...prev,
+      [channelId]: (prev[channelId] ?? []).map(p =>
+        p.id === pollId ? { ...p, is_open: false } : p
+      ),
+    }));
+    this.api.closePoll(pollId).pipe(take(1)).subscribe(updated => {
       this.replacePoll(channelId, updated);
     });
   }
 
   deletePoll(channelId: string, pollId: string): void {
-    this.api.deletePoll(pollId).subscribe(() => {
-      // Remove from the separate-section list (Phase 2 layout).
-      this.pollsByChannel.update(prev => ({
-        ...prev,
-        [channelId]: (prev[channelId] ?? []).filter(p => p.id !== pollId),
-      }));
-      // Remove the inline carrier message (Phase 2b layout).
-      this.messagesByChannel.update(prev => {
-        const list = prev[channelId];
-        if (!list) return prev;
-        const next = list.filter(m => !(m.poll && m.poll.id === pollId));
-        return next.length !== list.length ? { ...prev, [channelId]: next } : prev;
-      });
+    // ── Optimistic: remove immediately ──────────────────────────────────
+    this.messagesByChannel.update(prev => {
+      const list = prev[channelId];
+      if (!list) return prev;
+      const next = list.filter(m => !(m.poll && m.poll.id === pollId));
+      return next.length !== list.length ? { ...prev, [channelId]: next } : prev;
     });
+    this.pollsByChannel.update(prev => ({
+      ...prev,
+      [channelId]: (prev[channelId] ?? []).filter(p => p.id !== pollId),
+    }));
+    // Server confirmation — already removed optimistically above.
+    this.api.deletePoll(pollId).pipe(take(1)).subscribe();
   }
 
   /**

@@ -306,6 +306,12 @@ export class ApiService {
   verifyOtp(otp: string): Observable<OtpResponse> {
     return this.http.post<OtpResponse>(`${API_BASE}/auth/otp/verify`, { otp });
   }
+  forgotPassword(email: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${API_BASE}/auth/password/forgot`, { email });
+  }
+  resetPassword(payload: { token: string; email: string; password: string; password_confirmation: string }): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${API_BASE}/auth/password/reset`, payload);
+  }
 
   // ── Dashboard ───────────────────────────────────────────────────────────────
 

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Logitech">
+  <rect width="120" height="120" rx="18" fill="#0a0b12"/>
+  <circle cx="60" cy="56" r="26" fill="none" stroke="#00b8fc" stroke-width="6"/>
+  <rect x="60" y="52" width="22" height="8" fill="#00b8fc"/>
+  <text x="60" y="105" font-family="Arial, sans-serif" font-size="12" font-weight="800"
+        letter-spacing="2" text-anchor="middle" fill="#ffffff">LOGITECH</text>
+</svg>

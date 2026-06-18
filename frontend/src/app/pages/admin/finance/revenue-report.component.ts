@@ -159,7 +159,7 @@ export class RevenueReportComponent implements OnInit, AfterViewInit {
     const datasets: any[] = [];
     const sources = this.sources();
     const colors: Record<string, string> = {
-      marketplace: '#a855f7', subscriptions: '#fbbf24', sponsorships: '#38bdf8',
+      marketplace: '#d4af37', subscriptions: '#fbbf24', sponsorships: '#38bdf8',
     };
     const labels: Record<string, string> = {
       marketplace: 'Marketplace', subscriptions: 'Subscriptions', sponsorships: 'Sponsorships',

@@ -94,6 +94,20 @@ class MatchSchedulingService
             throw new RuntimeException('Cannot reschedule a completed match.');
         }
 
+        // Bug #11 — Prevent participants from proposing a reschedule when the
+        // organizer has already authoritatively scheduled the match within the
+        // next 2 hours. After that window participants would have no time to
+        // agree anyway; they should contact the organizer to override directly.
+        if ($match->scheduled_at !== null && $match->scheduled_by_id !== null) {
+            $hoursUntilMatch = now()->diffInHours($match->scheduled_at, false);
+            if ($hoursUntilMatch >= 0 && $hoursUntilMatch <= 2) {
+                throw new RuntimeException(
+                    'The match is scheduled to start within 2 hours. '
+                    . 'Contact the organizer to change the time.'
+                );
+            }
+        }
+
         return DB::transaction(function () use ($match, $requester, $proposedAt, $reason) {
             // Cancel this user's prior pending request for this match.
             MatchRescheduleRequest::where('match_id', $match->id)

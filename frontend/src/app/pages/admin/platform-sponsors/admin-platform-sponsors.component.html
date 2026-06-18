@@ -1,7 +1,7 @@
 <div class="aps">
   <header class="page-header">
     <div class="title-row">
-      <h1>🎯 Platform Sponsors</h1>
+      <h1> Platform Sponsors</h1>
       <button class="btn-primary" (click)="openCreate()">+ Add platform sponsor</button>
     </div>
     <p class="subtitle">Brands sponsoring Dawri-the-platform — visible on home, footer, /sponsors page, and tournament list.</p>
@@ -68,7 +68,7 @@
             </td>
             <td>
               @if (row.is_currently_live) {
-                <span class="status-pill status-live">● live</span>
+                <span class="status-pill status-live"> live</span>
               } @else if (row.is_active) {
                 <span class="status-pill status-scheduled">scheduled</span>
               } @else {
@@ -80,10 +80,10 @@
             </td>
             <td class="r actions">
               <button class="btn-icon" (click)="toggle(row)" [title]="row.is_active ? 'Pause' : 'Activate'">
-                {{ row.is_active ? '⏸' : '▶' }}
+                {{ row.is_active ? 'Pause' : 'Resume' }}
               </button>
-              <button class="btn-icon" (click)="openEdit(row)" title="Edit">✎</button>
-              <button class="btn-icon danger" (click)="remove(row)" title="Remove">🗑</button>
+              <button class="btn-icon" (click)="openEdit(row)" title="Edit">Edit</button>
+              <button class="btn-icon danger" (click)="remove(row)" title="Remove">Del</button>
             </td>
           </tr>
         }
@@ -160,5 +160,21 @@
         </footer>
       </div>
     </div>
+  }
+
+  <!-- Inline confirmation banner -->
+  @if (confirmMsg()) {
+    <div class="confirm-bar">
+      <span>{{ confirmMsg() }}</span>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button class="btn-ghost btn-sm" (click)="confirmNo()">Cancel</button>
+        <button class="btn-danger btn-sm" (click)="confirmYes()">Confirm</button>
+      </div>
+    </div>
+  }
+
+  <!-- Toast notification -->
+  @if (toastMsg()) {
+    <div class="toast" [class.toast--error]="!toastOk()">{{ toastMsg() }}</div>
   }
 </div>

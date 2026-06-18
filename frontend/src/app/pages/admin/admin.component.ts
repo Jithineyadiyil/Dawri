@@ -2,7 +2,8 @@ import { AuthService } from '../../core/services/auth.service';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, RouterOutlet, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -11,34 +12,102 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
 @Component({
   selector: 'dw-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, SubscriptionsDashboardComponent],
+  imports: [CommonModule, FormsModule, RouterModule, RouterOutlet, SubscriptionsDashboardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="admin">
-      <div class="admin-header">
-        <h1 class="admin-title">Dawri Control Panel</h1>
-        <p class="admin-sub">Manage companies, subscriptions, pricing, and platform operations</p>
-      </div>
+    <div class="admin-shell">
 
-      <div class="tab-bar">
-        @for (tab of tabs; track tab.key) {
-          <button class="tab" [class.tab--active]="activeTab() === tab.key" (click)="switchTab(tab.key)">
-            {{ tab.label }}
+      <!-- ── Sidebar navigation ─────────────────────────────── -->
+      <aside class="admin-nav">
+        <div class="admin-nav__brand">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span>Control Panel</span>
+        </div>
+
+        <!-- Group 1: Platform -->
+        <div class="nav-group">
+          <span class="nav-group-label">Platform</span>
+          <button class="nav-item" [class.active]="activeTab()==='overview'" (click)="switchTab('overview')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Overview
           </button>
+          <button class="nav-item" [class.active]="activeTab()==='companies'" (click)="switchTab('companies')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Companies
+          </button>
+          <button class="nav-item" [class.active]="activeTab()==='users'" (click)="switchTab('users')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Users
+          </button>
+          <button class="nav-item" [class.active]="activeTab()==='games'" (click)="switchTab('games')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="11" x2="15.01" y2="11"/><line x1="18" y1="13" x2="18.01" y2="13"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/></svg>
+            Game Types
+          </button>
+        </div>
+
+        <!-- Group 2: Monetization -->
+        <div class="nav-group">
+          <span class="nav-group-label">Monetization</span>
+          <button class="nav-item" [class.active]="activeTab()==='plans'" (click)="switchTab('plans')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Plans & Pricing
+          </button>
+          <button class="nav-item" [class.active]="activeTab()==='subscriptions'" (click)="switchTab('subscriptions')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            Subscriptions
+          </button>
+          <button class="nav-item" [class.active]="activeTab()==='invoices'" (click)="switchTab('invoices')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            Invoices
+          </button>
+        </div>
+
+        <!-- Group 3: Separate pages -->
+        <div class="nav-group">
+          <span class="nav-group-label">Sections</span>
+          <a class="nav-item" routerLink="/admin/marketplace" routerLinkActive="active">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            Marketplace
+          </a>
+          <a class="nav-item" routerLink="/admin/finance" routerLinkActive="active">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Finance
+          </a>
+          <a class="nav-item" routerLink="/admin/sponsors" routerLinkActive="active">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Sponsors
+          </a>
+          <a class="nav-item" routerLink="/admin/platform-sponsors" routerLinkActive="active">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Platform Sponsors
+          </a>
+          <a class="nav-item" routerLink="/admin/ads" routerLinkActive="active">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg>
+            Ad Placements
+          </a>
+        </div>
+      </aside>
+
+      <!-- ── Main content ────────────────────────────────────── -->
+      <div class="admin-main">
+        <!-- Shell page-header only for in-page tabs; child routes render their own header -->
+        @if (!hasChildRoute()) {
+        <div class="admin-page-header">
+          <div>
+            <h1 class="admin-title">{{ currentPageTitle() }}</h1>
+            <p class="admin-sub">Dawri Control Panel · {{ today() }}</p>
+          </div>
+        </div>
         }
-        <!-- Sprint 8: sponsors live on their own page; render as a tab-styled link -->
-        <a class="tab" routerLink="/admin/sponsors">🤝 Sponsors</a>
-        <!-- Sprint 14: platform-level sponsors management -->
-        <a class="tab" routerLink="/admin/platform-sponsors">🎯 Platform Sponsors</a>
-        <!-- Sprint 11: marketplace admin also lives on its own page -->
-        <a class="tab" routerLink="/admin/marketplace">🛒 Marketplace</a>
-        <!-- Sprint 13: finance & reports on its own page -->
-        <a class="tab" routerLink="/admin/finance">💰 Finance</a>
-        <a class="tab" routerLink="/admin/ads">📢 Ad Placements</a>
-      </div>
+        <!-- Child route pages (Marketplace, Finance, Sponsors etc.) render here -->
+        <router-outlet />
+
+        <!-- In-page tabs — hidden when a child route is active -->
+        @if (!hasChildRoute()) {
+        <div class="admin">
 
       <!-- ═══ OVERVIEW ═══ -->
-      <ng-container *ngIf="activeTab() === 'overview'">
+      @if (activeTab() === 'overview') {
         <div class="stats-row" *ngIf="overview()">
           @for (s of overview()!.stats; track s.label) {
             <div class="stat-card">
@@ -50,23 +119,31 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
         <div class="grid-2" *ngIf="overview()">
           <div class="panel">
             <h3 class="panel-title">Subscriptions by Plan</h3>
-            @for (p of overview()!.subscriptions_by_plan; track p.plan) {
-              <div class="plan-row"><span class="pr-name">{{ p.plan | titlecase }}</span><span class="pr-count">{{ p.count }} clients</span><span class="pr-rev">{{ p.revenue | number:'1.0-0' }} SAR/mo</span></div>
+            @if (overview()!.subscriptions_by_plan?.length) {
+              @for (p of overview()!.subscriptions_by_plan; track p.plan) {
+                <div class="plan-row"><span class="pr-name">{{ p.plan | titlecase }}</span><span class="pr-count">{{ p.count }} clients</span><span class="pr-rev">{{ p.revenue | number:'1.0-0' }} SAR/mo</span></div>
+              }
+            } @else {
+              <div class="panel-empty">No active subscriptions yet. Plan breakdown appears once companies subscribe.</div>
             }
           </div>
           <div class="panel">
             <h3 class="panel-title">Revenue Trend</h3>
-            <div class="chart-bars" *ngIf="overview()!.revenue_trend?.length">
-              @for (m of overview()!.revenue_trend; track m.month) {
-                <div class="bar-group"><div class="bar" [style.height.%]="barH(m.total, overview()!.revenue_trend)"></div><span class="bar-label">{{ m.month.slice(5) }}</span></div>
-              }
-            </div>
+            @if (overview()!.revenue_trend?.length) {
+              <div class="chart-bars">
+                @for (m of overview()!.revenue_trend; track m.month) {
+                  <div class="bar-group"><div class="bar" [style.height.%]="barH(m.total, overview()!.revenue_trend)"></div><span class="bar-label">{{ m.month.slice(5) }}</span></div>
+                }
+              </div>
+            } @else {
+              <div class="panel-empty">No revenue recorded yet. Monthly trend appears after the first paid invoice.</div>
+            }
           </div>
         </div>
-      </ng-container>
+      }
 
       <!-- ═══ PLANS / PRICING ═══ -->
-      <ng-container *ngIf="activeTab() === 'plans'">
+      @if (activeTab() === 'plans') {
         <div class="plans-config">
           @for (plan of plansList(); track plan.key) {
             <div class="plan-config-card" [class.plan-inactive]="!plan.is_active">
@@ -117,10 +194,10 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
             </div>
           }
         </div>
-      </ng-container>
+      }
 
       <!-- ═══ COMPANIES ═══ -->
-      <ng-container *ngIf="activeTab() === 'companies'">
+      @if (activeTab() === 'companies') {
         <div class="toolbar">
           <input class="search-input" [(ngModel)]="companySearch" (input)="loadCompanies()" placeholder="Search companies..." />
           <select class="filter-select" [(ngModel)]="companyStatusFilter" (change)="loadCompanies()">
@@ -143,14 +220,14 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
                   <td><button class="btn-xs" (click)="selectCompany(c)">View</button></td>
                 </tr>
               }
-              <tr *ngIf="!companies().length"><td colspan="6" style="text-align:center;color:#8892a4;padding:2rem">No companies found.</td></tr>
+              @if (!companies().length) { <tr><td colspan="6" style="text-align:center;color:#8892a4;padding:2rem">No companies found.</td></tr> }
             </tbody>
           </table>
         </div>
-      </ng-container>
+      }
 
       <!-- ═══ SUBSCRIPTIONS ═══ -->
-      <ng-container *ngIf="activeTab() === 'subscriptions'">
+      @if (activeTab() === 'subscriptions') {
         <!-- Sprint 13: subscriptions-focused dashboard (MRR, plans, renewals, trials). -->
         <app-subscriptions-dashboard [isActive]="activeTab() === 'subscriptions'"></app-subscriptions-dashboard>
 
@@ -183,14 +260,14 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
                   </td>
                 </tr>
               }
-              <tr *ngIf="!subs().length"><td colspan="6" style="text-align:center;color:#8892a4;padding:2rem">No subscriptions found.</td></tr>
+              @if (!subs().length) { <tr><td colspan="6" style="text-align:center;color:#8892a4;padding:2rem">No subscriptions found.</td></tr> }
             </tbody>
           </table>
         </div>
-      </ng-container>
+      }
 
       <!-- ═══ USERS ═══ -->
-      <ng-container *ngIf="activeTab() === 'users'">
+      @if (activeTab() === 'users') {
         <div class="toolbar">
           <input class="search-input" [(ngModel)]="userSearch" (input)="loadUsers()" placeholder="Search users..." />
           <select class="filter-select" [(ngModel)]="userRoleFilter" (change)="loadUsers()">
@@ -212,14 +289,14 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
                   <td class="dim">{{ u.created_at | date:'mediumDate' }}</td>
                 </tr>
               }
-              <tr *ngIf="!allUsers().length"><td colspan="5" style="text-align:center;color:#8892a4;padding:2rem">No users found.</td></tr>
+              @if (!allUsers().length) { <tr><td colspan="5" style="text-align:center;color:#8892a4;padding:2rem">No users found.</td></tr> }
             </tbody>
           </table>
         </div>
-      </ng-container>
+      }
 
       <!-- ═══ INVOICES ═══ -->
-      <ng-container *ngIf="activeTab() === 'invoices'">
+      @if (activeTab() === 'invoices') {
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr><th>Invoice #</th><th>User</th><th>Amount</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
@@ -234,14 +311,14 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
                   <td><button class="btn-xs btn-gold" *ngIf="inv.status !== 'paid'" (click)="markPaid(inv.id)">Mark Paid</button></td>
                 </tr>
               }
-              <tr *ngIf="!invoices().length"><td colspan="6" style="text-align:center;color:#8892a4;padding:2rem">No invoices found.</td></tr>
+              @if (!invoices().length) { <tr><td colspan="6" style="text-align:center;color:#8892a4;padding:2rem">No invoices found.</td></tr> }
             </tbody>
           </table>
         </div>
-      </ng-container>
+      }
 
       <!-- ═══ GAMES ═══ -->
-      <ng-container *ngIf="activeTab() === 'games'">
+      @if (activeTab() === 'games') {
         <div class="toolbar">
           <input class="search-input" [(ngModel)]="gameSearch" (input)="filterGames()" placeholder="Search games..." />
           <select class="filter-select" [(ngModel)]="gameStatusFilter" (change)="filterGames()">
@@ -271,7 +348,11 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
                 <tr>
                   <td>
                     <div style="display:flex;align-items:center;gap:0.5rem">
-                      <span style="font-size:1.3rem">{{ g.icon_emoji || '🎮' }}</span>
+                      @if (g.icon_emoji) {
+                        <span style="font-size:1.2rem">{{ g.icon_emoji }}</span>
+                      } @else {
+                        <svg style="width:18px;height:18px;color:#8892a4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="11" x2="15.01" y2="11"/><line x1="18" y1="13" x2="18.01" y2="13"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/></svg>
+                      }
                       <div class="company-cell">
                         <span class="cname">{{ g.name }}</span>
                         <span class="dim" *ngIf="g.name_ar" dir="rtl">{{ g.name_ar }}</span>
@@ -309,14 +390,17 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
             </tbody>
           </table>
         </div>
-      </ng-container>
+      }
 
       <!-- ═══ GAME MODAL ═══ -->
-      <div class="modal-backdrop" *ngIf="showGameModal()" (click)="closeGameModal()">
+      @if (showGameModal()) {
+      <div class="modal-backdrop" (click)="closeGameModal()">
         <div class="modal-box" (click)="$event.stopPropagation()">
           <div class="modal-hdr">
             <span>{{ editingGame() ? 'Edit Game' : 'Add Game' }}</span>
-            <button (click)="closeGameModal()" style="background:none;border:none;color:#8892a4;font-size:1.1rem;cursor:pointer">✕</button>
+            <button (click)="closeGameModal()" style="background:none;border:none;color:#8892a4;cursor:pointer;display:grid;place-items:center;width:28px;height:28px;border-radius:6px" title="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
           </div>
           <div class="modal-body">
             <div class="mg-row">
@@ -394,39 +478,106 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
           </div>
         </div>
       </div>
+      }
+
+      <!-- Inline confirmation banner (replaces window.confirm) -->
+      @if (confirmPending(); as cp) {
+        <div class="confirm-bar">
+          <span class="confirm-msg">{{ cp.label }}</span>
+          <div class="confirm-actions">
+            <button class="btn-xs" (click)="confirmPending.set(null)">Cancel</button>
+            @if (cp.action === 'cancelSub') {
+              <button class="btn-xs btn-danger" (click)="cancelSubConfirmed(cp.id)">Yes, cancel</button>
+            }
+            @if (cp.action === 'deleteGame') {
+              <button class="btn-xs btn-danger" (click)="deleteGameConfirmed(cp.id)">Yes, delete</button>
+            }
+          </div>
+        </div>
+      }
 
       <!-- Toast -->
-      <div class="toast" [class.toast--error]="toastType()==='error'" *ngIf="toast()">{{ toast() }}</div>
-    </div>
+      @if (toast()) {
+        <div class="toast" [class.toast--error]="toastType()==='error'">{{ toast() }}</div>
+      }
+        </div><!-- /admin -->
+        }<!-- /hasChildRoute -->
+      </div><!-- /admin-main -->
+    </div><!-- /admin-shell -->
   `,
   styles: [`
-    :host { display: block; }
-    .admin { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
-    .admin-header { margin-bottom: 1.5rem; }
-    .admin-title { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.1em; color: #fff; margin: 0 0 0.25rem; }
-    .admin-sub { color: #8892a4; font-size: 0.9rem; margin: 0; }
-    .tab-bar { display: flex; gap: 0.25rem; margin-bottom: 1.5rem; flex-wrap: wrap; border-bottom: 1px solid #243048; padding-bottom: 0; }
-    .tab { background: transparent; border: none; border-bottom: 2px solid transparent; color: #8892a4; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.6rem 1rem; cursor: pointer; transition: all 0.15s; margin-bottom: -1px; }
-    .tab:hover { color: #dde1ee; }
-    .tab--active { color: var(--gold, #a855f7); border-bottom-color: var(--gold, #a855f7); }
+    :host { display: block; height: 100%; }
+
+    /* ── Shell layout ──────────────────────────────────────── */
+    .admin-shell { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 60px); background: #0b0f1a; }
+
+    /* ── Sidebar ────────────────────────────────────────────── */
+    .admin-nav {
+      background: #0e1220; border-right: 1px solid #1e2a3a;
+      padding: 0; display: flex; flex-direction: column;
+      position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto;
+    }
+    .admin-nav__brand {
+      display: flex; align-items: center; gap: 10px;
+      padding: 1.25rem 1.1rem; border-bottom: 1px solid #1e2a3a;
+      font-family: var(--fh, 'Anton', sans-serif); font-size: 0.9rem; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--accent, #d4af37);
+      svg { flex-shrink: 0; }
+    }
+    .nav-group { padding: 1rem 0.65rem 0.5rem; }
+    .nav-group-label {
+      display: block; padding: 0 0.5rem; margin-bottom: 0.35rem;
+      font-family: var(--fm, monospace); font-size: 0.62rem; letter-spacing: 2px;
+      text-transform: uppercase; color: #3d4f63; font-weight: 600;
+    }
+    .nav-item {
+      width: 100%; box-sizing: border-box;
+      display: flex; align-items: center; gap: 10px;
+      min-height: 38px; padding: 0 0.75rem; margin: 0;
+      border-radius: 8px; border: none; background: transparent;
+      color: #6b7280; font-family: inherit; font-size: 0.84rem; font-weight: 500;
+      line-height: 1; text-align: left;
+      cursor: pointer; text-decoration: none; white-space: nowrap;
+      transition: background .14s, color .14s;
+      svg { flex-shrink: 0; display: block; width: 15px; height: 15px; transition: color .14s; }
+      &:hover { background: rgba(255,255,255,.05); color: #e5e7eb; }
+      &.active {
+        background: rgba(212,175,55,.1); color: var(--accent, #d4af37);
+        font-weight: 600;
+        svg { color: var(--accent, #d4af37); }
+      }
+    }
+    .nav-group .nav-item + .nav-item { margin-top: 2px; }
+
+    /* ── Main content area ──────────────────────────────────── */
+    .admin-main { display: flex; flex-direction: column; min-width: 0; }
+    .admin-page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.25rem 1.75rem; border-bottom: 1px solid #1e2a3a;
+      background: #0e1220;
+    }
+    .admin-title { font-family: var(--fh, 'Anton', sans-serif); font-size: 1.6rem; letter-spacing: .08em; text-transform: uppercase; color: #fff; margin: 0; }
+    .admin-sub { color: #4b5563; font-size: 0.78rem; margin: 2px 0 0; font-family: var(--fm, monospace); letter-spacing: .5px; }
+    .admin { padding: 1.5rem 1.75rem; flex: 1; }
     .stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-    .stat-card { background: #1a2235; border: 1px solid #243048; border-radius: 8px; padding: 1rem; }
-    .stat-val { display: block; font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: var(--gold, #a855f7); line-height: 1; }
+    .stat-card { background: #1a2235; border: 1px solid #243048; border-radius: 8px; padding: 1rem; min-height: 84px; display: flex; flex-direction: column; justify-content: center; }
+    .stat-val { display: block; font-family: var(--fh, sans-serif); font-size: 1.8rem; color: var(--accent, #d4af37); line-height: 1.15; }
     .stat-lbl { display: block; font-size: 0.75rem; color: #8892a4; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.08em; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
     .panel { background: #1a2235; border: 1px solid #243048; border-radius: 8px; padding: 1rem; }
-    .panel-title { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.9rem; letter-spacing: 0.08em; color: #8892a4; text-transform: uppercase; margin: 0 0 0.75rem; }
+    .panel-title { font-family: var(--fb, sans-serif); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.08em; color: #8892a4; text-transform: uppercase; margin: 0 0 0.75rem; }
+    .panel-empty { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 120px; padding: 1rem; color: #5b667a; font-size: 0.82rem; line-height: 1.5; border: 1px dashed #243048; border-radius: 6px; }
     .plan-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid #1a2235; }
-    .pr-name { flex: 1; color: #dde1ee; font-size: 0.85rem; } .pr-count { font-size: 0.8rem; color: #8892a4; } .pr-rev { font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--cyan, #fbbf24); margin-left: auto; }
+    .pr-name { flex: 1; color: #dde1ee; font-size: 0.85rem; } .pr-count { font-size: 0.8rem; color: #8892a4; } .pr-rev { font-family: var(--fm, monospace); font-size: 0.75rem; color: var(--accent, #d4af37); margin-left: auto; }
     .chart-bars { display: flex; align-items: flex-end; gap: 0.5rem; height: 120px; }
     .bar-group { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; flex: 1; height: 100%; justify-content: flex-end; }
-    .bar { width: 100%; background: linear-gradient(180deg, var(--gold, #a855f7), rgba(168,85,247,0.3)); border-radius: 3px 3px 0 0; min-height: 4px; transition: height 0.3s; }
+    .bar { width: 100%; background: linear-gradient(180deg, var(--accent, #d4af37), rgba(212,175,55,0.3)); border-radius: 3px 3px 0 0; min-height: 4px; transition: height 0.3s; }
     .bar-label { font-size: 0.65rem; color: #8892a4; }
     .plans-config { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
     .plan-config-card { background: #1a2235; border: 1px solid #243048; border-radius: 8px; padding: 1rem; }
     .plan-inactive { opacity: 0.6; }
     .pcc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
-    .pcc-name { display: block; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.1rem; color: #fff; }
+    .pcc-name { display: block; font-family: var(--fb, sans-serif); font-weight: 700; font-size: 1.1rem; color: #fff; }
     .pcc-name-ar { display: block; font-size: 0.8rem; color: #8892a4; direction: rtl; }
     .pcc-type { display: inline-block; font-size: 0.65rem; background: #1a2235; color: #8892a4; padding: 0.1rem 0.4rem; border-radius: 4px; margin-top: 0.25rem; }
     .pcc-section { margin-bottom: 0.75rem; }
@@ -434,13 +585,13 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
     .pcc-row { display: flex; align-items: center; gap: 0.5rem; }
     .pcc-input { background: #1a2235; border: 1px solid #243048; border-radius: 4px; color: #dde1ee; padding: 0.35rem 0.6rem; font-size: 0.85rem; width: 100px; }
     .pcc-input--wide { width: 100%; box-sizing: border-box; }
-    .pcc-hint { font-size: 0.7rem; color: var(--cyan, #fbbf24); }
+    .pcc-hint { font-size: 0.7rem; color: var(--accent, #d4af37); }
     .pcc-limits { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
     .pcc-limit { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.75rem; color: #8892a4; }
     .pcc-limit input { background: #1a2235; border: 1px solid #243048; border-radius: 4px; color: #dde1ee; padding: 0.25rem 0.5rem; font-size: 0.8rem; width: 70px; }
     .pcc-features { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; }
     .pcc-feat { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #8892a4; cursor: pointer; }
-    .pcc-feat input { accent-color: var(--cyan, #fbbf24); }
+    .pcc-feat input { accent-color: var(--accent, #d4af37); }
     .pcc-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 0.75rem; border-top: 1px solid #1a2235; margin-top: 0.75rem; }
     .toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .search-input { background: #1a2235; border: 1px solid #243048; border-radius: 6px; color: #dde1ee; padding: 0.45rem 0.75rem; font-size: 0.85rem; flex: 1; min-width: 180px; }
@@ -448,29 +599,29 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
     .filter-select { background: #1a2235; border: 1px solid #243048; border-radius: 6px; color: #dde1ee; padding: 0.45rem 0.75rem; font-size: 0.85rem; }
     .table-wrap { overflow-x: auto; }
     .data-table { width: 100%; border-collapse: collapse; }
-    .data-table th { padding: 0.65rem 0.75rem; text-align: left; font-family: 'Rajdhani', sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4b5563; border-bottom: 1px solid #243048; white-space: nowrap; }
+    .data-table th { padding: 0.65rem 0.75rem; text-align: left; font-family: var(--fb, sans-serif); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4b5563; border-bottom: 1px solid #243048; white-space: nowrap; }
     .data-table td { padding: 0.65rem 0.75rem; border-bottom: 1px solid #1a2235; color: #dde1ee; font-size: 0.85rem; }
     .data-table tr:hover { background: #1a2235; }
     .company-cell { display: flex; flex-direction: column; } .cname { color: #fff; font-weight: 500; }
-    .dim { color: #8892a4; } .mono { font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--cyan, #fbbf24); }
+    .dim { color: #8892a4; } .mono { font-family: var(--fm, monospace); font-size: 0.8rem; color: var(--accent, #d4af37); }
     .plan-badge { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 4px; }
     .plan--free { background: #1a2235; color: #8892a4; } .plan--starter { background: rgba(251,191,36,0.1); color: #fbbf24; }
-    .plan--professional { background: rgba(168,85,247,0.12); color: #a855f7; } .plan--enterprise { background: rgba(168,85,247,0.12); color: #a855f7; }
+    .plan--professional { background: rgba(212,175,55,0.12); color: #d4af37; } .plan--enterprise { background: rgba(212,175,55,0.12); color: #d4af37; }
     .plan--None { background: #1a2235; color: #4b5563; }
     .status-badge { font-size: 0.7rem; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 4px; }
     .status--active { background: rgba(34,197,94,0.1); color: #22c55e; } .status--trial { background: rgba(59,130,246,0.1); color: #3b82f6; }
     .status--suspended,.status--cancelled,.status--expired,.status--churned { background: rgba(239,68,68,0.1); color: #ef4444; }
     .inv--paid { background: rgba(34,197,94,0.1); color: #22c55e; } .inv--pending { background: rgba(245,158,11,0.1); color: #f59e0b; }
-    .role-badge { font-size: 0.7rem; text-transform: uppercase; color: var(--cyan, #fbbf24); }
-    .btn { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.45rem 1rem; border-radius: 6px; cursor: pointer; border: none; transition: all 0.15s; }
-    .btn-gold { background: var(--gold, #a855f7); color: #0b1022; } .btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
+    .role-badge { font-size: 0.7rem; text-transform: uppercase; color: var(--accent, #d4af37); }
+    .btn { font-family: var(--fb, sans-serif); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.45rem 1rem; border-radius: 6px; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-gold { background: var(--accent, #d4af37); color: #0b1022; } .btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-xs { font-size: 0.7rem; padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid #243048; background: transparent; color: #8892a4; cursor: pointer; }
-    .btn-xs:hover { border-color: var(--cyan, #fbbf24); color: var(--cyan, #fbbf24); }
-    .btn-xs.btn-gold { background: var(--gold, #a855f7); color: #0b1022; border-color: var(--gold, #a855f7); }
+    .btn-xs:hover { border-color: var(--accent, #d4af37); color: var(--accent, #d4af37); }
+    .btn-xs.btn-gold { background: var(--accent, #d4af37); color: #0b1022; border-color: var(--accent, #d4af37); }
     .btn-xs.btn-danger { border-color: #ef4444; color: #ef4444; } .btn-xs.btn-danger:hover { background: #ef4444; color: #fff; }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(3px); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    .modal-box { background: #1a2235; border: 1px solid rgba(168,85,247,0.25); border-radius: 8px; width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,0.6); }
-    .modal-hdr { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #243048; font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.1em; color: var(--gold, #a855f7); }
+    .modal-box { background: #1a2235; border: 1px solid rgba(212,175,55,0.25); border-radius: 8px; width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,0.6); }
+    .modal-hdr { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #243048; font-family: var(--fh, sans-serif); font-size: 1.3rem; letter-spacing: 0.1em; color: var(--accent, #d4af37); }
     .modal-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem; }
     .modal-foot { display: flex; justify-content: flex-end; gap: 0.65rem; padding: 0.85rem 1.25rem; border-top: 1px solid #243048; }
     .mg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
@@ -481,8 +632,11 @@ import { SubscriptionsDashboardComponent } from './dashboard-subs/subscriptions-
     .mg-field select option { background: #1a2235; }
     .mg-field small { font-size: 0.7rem; color: #4b5563; }
     .mg-checks { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #22c55e; color: #fff; padding: 0.75rem 1.5rem; border-radius: 8px; z-index: 100; font-family: 'Rajdhani', sans-serif; font-weight: 600; }
+    .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: #22c55e; color: #fff; padding: 0.75rem 1.5rem; border-radius: 8px; z-index: 100; font-family: var(--fb, sans-serif); font-weight: 600; }
     .toast--error { background: #ef4444; }
+    .confirm-bar { position: sticky; bottom: 0; left: 0; right: 0; z-index: 50; margin: 1rem -1.5rem -1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.9rem 1.5rem; background: rgba(239,68,68,0.12); border-top: 1px solid rgba(239,68,68,0.35); backdrop-filter: blur(8px); }
+    .confirm-msg { font-size: 0.88rem; color: #fca5a5; font-weight: 600; }
+    .confirm-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
     @media (max-width: 768px) { .stats-row { grid-template-columns: repeat(2, 1fr); } .grid-2 { grid-template-columns: 1fr; } .pcc-limits, .pcc-features { grid-template-columns: 1fr; } .mg-row { grid-template-columns: 1fr; } }
   `]
 })
@@ -492,6 +646,30 @@ export class AdminComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly base = environment.apiUrl;
 
+  /** True when a child route (Marketplace, Finance etc.) is active */
+  readonly hasChildRoute = signal(false);
+
+  /** Page title — reflects both in-page tabs and child route pages */
+  readonly currentPageTitle = () => {
+    const url = this.router.url;
+    if (url.includes('/admin/marketplace'))       return 'Marketplace';
+    if (url.includes('/admin/finance'))           return 'Finance & Reports';
+    if (url.includes('/admin/platform-sponsors')) return 'Platform Sponsors';
+    if (url.includes('/admin/sponsors'))          return 'Sponsors';
+    if (url.includes('/admin/ads'))               return 'Ad Placements';
+    if (url.includes('/admin/streams'))           return 'Live Streams';
+    const map: Record<string, string> = {
+      overview: 'Overview', plans: 'Plans & Pricing', companies: 'Companies',
+      subscriptions: 'Subscriptions', users: 'Users', invoices: 'Invoices', games: 'Game Types',
+    };
+    return map[this.activeTab()] ?? 'Admin';
+  };
+
+  today = () => new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  /** Inline confirmation state — avoids window.confirm() dialogs */
+  readonly confirmPending = signal<{ action: string; label: string; id: string } | null>(null);
+
   readonly tabs = [
     { key: 'overview',       label: 'Overview' },
     { key: 'plans',          label: 'Plans & Pricing' },
@@ -499,7 +677,7 @@ export class AdminComponent implements OnInit {
     { key: 'subscriptions',  label: 'Subscriptions' },
     { key: 'users',          label: 'Users' },
     { key: 'invoices',       label: 'Invoices' },
-    { key: 'games',          label: '🎮 Game Types' },
+    { key: 'games',          label: 'Game Types' },
   ];
 
   readonly featureKeys = [
@@ -541,6 +719,15 @@ export class AdminComponent implements OnInit {
     if (this.auth.currentUser()?.role !== 'admin') {
       this.router.navigate(['/dashboard']);
     }
+    // Track whether a child route (Marketplace, Finance etc.) is active
+    const updateChildRoute = () => {
+      const isChild = this.router.url !== '/admin' && this.router.url.startsWith('/admin/');
+      this.hasChildRoute.set(isChild);
+    };
+    updateChildRoute();
+    this.router.events
+      .pipe(filter(e => e instanceof NavigationEnd))
+      .subscribe(() => updateChildRoute());
   }
 
   ngOnInit(): void {
@@ -553,7 +740,14 @@ export class AdminComponent implements OnInit {
     this.loadGames();
   }
 
-  switchTab(key: string): void { this.activeTab.set(key); }
+  switchTab(key: string): void {
+    this.activeTab.set(key);
+    // Navigate to /admin (no child route) so hasChildRoute() becomes false
+    // and the in-page tab content becomes visible.
+    if (this.hasChildRoute()) {
+      this.router.navigate(['/admin']);
+    }
+  }
 
   loadOverview(): void { this.http.get<any>(`${this.base}/admin/overview`).subscribe({ next: r => this.overview.set(r.data) }); }
 
@@ -618,7 +812,12 @@ export class AdminComponent implements OnInit {
   }
 
   cancelSub(id: string): void {
-    if (!confirm('Cancel this subscription?')) return;
+    // Set pending confirmation — template renders inline confirm buttons
+    this.confirmPending.set({ action: 'cancelSub', label: 'Cancel this subscription?', id });
+  }
+
+  cancelSubConfirmed(id: string): void {
+    this.confirmPending.set(null);
     this.http.post<any>(`${this.base}/admin/subscriptions/${id}/cancel`, {}).subscribe({
       next: () => { this.showToast('Cancelled.', 'success'); this.loadSubscriptions(); },
       error: e => this.showToast(e.error?.message ?? 'Failed', 'error'),
@@ -712,10 +911,15 @@ export class AdminComponent implements OnInit {
   }
 
   deleteGame(g: any): void {
-    if (!confirm(`Delete "${g.name}"?`)) return;
-    this.http.delete(`${this.base}/admin/games/${g.id}`).pipe(
+    this.confirmPending.set({ action: 'deleteGame', label: `Delete "${g.name}"?`, id: g.id });
+  }
+
+  deleteGameConfirmed(id: string): void {
+    this.confirmPending.set(null);
+    const g = this.gamesList().find(x => x.id === id);
+    this.http.delete(`${this.base}/admin/games/${id}`).pipe(
       catchError(() => { this.showToast('Delete failed.', 'error'); return of(null); })
-    ).subscribe(() => { this.loadGames(); this.showToast(`${g.name} deleted.`, 'success'); });
+    ).subscribe(() => { this.loadGames(); this.showToast(`${g?.name ?? 'Game'} deleted.`, 'success'); });
   }
 
   private emptyGameForm(): any {

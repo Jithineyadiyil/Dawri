@@ -41,8 +41,10 @@
 
   &__cover {
     position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: cover; opacity: .15; z-index: 0;
+    object-fit: cover; object-position: center 28%; opacity: .15; z-index: 0;
+    transform: scale(1.05);
     mask-image: linear-gradient(180deg, #000 30%, transparent 100%);
+    animation: heroCoverKen 30s ease-in-out infinite alternate;
   }
   &__grid-bg {
     position: absolute; inset: 0; z-index: 0;
@@ -59,6 +61,7 @@
     width: 600px; height: 600px; border-radius: 50%;
     background: radial-gradient(circle, rgba(0,108,53,.18), transparent 60%);
     filter: blur(100px); pointer-events: none; z-index: 0;
+    animation: heroGlowBreathe 12s ease-in-out infinite;
   }
   &__wrap {
     position: relative; z-index: 1;
@@ -74,21 +77,27 @@
   &__game-tag { color: var(--accent); }
   &__title {
     font-family: var(--display);
-    font-size: clamp(48px, 8vw, 110px);
-    line-height: .9; letter-spacing: 1px; text-transform: uppercase;
-    margin: 0 0 8px;
+    font-size: clamp(34px, 4.4vw, 62px);
+    line-height: .96; letter-spacing: .5px; text-transform: uppercase;
+    margin: 0 0 10px; max-width: 20ch;
   }
   &__title-ar {
-    font-family: var(--arabic); font-size: 22px; font-weight: 700;
+    font-family: var(--arabic); font-size: 19px; font-weight: 700;
     color: var(--text-dim); margin-bottom: 14px; direction: rtl;
   }
+  // Highlighted detail chips (Starts / Reg closes / Joined / Rounds)
   &__meta-row {
-    display: flex; gap: 24px; flex-wrap: wrap;
-    font-family: var(--mono); font-size: 12px; color: var(--text-dim);
-    letter-spacing: .8px; padding: 12px 0;
-    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
-    margin: 18px 0 22px;
-    strong { color: var(--text); font-weight: 700; }
+    display: flex; gap: 10px; flex-wrap: wrap;
+    margin: 20px 0 22px;
+    > span {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 13px; border-radius: 10px;
+      background: var(--bg-2); border: 1px solid var(--line);
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text-mute);
+      svg { color: var(--accent); flex-shrink: 0; }
+      strong { color: var(--text); font-weight: 700; font-size: 12.5px; letter-spacing: .2px; text-transform: none; }
+    }
   }
   &__progress { margin-top: 22px; }
   &__progress-row {
@@ -129,15 +138,27 @@
   0%, 100% { opacity: 1; }
   50% { opacity: .35; }
 }
+@keyframes heroGlowBreathe {
+  0%, 100% { opacity: .8; transform: scale(1); }
+  50%      { opacity: 1;  transform: scale(1.12); }
+}
 
 .progress-bar {
   height: 6px; background: var(--bg-3); border-radius: 100px; overflow: hidden;
 }
 .progress-fill {
-  height: 100%;
+  height: 100%; position: relative; overflow: hidden;
   background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
   border-radius: 100px; transition: width .4s ease;
+  // travelling sheen — reads as a "live" bar
+  &::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.5) 50%, transparent 100%);
+    transform: translateX(-100%);
+    animation: progressSheen 2.4s ease-in-out infinite;
+  }
 }
+@keyframes progressSheen { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(220%); } }
 
 .registered-tag {
   display: inline-flex; align-items: center;
@@ -400,6 +421,115 @@
     border-top: 1px solid rgba(245,185,66,.3);
     font-family: var(--mono); font-size: 10px; color: var(--warn);
     letter-spacing: 1.2px; text-transform: uppercase;
+  }
+}
+
+// ── Bracket connector lines ──────────────────────────────────────────
+// Each slot gets a horizontal arm going RIGHT across the inter-round gap.
+// Odd slots (upper of each pair) also get a vertical arm connecting to
+// the lower partner. Together they form the classic ─┐ bracket shape.
+// The inter-round gap in .bracket-tree is 36px → half = 18px for each arm.
+// The intra-round (slot-to-slot) gap MUST be 20px to match TS GAP=20.
+
+.b-round:not(.b-round--last) {
+  .b-slot {
+    position: relative;
+    justify-content: center; // center the match card in its allocated slot height
+
+    // Horizontal arm from right edge of match → across the gap to next round
+    &::after {
+      content: '';
+      position: absolute;
+      right: -36px; // full inter-round gap
+      top: 50%;
+      transform: translateY(-0.5px);
+      width: 36px;
+      height: 1px;
+      background: rgba(255,255,255,.18);
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    // Vertical arm on the upper slot of each pair → down to lower slot center
+    &:nth-child(odd)::before {
+      content: '';
+      position: absolute;
+      right: -36px; // at the right edge where horizontal arm ends
+      top: 50%;
+      height: calc(var(--slot-h, 88px) + 20px); // slot height + CSS gap (20px)
+      width: 1px;
+      background: rgba(255,255,255,.18);
+      pointer-events: none;
+      z-index: 3;
+    }
+  }
+}
+
+// ── My match highlight ────────────────────────────────────────────────
+// Applied when the logged-in user is a participant in this match.
+.b-match--mine {
+  border-color: rgba(212,175,55,.55) !important;
+  box-shadow:
+    0 0 0 1px rgba(212,175,55,.2),
+    0 0 20px rgba(212,175,55,.18),
+    inset 0 0 24px rgba(212,175,55,.06);
+
+  .b-match__head {
+    background: rgba(212,175,55,.08);
+    border-bottom-color: rgba(212,175,55,.2);
+
+    // "YOUR MATCH" tag added via ::before on the head
+    &::after {
+      content: 'YOUR MATCH';
+      font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px;
+      color: var(--accent); font-weight: 700;
+      padding: 1px 6px; border: 1px solid rgba(212,175,55,.4);
+      border-radius: 4px; background: rgba(212,175,55,.12);
+    }
+  }
+}
+
+// ── Winner / loser row improvements ──────────────────────────────────
+.b-match__p {
+  transition: background .12s;
+  &--winner {
+    color: var(--text); font-weight: 700;
+    background: rgba(212,175,55,.06);
+    // Subtle left accent bar on winner row
+    border-left: 2px solid rgba(212,175,55,.5);
+    padding-left: 12px;
+  }
+  &--loser {
+    color: var(--text-mute);
+    opacity: .75;
+    // Shift text left to compensate for winner's border
+    padding-left: 14px;
+  }
+  .b-match__score--win {
+    color: var(--accent);
+    font-weight: 900;
+    text-shadow: 0 0 12px rgba(212,175,55,.4);
+  }
+}
+
+// ── Live match card pulse ─────────────────────────────────────────────
+.b-match--live,
+.b-match--in_progress {
+  border-color: rgba(248,113,113,.45) !important;
+  box-shadow: 0 0 0 1px rgba(248,113,113,.15), 0 0 16px rgba(248,113,113,.1);
+  animation: matchPulse 3s ease-in-out infinite;
+}
+@keyframes matchPulse {
+  0%,100% { box-shadow: 0 0 0 1px rgba(248,113,113,.15), 0 0 16px rgba(248,113,113,.1); }
+  50%      { box-shadow: 0 0 0 1px rgba(248,113,113,.25), 0 0 28px rgba(248,113,113,.22); }
+}
+
+// ── Clickable match hover ─────────────────────────────────────────────
+.b-match--clickable {
+  &:hover {
+    border-color: rgba(255,255,255,.25) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0,0,0,.35);
   }
 }
 
@@ -871,13 +1001,14 @@
   &::-webkit-scrollbar-thumb { background: var(--line-2, rgba(255,255,255,.15)); border-radius: 3px; }
 }
 
-/* Tree must never wrap — always a single horizontal row of columns */
+/* Tree must never wrap — always a single horizontal row of columns.
+   gap MUST match the ::after width (36px) used in connector lines. */
 .bracket-tree {
   display: flex;
   flex-wrap: nowrap;
-  gap: 24px;
+  gap: 36px;
   min-width: min-content;
-  width: max-content; /* force container to be as wide as content */
+  width: max-content;
   align-items: flex-start;
 }
 
@@ -889,12 +1020,12 @@
   display: flex;
   flex-direction: column;
 
-  /* Matches stack vertically with fixed gap — no space-around which causes overlap */
+  /* Matches stack vertically — gap MUST match GAP=20 constant in component.ts */
   &__matches {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    justify-content: flex-start; /* was space-around which caused overlap */
+    gap: 20px;
+    justify-content: flex-start;
   }
 }
 
@@ -915,7 +1046,7 @@
 
 /* Swiss-specific: add round indicator label color */
 .b-round__label--swiss {
-  color: var(--primary, #a855f7);
+  color: var(--accent, #d4af37);
 }
 
 /* Scroll hint on mobile */
@@ -941,10 +1072,10 @@
   min-height: 0 !important;
 }
 
-/* Tighter gap for Swiss rounds with many matches */
+/* Swiss/RR: use same 20px gap as elimination formats */
 .bracket-tree--swiss .b-round__matches,
 .bracket-tree--rr .b-round__matches {
-  gap: 8px;
+  gap: 20px;
   justify-content: flex-start;
 }
 
@@ -955,11 +1086,10 @@
   min-width: 280px;
 }
 
-/* Make bracket-scroll a proper scroll container */
+/* Bracket scroll — horizontal only; page itself handles vertical scroll */
 .tab-content .bracket-scroll {
-  max-height: 80vh;   /* limit height so page doesn't become 5000px tall */
-  overflow-y: auto;
   overflow-x: auto;
+  overflow-y: visible;
 }
 
 /* Single / Double elim: keep connector spacing but cap height */
@@ -1456,9 +1586,21 @@
   filter: saturate(0.7);
 }
 
-/* Make game-bg use the art as backdrop when cover present */
-.hero--has-cover .hero__cover {
-  opacity: 0.55;
+/* Make game-bg use the art as a cinematic backdrop when cover present */
+.hero--has-cover {
+  .hero__cover { opacity: 0.7; filter: saturate(.95) brightness(.85); }
+  // legibility scrim — dark left→right + bottom so title/prize card stay crisp
+  &::after {
+    content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      linear-gradient(90deg, var(--bg) 0%, rgba(10,10,18,.55) 45%, rgba(10,10,18,.15) 80%),
+      linear-gradient(180deg, transparent 30%, rgba(10,10,18,.85) 100%);
+  }
+}
+
+@keyframes heroCoverKen {
+  0%   { transform: scale(1.05) translate(0, 0); }
+  100% { transform: scale(1.14) translate(-1.5%, -1.5%); }
 }
 
 
@@ -1763,4 +1905,102 @@
   border-radius: 0 6px 6px 0;
   font-size: 12px; color: #6b7280; line-height: 1.5;
   a { color: #f0a500; text-decoration: none; }
+}
+
+/* ── Reduced motion — quiet the redesign hero ambience ──────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .hero__cover, .hero__glow, .progress-fill::after { animation: none !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MATCH RESULT + EVIDENCE (restored 2026 — was removed in a prior
+   modal-chrome handoff). Self-contained, brand green/gold + electric.
+   ═══════════════════════════════════════════════════════════════════ */
+.m-section__count {
+  margin-left: auto; font-family: var(--mono); font-size: 11px;
+  background: rgba(212,175,55,.14); color: var(--accent);
+  padding: 1px 8px; border-radius: 100px;
+}
+
+.result-final {
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  padding: 14px 16px; background: var(--bg-3); border-radius: var(--r);
+  border: 1px solid rgba(212,175,55,.2);
+  &__score  { font-family: var(--display); font-size: 26px; letter-spacing: 1px; color: var(--text); }
+  &__winner { font-size: 13px; color: var(--text-dim); strong { color: var(--accent); } }
+}
+
+.result-form__lede,
+.result-confirm__lede { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin: 0; }
+
+.result-form__scores {
+  display: flex; align-items: flex-end; justify-content: center; gap: 16px;
+  padding: 8px 0;
+}
+.result-score {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; max-width: 160px;
+  &__name {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .5px; color: var(--text-dim);
+    text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  }
+  &__input {
+    width: 84px; height: 60px; text-align: center;
+    font-family: var(--display); font-size: 30px; letter-spacing: 1px;
+    padding: 0; color: var(--text);
+  }
+}
+.result-form__x { font-family: var(--mono); font-size: 22px; color: var(--text-mute); padding-bottom: 16px; }
+
+.result-form__winner { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.winner-opt {
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 14px; cursor: pointer; font-size: 13px;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r);
+  transition: border-color .15s, background .15s, color .15s;
+  input[type="radio"] { accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; }
+  span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &:hover { border-color: var(--line-2); }
+  &:has(input:checked) { border-color: var(--accent); background: rgba(212,175,55,.1); color: var(--accent); font-weight: 700; }
+}
+
+.result-confirm { display: flex; flex-direction: column; gap: 12px; }
+.result-dispute { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+/* ── Evidence ─────────────────────────────────────────────────────── */
+.evidence-upload {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 14px;
+  border: 0; min-height: 0; overflow: visible;     // override legacy dropzone styling
+  &__file {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 14px; cursor: pointer; font-size: 13px; color: var(--text-dim);
+    background: var(--bg-2); border: 1px dashed var(--line-2); border-radius: var(--r);
+    transition: border-color .15s, color .15s;
+    max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    input[type="file"] { display: none; }
+    &:hover { border-color: var(--accent); color: var(--text); }
+    svg { flex-shrink: 0; }
+  }
+  .input { flex: 1; min-width: 140px; }
+}
+
+.evidence-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px;
+}
+.evidence-item {
+  position: relative; background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--r); overflow: hidden; transition: border-color .15s;
+  &:hover { border-color: var(--line-2); }
+  &__media { width: 100%; height: 110px; object-fit: cover; display: block; background: #000; }
+  &__meta { padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+  &__caption { font-size: 12px; color: var(--text); line-height: 1.3; }
+  &__by { font-family: var(--mono); font-size: 10px; color: var(--text-mute); letter-spacing: .3px; }
+  &__del {
+    position: absolute; top: 6px; right: 6px;
+    width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+    background: rgba(0,0,0,.65); border: 1px solid rgba(255,255,255,.12); color: #fca5a5;
+    display: grid; place-items: center; opacity: 0; transition: opacity .15s, background .15s;
+  }
+  &:hover &__del { opacity: 1; }
+  &__del:hover { background: rgba(239,68,68,.85); color: #fff; }
 }

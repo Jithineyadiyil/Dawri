@@ -66,6 +66,16 @@ export class CreateTournamentComponent implements OnInit {
     { value: 'double_elimination', label: 'Double Elimination', desc: 'Losers get a second chance.' },
     { value: 'round_robin',        label: 'Round Robin',        desc: 'Everyone plays everyone.' },
     { value: 'swiss',              label: 'Swiss System',       desc: 'Paired by performance.' },
+    { value: 'group_knockout',     label: 'Group Stage + Knockout', desc: 'Round-robin groups → top 2 advance to knockout.' },
+  ];
+
+  readonly platforms = [
+    { value: '',       label: 'Any / unspecified' },
+    { value: 'psn',    label: 'PlayStation' },
+    { value: 'xbox',   label: 'Xbox' },
+    { value: 'pc',     label: 'PC' },
+    { value: 'mobile', label: 'Mobile' },
+    { value: 'cross',  label: 'Cross-platform' },
   ];
 
   readonly fontOptions = [
@@ -82,6 +92,7 @@ export class CreateTournamentComponent implements OnInit {
     name:                   ['', [Validators.required, Validators.maxLength(150)]],
     name_ar:                ['', Validators.maxLength(150)],
     game:                   ['ea_fc25', Validators.required],
+    platform:               [''],
     format:                 ['single_elimination', Validators.required],
     max_participants:       [16, [Validators.required, Validators.min(2), Validators.max(512)]],
     swiss_rounds:           [5],
@@ -163,6 +174,7 @@ export class CreateTournamentComponent implements OnInit {
       name:                   v.name,
       name_ar:                v.name_ar || null,
       game:                   v.game,
+      platform:               v.platform || null,
       format:                 v.format,
       max_participants:       v.max_participants,
       swiss_rounds:           this.isSwiss() ? v.swiss_rounds : null,

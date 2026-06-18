@@ -55,7 +55,7 @@ import { ScheduledMessage } from '../../models/community.model';
     </div>
   `,
   styles: [`
-    :host { --accent: #00ffa3; --accent-d: #06281c; --surface: #14141f; --raised: #16161f; --line: rgba(255,255,255,0.1); --text: #eaeaf2; --mut: #8a8a9e; }
+    :host { --accent: #7c3aed; --accent-s: #a78bfa; --surface: #161228; --raised: #1c1833; --line: rgba(124,58,237,0.18); --text: #eaeaf2; --mut: #8a8a9e; }
     .overlay { position: fixed; inset: 0; z-index: 970; background: rgba(0,0,0,0.6); display: grid; place-items: center; padding: 1.5rem; }
     .card { width: 100%; max-width: 520px; max-height: 82vh; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: flex; flex-direction: column; }
     .ph { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.2rem; border-bottom: 1px solid var(--line); }
@@ -66,17 +66,18 @@ import { ScheduledMessage } from '../../models/community.model';
     .block { margin-bottom: 1.4rem; }
     h4 { margin: 0 0 0.6rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mut); font-family: 'JetBrains Mono', ui-monospace, monospace; }
     .f { width: 100%; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 0.55rem 0.7rem; color: var(--text); font-family: 'Archivo', system-ui, sans-serif; font-size: 0.92rem; }
-    .f:focus { outline: none; border-color: rgba(0,255,163,0.55); }
+    .f:focus { outline: none; border-color: var(--accent); }
     textarea.f { resize: vertical; line-height: 1.5; margin-bottom: 0.5rem; }
     .when { display: flex; gap: 0.5rem; align-items: center; }
     .when .f { flex: 1; }
-    .schedule { background: var(--accent); color: var(--accent-d); border: none; border-radius: 8px; padding: 0.55rem 1rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .schedule { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 0.55rem 1rem; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 0.14s, box-shadow 0.14s; }
+    .schedule:hover { background: #6d28d9; box-shadow: 0 0 14px rgba(124,58,237,0.4); }
     .schedule:disabled { opacity: 0.5; cursor: not-allowed; }
     .err { color: #ff8a8a; font-size: 0.82rem; margin: 0.5rem 0 0; }
     .loading, .hint { color: var(--mut); font-size: 0.85rem; }
     .item { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.55rem 0.6rem; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 0.45rem; }
     .i-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
-    .i-when { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.72rem; color: var(--accent); }
+    .i-when { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.72rem; color: var(--accent-s); }
     .i-content { color: #dcdce8; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .mini { background: var(--surface); border: 1px solid var(--line); color: #cfcfe0; border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.76rem; cursor: pointer; white-space: nowrap; }
     .mini.danger:hover { border-color: #ff6b6b; color: #ff6b6b; }

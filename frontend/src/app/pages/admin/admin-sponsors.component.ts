@@ -154,11 +154,11 @@ export class AdminSponsorsComponent implements OnInit {
 
   /** Sprint 10: promote a scoped sponsor to the global catalog. */
   promoteSponsor(s: SponsorRow): void {
-    if (!confirm(`Promote ${s.name} to the global catalog? Every organizer will then be able to use this sponsor.`)) return;
-
-    this.http.post(`${this.apiAdmin}/sponsors/${s.id}/promote`, {}).subscribe({
-      next: () => { this.flash(`${s.name} promoted to global`, true); this.loadSponsors(); },
-      error: (err) => this.flash(err.error?.message ?? 'Promote failed', false),
+    this.ask(`Promote ${s.name} to the global catalog? Every organizer will then be able to use this sponsor.`, () => {
+      this.http.post(`${this.apiAdmin}/sponsors/${s.id}/promote`, {}).subscribe({
+        next: () => { this.flash(`${s.name} promoted to global`, true); this.loadSponsors(); },
+        error: (err) => this.flash(err.error?.message ?? 'Promote failed', false),
+      });
     });
   }
 
@@ -196,12 +196,13 @@ export class AdminSponsorsComponent implements OnInit {
       reject:  'Reject this pending proposal? The organizer will be notified.',
       approve: 'Approve this proposal and make it live on the tournament page?',
     };
-    if (confirmMessages[action] && !confirm(confirmMessages[action])) return;
-
-    this.http.post(`${this.apiAdmin}/sponsorships/${deal.id}/${action}`, {}).subscribe({
-      next: () => { this.flash(`Deal ${action}${action.endsWith('e') ? 'd' : 'ed'}`, true); this.loadSponsorships(); },
-      error: (err) => this.flash(err.error?.message ?? `${action} failed`, false),
-    });
+    const run = () => {
+      this.http.post(`${this.apiAdmin}/sponsorships/${deal.id}/${action}`, {}).subscribe({
+        next: () => { this.flash(`Deal ${action}${action.endsWith('e') ? 'd' : 'ed'}`, true); this.loadSponsorships(); },
+        error: (err) => this.flash(err.error?.message ?? `${action} failed`, false),
+      });
+    };
+    if (confirmMessages[action]) { this.ask(confirmMessages[action], run); } else { run(); }
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -218,6 +219,13 @@ export class AdminSponsorsComponent implements OnInit {
     this.toast.set({ msg, ok });
     setTimeout(() => this.toast.set(null), 3000);
   }
+
+  /** Inline confirmation — replaces confirm() dialogs */
+  readonly confirmMsg = signal<string | null>(null);
+  private confirmCallback: (() => void) | null = null;
+  confirmYes(): void { this.confirmCallback?.(); this.confirmMsg.set(null); this.confirmCallback = null; }
+  confirmNo():  void { this.confirmMsg.set(null); this.confirmCallback = null; }
+  private ask(msg: string, cb: () => void): void { this.confirmMsg.set(msg); this.confirmCallback = cb; }
 
   private emptySponsor(): Partial<SponsorRow> {
     return {

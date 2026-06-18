@@ -1,17 +1,15 @@
-<!--
-  Dawri — Home page template
-  Replace frontend/src/app/pages/home/home.component.html with this file.
-  Component class additions needed (already in your home.component.ts —
-  just confirm `players`, `games`, `formats`, `steps`, `b2bFeatures` arrays
-  exist; the template only changes structure, not the data).
--->
 <div class="home">
 
   <!-- ── HERO ─────────────────────────────────────────────────────── -->
   <section class="hero">
+    <div class="hero-photo" aria-hidden="true"></div>
     <div class="hero-grid-bg"></div>
+    <div class="hero-beams" aria-hidden="true"><span></span><span></span><span></span></div>
     <div class="hero-glow g1"></div>
     <div class="hero-glow g2"></div>
+    <div class="hero-particles" aria-hidden="true">
+      @for (p of heroParticles; track p) { <span class="hero-p" [style.--i]="p"></span> }
+    </div>
 
     <div class="hero-wrap">
       <div class="hero-left">
@@ -19,48 +17,57 @@
           @if (activeLiveCount() > 0) {
             <span class="live-pill"><span class="dot"></span>Live · {{ activeLiveCount() }} tournament{{ activeLiveCount() === 1 ? '' : 's' }}</span>
           } @else if (liveTournaments().length > 0) {
-            <span class="live-pill" style="background:rgba(16,185,129,.15);color:#10b981">{{ liveTournaments().length }} open for registration</span>
+            <span class="live-pill open-reg">{{ liveTournaments().length }} open for registration</span>
           } @else {
             <span class="live-pill">Esports Platform</span>
           }
           <span>Saudi Arabia &amp; GCC</span>
         </div>
+
         <h1 class="hero-title">
           <span class="line">Compete.</span>
           <span class="line outline">Win.</span>
           <span class="line accent">Get paid.</span>
         </h1>
-        <span class="hero-arabic">.تنافس. اربح. احصل على جائزتك</span>
+
+        <span class="hero-arabic" lang="ar" dir="rtl">.تنافس. اربح. احصل على جائزتك</span>
+
         <p class="hero-sub">
           The first Arabic-native tournament platform for EA FC 25, PUBG Mobile,
           and Call of Duty Mobile. Free to join. Corporate prize pools paid out automatically.
         </p>
+
         <div class="hero-actions">
-          <a routerLink="/auth" class="btn btn-primary btn-lg">Join free <span class="arrow">→</span></a>
+          <a routerLink="/auth" class="btn btn-primary btn-lg">
+            Join free
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </a>
           <a routerLink="/tournaments" class="btn btn-ghost btn-lg">Browse tournaments</a>
         </div>
+
         <div class="hero-meta">
           <div class="hero-meta-item">
-            <div class="hero-meta-n">{{ liveTournaments().length || 0 }}</div>
-            <div class="hero-meta-l">Active tournaments</div>
-          </div>
-          <div class="hero-meta-item">
-            <div class="hero-meta-n">512</div>
+            <div class="hero-meta-n" data-count="512">0</div>
             <div class="hero-meta-l">Max participants</div>
           </div>
           <div class="hero-meta-item">
-            <div class="hero-meta-n">4</div>
+            <div class="hero-meta-n" data-count="4">0</div>
             <div class="hero-meta-l">Bracket formats</div>
           </div>
           <div class="hero-meta-item">
-            <div class="hero-meta-n">3K+</div>
+            <div class="hero-meta-n" data-count="3" data-suffix="K+">0</div>
             <div class="hero-meta-l">Prize SKUs</div>
+          </div>
+          <div class="hero-meta-item">
+            <div class="hero-meta-n accent-n" data-count="200" data-suffix="+">0</div>
+            <div class="hero-meta-l">Companies</div>
           </div>
         </div>
       </div>
 
       <aside class="hero-right">
         <div class="feature-card">
+          <div class="feature-card__shimmer"></div>
           <div class="fc-header">
             <span class="fc-game">EA FC 25 · Single Elim</span>
             <span class="live-pill"><span class="dot"></span>Quarter-finals</span>
@@ -68,7 +75,6 @@
           <div class="fc-body">
             <div class="fc-title">Riyadh Spring Cup</div>
             <div class="fc-sub">Round 4 · 8 of 64 remaining</div>
-
             <div class="mini-bracket">
               <div class="mb-match">
                 <div class="mb-row win"><span class="mb-name"><span class="mb-flag">🇸🇦</span>FaisalA</span><span class="mb-score">3</span></div>
@@ -91,48 +97,74 @@
           <div class="fc-prize">
             <div>
               <div class="fc-prize-l">Prize pool</div>
-              <div class="fc-prize-n">15,000<span class="fc-prize-curr">SAR</span></div>
+              <div class="fc-prize-n">15,000<span class="fc-prize-curr"> SAR</span></div>
             </div>
-            <a routerLink="/tournaments" class="fc-cta">Watch live <span class="arrow">→</span></a>
+            <a routerLink="/tournaments" class="fc-cta">
+              Watch live
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
           </div>
         </div>
       </aside>
     </div>
   </section>
 
-  <!-- ── PLATFORM SPONSORS (auto-hides) ───────────────────────────── -->
-  <app-platform-sponsors-strip variant="hero"></app-platform-sponsors-strip>
-
-  @if (hasPartners()) {
-    <div class="see-all-partners">
-      <a routerLink="/sponsors" class="see-all-partners__link">
-        See All Partners <span aria-hidden="true">→</span>
-      </a>
-    </div>
-  }
-
   <!-- ── TICKER ───────────────────────────────────────────────────── -->
-  <div class="ticker">
+  <!-- Items are written twice inline for seamless CSS infinite scroll -->
+  <div class="ticker" aria-hidden="true">
     <div class="ticker-track">
+
+      <!-- Copy 1 -->
       @for (t of liveTournaments(); track t.id) {
         <span class="ticker-item">
-          <span [class]="getStatusClass(t.status) === 'live' ? 'live' : 'game'">
-            {{ getStatusClass(t.status) === 'live' ? '● LIVE' : 'UPCOMING' }}
-          </span>
-          <span class="game">{{ t.game_label }}</span>
-          <span class="name">{{ t.name }}</span>
-          <span class="score">{{ t.participant_count }}/{{ t.max_participants }} players</span>
+          <span [class]="getStatusClass(t.status) === 'live' ? 'ticker-live' : 'ticker-game'">{{ getStatusClass(t.status) === 'live' ? '● LIVE' : 'UPCOMING' }}</span>
+          <span class="ticker-name">{{ t.game_label }} · {{ t.name }}</span>
+          <span class="ticker-score">{{ t.participant_count }}/{{ t.max_participants }}</span>
         </span>
-        <span class="ticker-item sep">/</span>
+        <span class="ticker-sep">·</span>
       }
       @if (liveTournaments().length === 0) {
-        <span class="ticker-item"><span class="game">DAWRI</span> <span class="name">GCC Esports Platform</span> <span class="score">Join free today</span></span>
-        <span class="ticker-item sep">/</span>
-        <span class="ticker-item"><span class="game">PLATFORM</span> <span class="name">EA FC 25 · PUBG Mobile · Call of Duty</span> <span class="score">4 bracket formats</span></span>
-        <span class="ticker-item sep">/</span>
+        <span class="ticker-item"><span class="ticker-game">DAWRI</span><span class="ticker-name">GCC Esports Platform · Free to join</span></span>
+        <span class="ticker-sep">·</span>
+        <span class="ticker-item"><span class="ticker-game">EA FC 25</span><span class="ticker-name">PUBG Mobile · Call of Duty Mobile</span></span>
+        <span class="ticker-sep">·</span>
+        <span class="ticker-item"><span class="ticker-game">4 FORMATS</span><span class="ticker-name">SE · DE · Round Robin · Swiss</span></span>
+        <span class="ticker-sep">·</span>
       }
+
+      <!-- Copy 2 (identical — enables seamless loop) -->
+      @for (t of liveTournaments(); track 'b' + t.id) {
+        <span class="ticker-item">
+          <span [class]="getStatusClass(t.status) === 'live' ? 'ticker-live' : 'ticker-game'">{{ getStatusClass(t.status) === 'live' ? '● LIVE' : 'UPCOMING' }}</span>
+          <span class="ticker-name">{{ t.game_label }} · {{ t.name }}</span>
+          <span class="ticker-score">{{ t.participant_count }}/{{ t.max_participants }}</span>
+        </span>
+        <span class="ticker-sep">·</span>
+      }
+      @if (liveTournaments().length === 0) {
+        <span class="ticker-item"><span class="ticker-game">DAWRI</span><span class="ticker-name">GCC Esports Platform · Free to join</span></span>
+        <span class="ticker-sep">·</span>
+        <span class="ticker-item"><span class="ticker-game">EA FC 25</span><span class="ticker-name">PUBG Mobile · Call of Duty Mobile</span></span>
+        <span class="ticker-sep">·</span>
+        <span class="ticker-item"><span class="ticker-game">4 FORMATS</span><span class="ticker-name">SE · DE · Round Robin · Swiss</span></span>
+        <span class="ticker-sep">·</span>
+      }
+
     </div>
   </div>
+
+  <!-- ── PLATFORM SPONSORS — only shown when partners exist ─────── -->
+  @if (hasPartners()) {
+    <div class="sponsors-wrap">
+      <app-platform-sponsors-strip variant="hero"></app-platform-sponsors-strip>
+      <div class="see-all-partners">
+        <a routerLink="/sponsors" class="see-all-partners__link">
+          See All Partners
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+  }
 
   <!-- ── LIVE TOURNAMENTS ──────────────────────────────────────────── -->
   <section class="section">
@@ -142,7 +174,10 @@
           <div class="eyebrow">Live &amp; upcoming</div>
           <h2 class="section-title">Tournaments <em>right now</em></h2>
         </div>
-        <a routerLink="/tournaments" class="btn btn-ghost">View all →</a>
+        <a routerLink="/tournaments" class="btn btn-ghost">
+          View all
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
       </div>
       @if (statsLoading()) {
         <div class="t-grid">
@@ -166,7 +201,7 @@
                 <span>{{ t.participant_count }}/{{ t.max_participants }}</span>
               </div>
               @if (getPrizePool(t)) { <div class="t-prize">{{ getPrizePool(t) }}</div> }
-              <div class="t-cta">{{ getStatusClass(t.status) === 'open' ? 'Register →' : 'Watch →' }}</div>
+              <div class="t-cta">{{ getStatusClass(t.status) === 'open' ? 'Register' : 'Watch' }}</div>
             </a>
           }
         </div>
@@ -175,7 +210,7 @@
   </section>
 
   <!-- ── GAMES ────────────────────────────────────────────────────── -->
-  <section class="section">
+  <section class="section section--alt">
     <div class="section-wrap">
       <div class="section-head">
         <div>
@@ -186,14 +221,23 @@
       </div>
 
       <div class="games-grid">
-        @for (g of games; track g.name) {
-          <article class="game-card reveal">
+        @for (g of games; track g.name; let i = $index) {
+          <a routerLink="/tournaments" class="game-card reveal" [style.--game-color]="g.color" [style.animation-delay]="(i * 0.1) + 's'">
             <div class="game-cover">
+              <!-- Real cover photo -->
+              <img class="game-cover-img" [src]="g.cover" [alt]="g.name" loading="lazy" />
+              <!-- Color stripe at top -->
+              <div class="game-cover-bar"></div>
+              <!-- Diagonal stripe texture -->
               <div class="game-cover-stripe"></div>
-              <div class="game-cover-glyph">{{ g.shortCode || g.name.substr(0,2) }}</div>
+              <!-- Big background initial -->
+              <div class="game-cover-glyph">{{ g.shortCode }}</div>
+              <!-- Corner badge -->
               <span class="game-cover-tag">{{ g.badge }}</span>
-              <div class="game-cover-meta">{{ g.activeText || 'Active now' }}</div>
-              <div class="game-cover-placeholder">[ key art ]</div>
+              <!-- Bottom active indicator -->
+              <div class="game-cover-active">
+                <span class="game-cover-dot"></span>{{ g.activeText || 'Active now' }}
+              </div>
             </div>
             <div class="game-body">
               <h3 class="game-name">{{ g.name }}</h3>
@@ -201,16 +245,19 @@
             </div>
             <div class="game-foot">
               <span>{{ g.formatsText || 'All formats' }}</span>
-              <span class="arrow">View tournaments →</span>
+              <span class="game-foot-arrow">
+                View tournaments
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </span>
             </div>
-          </article>
+          </a>
         }
       </div>
     </div>
   </section>
 
   <!-- ── HOW IT WORKS ─────────────────────────────────────────────── -->
-  <section class="section section--alt">
+  <section class="section">
     <div class="section-wrap">
       <div class="section-head">
         <div>
@@ -221,9 +268,10 @@
       </div>
 
       <div class="steps">
-        @for (s of steps; track s.n; let i = $index) {
-          <div class="step reveal" [class.active]="i === 0">
+        @for (s of steps; track s.n; let i = $index; let last = $last) {
+          <div class="step reveal" [style.animation-delay]="(i * 0.12) + 's'">
             <div class="step-num">{{ s.n }}</div>
+            @if (!last) { <div class="step-connector"></div> }
             <h3 class="step-title">{{ s.title }}</h3>
             <p class="step-desc">{{ s.desc }}</p>
           </div>
@@ -233,22 +281,24 @@
   </section>
 
   <!-- ── FORMATS ──────────────────────────────────────────────────── -->
-  <section class="section">
+  <section class="section section--alt">
     <div class="section-wrap">
       <div class="section-head">
         <div>
           <div class="eyebrow">Tournament formats</div>
           <h2 class="section-title">Four ways to <em>compete</em></h2>
         </div>
-        <p class="section-lede">Every bracket type the IOC and ESL use, configurable in a click. Pick what fits your event size and time budget.</p>
+        <p class="section-lede">Every bracket type the IOC and ESL use, configurable in a click.</p>
       </div>
 
       <div class="formats">
-        @for (f of formats; track f.name) {
-          <div class="format reveal">
+        @for (f of formats; track f.name; let i = $index) {
+          <div class="format reveal" [style.animation-delay]="(i * 0.08) + 's'">
+            <span class="format-num">0{{ i + 1 }}</span>
             <span class="format-tag">{{ f.badge }}</span>
             <h3 class="format-name">{{ f.name }}</h3>
             <p class="format-desc">{{ f.desc }}</p>
+            <div class="format-bar"></div>
           </div>
         }
       </div>
@@ -256,7 +306,7 @@
   </section>
 
   <!-- ── B2B ──────────────────────────────────────────────────────── -->
-  <section class="section section--alt">
+  <section class="section">
     <div class="section-wrap">
       <div class="b2b">
         <div class="b2b-content">
@@ -267,29 +317,69 @@
             Set up a company tournament in under 10 minutes, fund the prize pool, and let the platform handle everything else.
           </p>
           <div class="b2b-feats">
-            @for (f of b2bFeatures; track f) {
-              <div class="b2b-feat reveal">
-                <span class="b2b-feat-check">✓</span>{{ f.replace('✓ ', '') }}
+            @for (f of b2bFeatures; track f; let i = $index) {
+              <div class="b2b-feat reveal" [style.animation-delay]="(i * 0.07) + 's'">
+                <span class="b2b-feat-check">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                {{ f.replace('✓ ', '') }}
               </div>
             }
           </div>
           <a routerLink="/pricing" class="btn btn-violet btn-lg" style="margin-top:32px">
-            View enterprise plans <span class="arrow">→</span>
+            View enterprise plans
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </a>
         </div>
 
+        <!-- B2B visual: mock company dashboard card -->
         <div class="b2b-visual reveal">
-          <div class="b2b-visual-stripe"></div>
-          <span class="b2b-visual-tag">[ team event photo ]</span>
-          <div class="b2b-visual-glyph">HR<br>+<br>FUN</div>
-          <div class="b2b-badge">
-            <div>
-              <div class="b2b-badge-n">10 min</div>
-              <div class="b2b-badge-l">to set up a tournament</div>
+          <div class="b2b-card">
+            <div class="b2b-card__head">
+              <span class="b2b-card__title">Q1 Engineering Cup</span>
+              <span class="b2b-card__live"><span class="dot"></span>Live</span>
             </div>
-            <div style="text-align:right">
-              <div class="b2b-badge-n" style="color:var(--text)">200+</div>
-              <div class="b2b-badge-l">companies onboarded</div>
+
+            <div class="b2b-card__stats">
+              <div class="b2b-card__stat">
+                <div class="b2b-card__stat-n">128</div>
+                <div class="b2b-card__stat-l">Players</div>
+              </div>
+              <div class="b2b-card__stat">
+                <div class="b2b-card__stat-n">R4</div>
+                <div class="b2b-card__stat-l">Current round</div>
+              </div>
+              <div class="b2b-card__stat">
+                <div class="b2b-card__stat-n">5K SAR</div>
+                <div class="b2b-card__stat-l">Prize pool</div>
+              </div>
+            </div>
+
+            <div class="b2b-card__progress-label">Bracket completion</div>
+            <div class="b2b-card__bar"><div class="b2b-card__bar-fill"></div></div>
+
+            <div class="b2b-card__players">
+              @for (p of players; track p.name) {
+                <img class="b2b-card__avatar" [src]="p.img" [alt]="p.name" loading="lazy"/>
+              }
+              <span class="b2b-card__more">+84</span>
+            </div>
+
+            <div class="b2b-card__footer">
+              <div class="b2b-card__footer-stat">
+                <span class="b2b-card__footer-n">10 min</span>
+                <span class="b2b-card__footer-l">to set up</span>
+              </div>
+              <div class="b2b-card__divider"></div>
+              <div class="b2b-card__footer-stat">
+                <span class="b2b-card__footer-n">200+</span>
+                <span class="b2b-card__footer-l">companies</span>
+              </div>
+              <div class="b2b-card__divider"></div>
+              <div class="b2b-card__footer-stat">
+                <span class="b2b-card__footer-n">Auto</span>
+                <span class="b2b-card__footer-l">prize payouts</span>
+              </div>
             </div>
           </div>
         </div>
@@ -301,6 +391,11 @@
   <section class="cta">
     <div class="cta-grid-bg"></div>
     <div class="cta-glow"></div>
+    <div class="cta-particles" aria-hidden="true">
+      @for (i of [1,2,3,4,5,6,7,8,9,10,11,12]; track i) {
+        <span class="cta-p" [style.--i]="i"></span>
+      }
+    </div>
     <div class="cta-wrap">
       <div class="eyebrow" style="display:inline-flex">Ready to play</div>
       <h2 class="cta-title">Join the <em>GCC's #1</em><br>esports platform</h2>
@@ -309,7 +404,10 @@
         It's completely free to join.
       </p>
       <div class="cta-actions">
-        <a routerLink="/auth" class="btn btn-primary btn-lg">Create free account <span class="arrow">→</span></a>
+        <a routerLink="/auth" class="btn btn-primary btn-lg">
+          Create free account
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
         <a routerLink="/contact" class="btn btn-ghost btn-lg">Talk to sales</a>
       </div>
     </div>

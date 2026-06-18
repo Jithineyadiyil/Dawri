@@ -66,7 +66,7 @@ export class PricingComponent {
         'Advanced analytics & retention reports',
         'On-site onboarding',
       ],
-      cta: 'Contact sales', ctaLink: '/auth'
+      cta: 'Contact sales', ctaLink: '/contact'
     },
   ];
 }

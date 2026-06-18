@@ -4,11 +4,27 @@
  */
 
 .admin-marketplace {
-  padding: 24px;
+  width: 100%;
+  padding: 1.5rem 1.75rem;
   color: #e5e5ea;
   font-family: inherit;
-  max-width: 1400px;
-  margin: 0 auto;
+
+  // ── Inline toast + confirm (replace alert()/confirm()) ─────────
+  .mp-toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 600;
+    padding: 12px 20px; border-radius: 8px; font-size: 14px;
+    background: rgba(16,185,129,.18); border: 1px solid rgba(16,185,129,.4); color: #6ee7b7;
+    box-shadow: 0 10px 32px -8px rgba(0,0,0,.4);
+  }
+  .mp-toast--err { background: rgba(239,68,68,.18); border-color: rgba(239,68,68,.4); color: #fca5a5; }
+  .mp-confirm-bar {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 600;
+    display: flex; align-items: center; gap: 18px;
+    padding: 12px 18px; background: #15161d; border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px; box-shadow: 0 10px 32px -8px rgba(0,0,0,.5); font-size: 14px; color: #e5e5ea;
+  }
+  .mp-confirm-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .primary.danger { background: #ef4444; border-color: #ef4444; color: #fff; }
 
   // ── Header + Stats ────────────────────────────────────────────
   .page-header {
@@ -42,7 +58,7 @@
         font-family: 'Space Mono', monospace;
         font-size: 20px;
         font-weight: 700;
-        color: #a855f7;
+        color: #d4af37;
       }
       .l {
         font-size: 11px;
@@ -75,8 +91,8 @@
 
       &:hover { color: #fff; }
       &.active {
-        color: #a855f7;
-        border-bottom-color: #a855f7;
+        color: #d4af37;
+        border-bottom-color: #d4af37;
       }
     }
   }
@@ -97,7 +113,7 @@
       border-radius: 6px;
       font-size: 13px;
 
-      &:focus { outline: none; border-color: #a855f7; }
+      &:focus { outline: none; border-color: #d4af37; }
     }
 
     select {
@@ -133,7 +149,7 @@
       letter-spacing: .5px;
       background: #0f0f18;
     }
-    tbody tr:hover { background: rgba(168, 85, 247, .04); }
+    tbody tr:hover { background: rgba(212, 175, 55, .04); }
     .r { text-align: right; }
     .muted  { color: #666; }
     .mono   { font-family: 'Space Mono', monospace; font-size: 12px; }
@@ -166,8 +182,8 @@
       color: #60a5fa;
     }
     &.mode-inventory {
-      background: rgba(168, 85, 247, .15);
-      color: #c084fc;
+      background: rgba(212, 175, 55, .15);
+      color: #d4af37;
     }
   }
 
@@ -191,12 +207,12 @@
     &.status-processing { background: rgba(96, 165, 250, .15); color: #60a5fa; }
     &.status-completed  { background: rgba(34, 197, 94, .15);  color: #86efac; }
     &.status-failed     { background: rgba(239, 68, 68, .15);  color: #fca5a5; }
-    &.status-refunded   { background: rgba(168, 85, 247, .15); color: #c084fc; }
+    &.status-refunded   { background: rgba(212, 175, 55, .15); color: #d4af37; }
   }
 
   // ── Buttons ───────────────────────────────────────────────────
   button.primary {
-    background: #a855f7;
+    background: #d4af37;
     border: 0;
     color: #fff;
     padding: 10px 18px;
@@ -252,7 +268,7 @@
     cursor: pointer;
     font-size: 12px;
 
-    &:hover { color: #fff; border-color: #a855f7; }
+    &:hover { color: #fff; border-color: #d4af37; }
   }
 
   button.btn-icon {
@@ -265,7 +281,7 @@
     margin-right: 4px;
     font-size: 13px;
 
-    &:hover  { color: #fff; border-color: #a855f7; }
+    &:hover  { color: #fff; border-color: #d4af37; }
     &.danger:hover { color: #ef4444; border-color: rgba(239, 68, 68, .4); }
   }
 
@@ -284,7 +300,7 @@
     border-radius: 8px;
     padding: 20px;
 
-    &.configured { border-color: rgba(168, 85, 247, .35); }
+    &.configured { border-color: rgba(212, 175, 55, .35); }
 
     header {
       display: flex;
@@ -358,7 +374,7 @@
         font-family: 'Space Mono', monospace;
         font-size: 22px;
         font-weight: 700;
-        color: #a855f7;
+        color: #d4af37;
         line-height: 1;
       }
       .l {
@@ -532,7 +548,7 @@
         font-size: 13px;
         font-family: inherit;
 
-        &:focus { outline: none; border-color: #a855f7; }
+        &:focus { outline: none; border-color: #d4af37; }
       }
     }
   }
@@ -608,7 +624,7 @@
         font-size: 13px;
         font-family: 'Space Mono', monospace;
 
-        &:focus { outline: none; border-color: #a855f7; }
+        &:focus { outline: none; border-color: #d4af37; }
       }
     }
   }

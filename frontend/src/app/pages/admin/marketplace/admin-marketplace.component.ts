@@ -1,3 +1,4 @@
+import { environment } from '../../../../environments/environment';
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import {
@@ -167,7 +168,22 @@ interface CredentialFormShape {
 })
 export class AdminMarketplaceComponent implements OnInit {
   private http = inject(HttpClient);
-  private base = 'http://192.168.100.67:8001/api/v1/admin/marketplace';
+  private base = environment.apiUrl + '/admin/marketplace';
+
+  /** Inline toast — replaces alert() dialogs */
+  readonly toastMsg = signal<string | null>(null);
+  readonly toastOk  = signal(true);
+  private notify(msg: string, ok = true): void {
+    this.toastMsg.set(msg); this.toastOk.set(ok);
+    setTimeout(() => this.toastMsg.set(null), 3500);
+  }
+
+  /** Inline confirmation — replaces confirm() dialogs */
+  readonly confirmMsg = signal<string | null>(null);
+  private confirmCallback: (() => void) | null = null;
+  confirmYes(): void { this.confirmCallback?.(); this.confirmMsg.set(null); this.confirmCallback = null; }
+  confirmNo():  void { this.confirmMsg.set(null); this.confirmCallback = null; }
+  private ask(msg: string, cb: () => void): void { this.confirmMsg.set(msg); this.confirmCallback = cb; }
 
   readonly tab = signal<'dashboard' | 'products' | 'orders' | 'distributors'>('dashboard');
 
@@ -372,19 +388,21 @@ export class AdminMarketplaceComponent implements OnInit {
         const msg = err?.error?.message
           ?? Object.values(err?.error?.errors ?? {}).flat().join('\n')
           ?? 'Save failed.';
-        alert(msg);
+        this.notify(msg, false);
       },
     });
   }
 
   deleteProduct(p: ProductRow): void {
-    if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
-    this.http.delete(`${this.base}/products/${p.id}`).subscribe({
-      next: () => {
-        this.loadProducts();
-        this.loadStats();
-      },
-      error: (err) => alert(err?.error?.message ?? 'Delete failed.'),
+    this.ask(`Delete "${p.name}"? This cannot be undone.`, () => {
+      this.http.delete(`${this.base}/products/${p.id}`).subscribe({
+        next: () => {
+          this.loadProducts();
+          this.loadStats();
+          this.notify('Product deleted.');
+        },
+        error: (err) => this.notify(err?.error?.message ?? 'Delete failed.', false),
+      });
     });
   }
 
@@ -466,35 +484,35 @@ export class AdminMarketplaceComponent implements OnInit {
     const o = this.orderDetail();
     if (!o || this.refundBusy()) return;
     if (!this.refundReason.trim()) {
-      alert('Please provide a reason for the refund.');
+      this.notify('Please provide a reason for the refund.', false);
       return;
     }
     const voidingCode = this.refundVoidCode && !!o.inventory_code?.can_void;
     const confirmMsg = voidingCode
       ? `Refund ${o.total_price} SAR to user wallet AND void the delivered code?`
       : `Refund ${o.total_price} SAR to user wallet?`;
-    if (!confirm(confirmMsg)) return;
-
-    this.refundBusy.set(true);
-    this.http.post<{ data: OrderDetail, message: string }>(
-      `${this.base}/orders/${o.id}/refund`,
-      {
-        reason: this.refundReason,
-        notes: this.refundNotes || null,
-        void_code: voidingCode,
-      },
-    ).subscribe({
-      next: (r) => {
-        this.refundBusy.set(false);
-        this.orderDetail.set(r.data);
-        this.loadOrders();
-        this.loadStats();
-        this.loadDistributors();
-      },
-      error: (err) => {
-        this.refundBusy.set(false);
-        alert(err?.error?.message ?? 'Refund failed.');
-      },
+    this.ask(confirmMsg, () => {
+      this.refundBusy.set(true);
+      this.http.post<{ data: OrderDetail, message: string }>(
+        `${this.base}/orders/${o.id}/refund`,
+        {
+          reason: this.refundReason,
+          notes: this.refundNotes || null,
+          void_code: voidingCode,
+        },
+      ).subscribe({
+        next: (r) => {
+          this.refundBusy.set(false);
+          this.orderDetail.set(r.data);
+          this.loadOrders();
+          this.loadStats();
+          this.loadDistributors();
+        },
+        error: (err) => {
+          this.refundBusy.set(false);
+          this.notify(err?.error?.message ?? 'Refund failed.', false);
+        },
+      });
     });
   }
 
@@ -544,7 +562,7 @@ export class AdminMarketplaceComponent implements OnInit {
       },
       error: (err) => {
         this.credentialsSaving.set(false);
-        alert(err?.error?.message ?? 'Save failed.');
+        this.notify(err?.error?.message ?? 'Save failed.', false);
       },
     });
   }
@@ -552,19 +570,19 @@ export class AdminMarketplaceComponent implements OnInit {
   clearCredentials(): void {
     const d = this.credentialsModal();
     if (!d) return;
-    if (!confirm(`Remove all credentials for ${d.display_name}? This will disable routing to this distributor.`)) return;
-
-    this.credentialsSaving.set(true);
-    this.http.delete(`${this.base}/distributors/${d.distributor}/credentials`).subscribe({
-      next: () => {
-        this.credentialsSaving.set(false);
-        this.credentialsModal.set(null);
-        this.loadDistributors();
-      },
-      error: (err) => {
-        this.credentialsSaving.set(false);
-        alert(err?.error?.message ?? 'Clear failed.');
-      },
+    this.ask(`Remove all credentials for ${d.display_name}? This will disable routing to this distributor.`, () => {
+      this.credentialsSaving.set(true);
+      this.http.delete(`${this.base}/distributors/${d.distributor}/credentials`).subscribe({
+        next: () => {
+          this.credentialsSaving.set(false);
+          this.credentialsModal.set(null);
+          this.loadDistributors();
+        },
+        error: (err) => {
+          this.credentialsSaving.set(false);
+          this.notify(err?.error?.message ?? 'Clear failed.', false);
+        },
+      });
     });
   }
 

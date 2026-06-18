@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdPlacementController;
+use App\Http\Controllers\Api\OrganizerVerificationController;
 use App\Http\Controllers\Api\YouTubeStreamController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\AdminController;
@@ -34,8 +35,10 @@ Route::prefix('v1')->group(function () {
 
     // ── Auth ────────────────────────────────────────────────────────────
     Route::prefix('auth')->group(function () {
-        Route::post('/register', [AuthController::class, 'register']);
-        Route::post('/login',    [AuthController::class, 'login']);
+        Route::post('/register',          [AuthController::class, 'register']);
+        Route::post('/login',             [AuthController::class, 'login']);
+        Route::post('/password/forgot',   [AuthController::class, 'forgotPassword']);
+        Route::post('/password/reset',    [AuthController::class, 'resetPassword']);
         Route::middleware('auth:sanctum')->group(function () {
             Route::get ('/me',         [AuthController::class, 'me']);
             Route::post('/logout',     [AuthController::class, 'logout']);
@@ -89,6 +92,9 @@ Route::prefix('v1')->group(function () {
 
         // Sprint 15 — Dawri Community
         require __DIR__ . '/api.community.php';
+
+        // Social — friends, DMs, challenges
+        require __DIR__ . '/api.social.php';
 
         // ── YouTube Live Broadcast routes ──────────────────────────────────
         $uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
@@ -153,6 +159,7 @@ Route::prefix('v1')->group(function () {
         Route::put   ('/tournaments/{tournament}',                          [TournamentController::class, 'update']);
         Route::delete('/tournaments/{tournament}',                          [TournamentController::class, 'destroy']);
         Route::post  ('/tournaments/{tournament}/register',                 [TournamentController::class, 'register']);
+        Route::post  ('/tournaments/{tournament}/register-team',            [TournamentController::class, 'registerTeam']);
         // ── Notifications ─────────────────────────────────────────────────────
         Route::get   ('/notifications',               [NotificationController::class, 'index']);
         Route::get   ('/notifications/unread-count',  [NotificationController::class, 'unreadCount']);
@@ -229,6 +236,12 @@ Route::prefix('v1')->group(function () {
         // Admin
         Route::prefix('admin')->middleware('admin')->group(function () {
             Route::get ('/overview',               [AdminController::class, 'overview']);
+
+            // Organizer verification approvals (Dawri 2.0)
+            Route::get ('/organizer-verifications',                            [OrganizerVerificationController::class, 'index']);
+            Route::post('/organizer-verifications/{organizerVerification}/approve', [OrganizerVerificationController::class, 'approve'])->whereUuid('organizerVerification');
+            Route::post('/organizer-verifications/{organizerVerification}/reject',  [OrganizerVerificationController::class, 'reject'])->whereUuid('organizerVerification');
+
             Route::post  ('/tournaments/{id}/youtube-stream',           [YouTubeStreamController::class, 'create']);
             Route::delete('/tournaments/{id}/youtube-stream',           [YouTubeStreamController::class, 'end']);
             Route::get   ('/tournaments/{id}/youtube-stream/status',    [YouTubeStreamController::class, 'status']);

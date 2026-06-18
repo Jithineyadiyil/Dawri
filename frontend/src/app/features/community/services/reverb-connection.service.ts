@@ -104,6 +104,22 @@ export class ReverbConnectionService {
     this.subscribedChannelIds.delete(channelId);
   }
 
+  /**
+   * Generic private-channel listener — reuses the one authenticated Echo
+   * connection. Used by the DM feature (channel `dm.{conversationId}`).
+   * `eventName` is the broadcastAs() name WITH a leading dot, e.g. '.dm.sent'.
+   */
+  async subscribePrivate(channelName: string, eventName: string, handler: (e: any) => void): Promise<void> {
+    await this.init();
+    if (!this.echo) return;
+    this.echo.private(channelName).listen(eventName, handler);
+  }
+
+  /** Leave a private channel subscribed via subscribePrivate(). */
+  leavePrivate(channelName: string): void {
+    this.echo?.leave(channelName);
+  }
+
   disconnect(): void {
     if (this.echo) {
       for (const id of this.subscribedChannelIds) {

@@ -106,6 +106,75 @@ final class ReloadlyAdapter implements DistributorInterface
     }
 
     /**
+     * GET the wallet balance from Reloadly. Returns ['success', 'amount', 'currency', 'message'].
+     */
+    public function getBalance(): array
+    {
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'amount' => null, 'currency' => null, 'message' => 'Not configured'];
+        }
+        try {
+            $token = $this->accessToken();
+            $res = Http::withToken($token)
+                ->withHeaders(['Accept' => 'application/com.reloadly.giftcards-v1+json'])
+                ->timeout(15)
+                ->get("{$this->baseUrl}/accounts/balance");
+            if ($res->successful()) {
+                return [
+                    'success'  => true,
+                    'amount'   => (float) $res->json('balance', 0),
+                    'currency' => (string) $res->json('currencyCode', 'USD'),
+                    'message'  => 'OK',
+                ];
+            }
+            return ['success' => false, 'amount' => null, 'currency' => null, 'message' => $res->body()];
+        } catch (\Throwable $e) {
+            Log::warning('Reloadly::getBalance failed', ['error' => $e->getMessage()]);
+            return ['success' => false, 'amount' => null, 'currency' => null, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * GET the gift-card catalog from Reloadly, filtered to Saudi-relevant
+     * products. Returns ['success', 'products' => [['id','name','denominations',...]]].
+     * Use for one-time catalog sync into the local products table.
+     */
+    public function getCatalog(?string $countryCode = 'SA'): array
+    {
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'products' => [], 'message' => 'Not configured'];
+        }
+        try {
+            $token = $this->accessToken();
+            $url = "{$this->baseUrl}/countries/{$countryCode}/products";
+            $res = Http::withToken($token)
+                ->withHeaders(['Accept' => 'application/com.reloadly.giftcards-v1+json'])
+                ->timeout(30)
+                ->get($url);
+            if ($res->successful()) {
+                $items = $res->json('content', $res->json()) ?? [];
+                return [
+                    'success'  => true,
+                    'products' => array_map(fn ($p) => [
+                        'id'             => (string) ($p['productId'] ?? ''),
+                        'name'           => (string) ($p['productName'] ?? ''),
+                        'brand'          => (string) ($p['brand']['brandName'] ?? ''),
+                        'category'       => (string) ($p['category']['name'] ?? ''),
+                        'currency'       => (string) ($p['recipientCurrencyCode'] ?? ''),
+                        'denominations'  => $p['fixedRecipientDenominations'] ?? [],
+                        'logo_url'       => $p['logoUrls'][0] ?? null,
+                    ], is_array($items) ? $items : []),
+                    'message'  => 'OK',
+                ];
+            }
+            return ['success' => false, 'products' => [], 'message' => $res->body()];
+        } catch (\Throwable $e) {
+            Log::warning('Reloadly::getCatalog failed', ['error' => $e->getMessage()]);
+            return ['success' => false, 'products' => [], 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Acquire or refresh the OAuth 2.0 access token. Cached for 29 days.
      */
     private function accessToken(): string

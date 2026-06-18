@@ -198,6 +198,16 @@ export class CommunityService {
       .pipe(map(r => r.data));
   }
 
+  /** Upload a voice note; the carrier message is returned (and broadcast). */
+  uploadVoice(channelId: string, blob: Blob, durationMs: number): Observable<Message> {
+    const form = new FormData();
+    const ext = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'm4a' : 'webm';
+    form.append('audio', blob, `voice.${ext}`);
+    form.append('duration_ms', String(Math.round(durationMs)));
+    return this.http.post<ApiEnvelope<Message>>(`${this.base}/channels/${channelId}/voice`, form)
+      .pipe(map(r => r.data));
+  }
+
   // ── Events (Phase 4) ─────────────────────────────────────────────────────
 
   listEvents(communityId: string, includePast = false): Observable<CommunityEvent[]> {
